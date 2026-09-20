@@ -1368,6 +1368,7 @@ ${repeatNote}
     const SceneSpriteLayerManager = {
         slots: [],
         _buildToken: 0, 
+        _mobileShownName: null,
 
         init() {
             this.createContainer();
@@ -1439,6 +1440,8 @@ ${repeatNote}
                     layer.appendChild(slot);
                     this.slots.push({ name: ch.name, visible: true, gender: ch.gender });
                 }
+                this._applyMobileVisibility();
+
             } finally {
                 this._building = false;
                 // 处理期间的新请求
@@ -1449,7 +1452,37 @@ ${repeatNote}
                 }
             }
         },
+        // ★ 手机端：同一时间只显示一个立绘
+        _applyMobileVisibility() {
+            const layer = document.getElementById('cinemaworld-scene-sprites');
+            if (!layer) return;
 
+            const isMobile = window.matchMedia('(max-width: 640px)').matches;
+            const sprites = layer.querySelectorAll('.cinemaworld-scene-sprite');
+
+            if (!isMobile) {
+                // 桌面端：全部去掉 is-shown（CSS 不依赖它）
+                sprites.forEach(el => el.classList.remove('is-shown'));
+                return;
+            }
+
+            // 手机端：默认显示第一个"未被隐藏"的立绘
+            let shown = false;
+            sprites.forEach((el) => {
+                const isHidden = el.classList.contains('hidden-state');
+                if (!shown && !isHidden) {
+                    el.classList.add('is-shown');
+                    shown = true;
+                } else {
+                    el.classList.remove('is-shown');
+                }
+            });
+
+            // 如果全被隐藏了，就显示第一个，避免一个都不显示
+            if (!shown && sprites.length > 0) {
+                sprites[0].classList.add('is-shown');
+            }
+        },
         // 创建单个立绘槽
         async createSlot(char, characterIndex) {
             const wrapper = document.createElement('div');
@@ -1500,7 +1533,7 @@ ${repeatNote}
 
             return wrapper;
         },
-
+        
         // ★ 新增：根据角色的 clickRules 生成立绘热区
         _buildHotspotLayer(wrapper, char) {
             wrapper.querySelectorAll('.cw-hotspot-layer').forEach(el => el.remove());
@@ -1611,14 +1644,69 @@ ${repeatNote}
                 }
             }
         },
+
+        // ★★★ 这里插入新方法 ★★★
+        _applyMobileVisibility() {
+            const layer = document.getElementById('cinemaworld-scene-sprites');
+            if (!layer) return;
+
+            const isMobile = window.matchMedia('(max-width: 640px)').matches
+                        || window.matchMedia('(max-width: 900px) and (orientation: landscape) and (max-height: 500px)').matches;
+
+            const wrappers = Array.from(layer.querySelectorAll('.cinemaworld-scene-sprite'));
+
+            if (!isMobile) {
+                // 大屏：清掉 is-shown，让 CSS 按 .hidden-state 处理
+                wrappers.forEach(el => el.classList.remove('is-shown'));
+                return;
+            }
+
+            // 决定谁显示
+            let target = this._mobileShownName;
+            const slot = this.slots.find(s => s.name === target);
+
+            // 指定的不存在 / 被隐藏了 → 回退到第一个 visible 的
+            if (!target
+                || !wrappers.some(w => w.dataset.characterName === target)
+                || (slot && !slot.visible)) {
+                const firstVisible = this.slots.find(s => s.visible);
+                target = firstVisible ? firstVisible.name : null;
+                this._mobileShownName = target;
+            }
+
+            wrappers.forEach(w => {
+                w.classList.toggle('is-shown', w.dataset.characterName === target);
+            });
+
+            console.log(`[SceneSprite] 手机端显示: ${target}`);
+        },
+
         // 切换某个角色的立绘显隐
         toggleVisibility(name) {
-            const wrapper = document.querySelector(`.cinemaworld-scene-sprite[data-character-name="${name}"]`);
-            if (!wrapper) return;
-            wrapper.classList.toggle('hidden-state');
+            // ★ 替换成新版本
             const slot = this.slots.find(s => s.name === name);
-            if (slot) slot.visible = !slot.visible;
-
+            if (!slot) return;
+    
+            const isMobile = window.matchMedia('(max-width: 640px)').matches
+                          || window.matchMedia('(max-width: 900px) and (orientation: landscape) and (max-height: 500px)').matches;
+    
+            if (isMobile) {
+                if (this._mobileShownName === name) {
+                    slot.visible = false;
+                    this._mobileShownName = null;
+                } else {
+                    slot.visible = true;
+                    this._mobileShownName = name;
+                }
+                this._applyMobileVisibility();
+            } else {
+                const wrapper = document.querySelector(
+                    `.cinemaworld-scene-sprite[data-character-name="${name}"]`
+                );
+                if (wrapper) wrapper.classList.toggle('hidden-state');
+                slot.visible = !slot.visible;
+            }
+    
             SceneAvatarBarManager.syncFromSprites();
         },
 
@@ -1643,6 +1731,7 @@ ${repeatNote}
                 layer.classList.add('hidden');
             }
             this.slots = [];
+            this._mobileShownName = null;
         },
     };
 

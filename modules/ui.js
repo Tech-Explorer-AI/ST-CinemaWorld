@@ -449,17 +449,96 @@
             this.updateWorldStateDisplay();
             SaveManager.save();
         },
+        // ==================== 进入按钮（从 index.js 迁入）====================
+// 说明：按钮的锚点层用最高 z-index，保证在 ST 聊天界面里始终可点。
+// 进入 CinemaWorld 后隐藏，退出后恢复。
+createEnterButton() {
+    // 已有就不重复创建
+    if (document.getElementById('cinemaworld-enter-wrapper')) return;
 
+    // ★ 锚点层
+    const wrapper = document.createElement('div');
+    wrapper.id = 'cinemaworld-enter-wrapper';
+    wrapper.style.cssText = `
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        pointer-events: none !important;
+        z-index: 2147483647 !important;
+        transform: translateZ(0);
+        isolation: isolate;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        overflow: visible !important;
+    `;
+
+    // ★ 按钮
+    const btn = document.createElement('button');
+    btn.id = 'cinemaworld-enter-btn';
+    btn.textContent = '🎬';
+    btn.title = '进入 CinemaWorld';
+    btn.style.cssText = `
+        position: absolute !important;
+        right: max(20px, env(safe-area-inset-right, 20px)) !important;
+        bottom: max(20px, env(safe-area-inset-bottom, 20px)) !important;
+        width: 80px !important;
+        height: 80px !important;
+        border-radius: 40px !important;
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
+        color: #fff !important;
+        border: none !important;
+        cursor: pointer !important;
+        font-size: 36px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,.3) !important;
+        pointer-events: auto !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        transition: all .3s !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        user-select: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+        touch-action: manipulation !important;
+    `;
+
+    // ★ 点击：进入 CinemaWorld
+    btn.addEventListener('click', () => {
+        this.enterCinemaWorld();
+    });
+
+    wrapper.appendChild(btn);
+    document.body.appendChild(wrapper);
+},
+
+destroyEnterButton() {
+    const wrapper = document.getElementById('cinemaworld-enter-wrapper');
+    if (wrapper) wrapper.remove();
+},
+
+// 显示/隐藏进入按钮（不改 DOM，只切显隐）
+setEnterButtonVisible(visible) {
+    const wrapper = document.getElementById('cinemaworld-enter-wrapper');
+    if (!wrapper) return;
+    wrapper.style.setProperty('display', visible ? '' : 'none', 'important');
+},
         exitCinemaWorld() {
             document.getElementById('cinemaworld-container').classList.remove('active');
             MusicManager.setEnabled(false);   // ★
+            this.createEnterButton();  
             SaveManager.save();
         },
 
         async enterCinemaWorld() {
             document.getElementById('cinemaworld-container').classList.add('active');
             this.updateWorldStateDisplay();
-
+            document.getElementById('cinemaworld-enter-wrapper')?.remove();
             MusicManager.setEnabled(true);    // ★ 先开音乐门禁
 
             const curScene = LocationModalManager.currentLocation;
