@@ -3,11 +3,29 @@
 // 模块化入口
 // ============================================================
 
+
+
 (function () {
     'use strict';
 
-    const BASE_PATH = 'scripts/extensions/third-party/CinemaWorld/';
-
+    // 利用当前脚本标签的 src 反推目录
+    const BASE_PATH = (() => {
+        // 找到加载本 index.js 的 script 标签
+        const scripts = document.querySelectorAll('script[src*="CinemaWorld"], script[src*="CinemaMode"]');
+        // 更通用的做法：用 document.currentScript（在同步执行时有效）
+        const cur = document.currentScript;
+        if (cur && cur.src) {
+            return cur.src.replace(/index\.js.*$/, '');
+        }
+        // 兜底：遍历所有 script，找 src 里含本扩展名的
+        for (const s of document.querySelectorAll('script[src]')) {
+            if (/CinemaWorld|CinemaMode/i.test(s.src) && /index\.js/.test(s.src)) {
+                return s.src.replace(/index\.js.*$/, '');
+            }
+        }
+        // 最后兜底：保持原样
+        return 'scripts/extensions/third-party/CinemaWorld/';
+    })();
     // ★ 严格按依赖顺序加载，不能乱
     const MODULES = [
         'modules/css-loader.js',     // L0：样式加载器
