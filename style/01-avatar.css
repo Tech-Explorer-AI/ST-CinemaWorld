@@ -1,0 +1,101 @@
+/* ============================================================
+   1. 玩家头像区
+   来源：PlayerStateManager.addAvatarStyles()
+   原 id: cinemaworld-avatar-styles
+   ============================================================ */
+
+   #cinemaworld-avatar-area {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 15;
+}
+.cinemaworld-avatar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: rgba(12, 15, 30, .82);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    border: 1.5px solid rgba(255, 255, 255, .25);
+    border-radius: 16px;
+    padding: 12px 18px;
+    cursor: pointer;
+    transition: all .3s ease;
+    min-width: 240px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+.cinemaworld-avatar:hover {
+    background: rgba(20, 25, 50, .92);
+    border-color: rgba(140, 170, 255, .6);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(80, 120, 255, .35), inset 0 1px 0 rgba(255, 255, 255, .1);
+}
+.cinemaworld-avatar-circle {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 2.5px solid rgba(255, 255, 255, .35);
+    box-shadow: 0 0 18px rgba(102, 126, 234, .6);
+}
+.cinemaworld-avatar-text {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, .7);
+}
+.cinemaworld-avatar-info {
+    flex: 1;
+    min-width: 0;
+}
+.cinemaworld-avatar-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    letter-spacing: .3px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+}
+.cinemaworld-avatar-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.cinemaworld-bar-container {
+    font-size: 12px;
+}
+.cinemaworld-bar-label {
+    display: flex;
+    justify-content: space-between;
+    color: #e0e0ec;
+    margin-bottom: 3px;
+    font-size: 12px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .7);
+}
+.cinemaworld-bar-value {
+    color: #b0b0c0;
+    font-family: monospace;
+    font-weight: 600;
+}
+.cinemaworld-bar-track {
+    height: 7px;
+    background: rgba(0, 0, 0, .5);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .1);
+}
+.cinemaworld-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .5s ease;
+    box-shadow: 0 0 8px rgba(255, 255, 255, .4), inset 0 1px 0 rgba(255, 255, 255, .4);
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .6; }
+}

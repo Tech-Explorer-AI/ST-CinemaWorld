@@ -1,0 +1,914 @@
+/* ============================================================
+   10. 战斗系统
+   来源：BattleUIManager._injectStyles()
+   原 id: cw-battle-styles
+   ============================================================ */
+
+/* ============ 飘字 ============ */
+.cw-battle-popup {
+    position: fixed;
+    transform: translate(-50%, -50%);
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    font-weight: 900;
+    pointer-events: none;
+    z-index: 10001;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, .9), 0 0 12px currentColor;
+    animation: cwPopupFloat 1.2s cubic-bezier(.2, .8, .3, 1) forwards;
+    white-space: nowrap;
+    user-select: none;
+}
+.cw-battle-popup-damage {
+    font-size: 40px;
+    color: #ff6b6b;
+}
+.cw-battle-popup-crit {
+    font-size: 64px;
+    color: #ffd76b;
+    animation: cwPopupCrit 1.4s cubic-bezier(.2, .8, .3, 1) forwards;
+}
+.cw-battle-popup-heal {
+    font-size: 40px;
+    color: #7dd87d;
+}
+.cw-battle-popup-miss {
+    font-size: 36px;
+    color: #aaa;
+    font-style: italic;
+    letter-spacing: 2px;
+}
+.cw-battle-popup-info {
+    font-size: 28px;
+    color: #9ab0ff;
+}
+@keyframes cwPopupFloat {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -70%) scale(1.1); }
+    50% { opacity: 1; transform: translate(-50%, -90%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -150%) scale(0.9); }
+}
+@keyframes cwPopupCrit {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-15deg); }
+    15% { opacity: 1; transform: translate(-50%, -70%) scale(1.4) rotate(5deg); }
+    30% { transform: translate(-50%, -75%) scale(1.2) rotate(-3deg); }
+    50% { opacity: 1; transform: translate(-50%, -95%) scale(1.1) rotate(0deg); }
+    100% { opacity: 0; transform: translate(-50%, -160%) scale(1) rotate(0deg); }
+}
+
+/* ============ 震动 ============ */
+.cw-shake-light  { animation: cwShakeLight .25s ease; }
+.cw-shake-medium { animation: cwShakeMedium .35s ease; }
+.cw-shake-heavy  { animation: cwShakeHeavy .5s ease; }
+
+@keyframes cwShakeLight {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+@keyframes cwShakeMedium {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-8px, 2px); }
+    40% { transform: translate(8px, -2px); }
+    60% { transform: translate(-6px, 1px); }
+    80% { transform: translate(6px, -1px); }
+}
+@keyframes cwShakeHeavy {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    10% { transform: translate(-14px, 4px) rotate(-1deg); }
+    25% { transform: translate(14px, -4px) rotate(1deg); }
+    40% { transform: translate(-12px, 3px) rotate(-1deg); }
+    55% { transform: translate(12px, -3px) rotate(1deg); }
+    70% { transform: translate(-8px, 2px) rotate(0deg); }
+    85% { transform: translate(8px, -2px) rotate(0deg); }
+}
+
+/* ============ 闪烁 ============ */
+.cw-flash-red   { animation: cwFlashRed .4s ease; }
+.cw-flash-green { animation: cwFlashGreen .5s ease; }
+
+@keyframes cwFlashRed {
+    0%, 100% { filter: none; }
+    50% { filter: brightness(1.8) sepia(1) hue-rotate(-30deg) saturate(3); }
+}
+@keyframes cwFlashGreen {
+    0%, 100% { filter: none; }
+    50% { filter: brightness(1.5) hue-rotate(60deg) saturate(2); }
+}
+
+/* ============ 全屏闪光 ============ */
+.cw-battle-screen-flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10002;
+}
+.cw-battle-screen-flash-red {
+    background: radial-gradient(circle, transparent 30%, rgba(216, 74, 74, .4) 100%);
+    animation: cwScreenFlash .35s ease-out;
+}
+.cw-battle-screen-flash-green {
+    background: radial-gradient(circle, transparent 30%, rgba(125, 216, 125, .35) 100%);
+    animation: cwScreenFlash .45s ease-out;
+}
+@keyframes cwScreenFlash {
+    0% { opacity: 0; }
+    30% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ============ 命中冲击波 ============ */
+.cw-battle-impact {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 0%, #ffd76b 30%, transparent 70%);
+    pointer-events: none;
+    z-index: 10005;
+    transform: translate(-50%, -50%) scale(0);
+    animation: cwImpact .5s cubic-bezier(.2, .8, .3, 1) forwards;
+}
+@keyframes cwImpact {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    50% { transform: translate(-50%, -50%) scale(4); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(8); opacity: 0; }
+}
+
+/* ============ 敌人倒地 ============ */
+.cw-enemy-dying {
+    animation: cwEnemyDying 1s ease forwards;
+}
+@keyframes cwEnemyDying {
+    0% { filter: none; transform: scale(1); }
+    30% { filter: brightness(3) saturate(0); transform: scale(1.1); }
+    100% { filter: grayscale(100%) brightness(0.4); transform: scale(0.95); opacity: 0.3; }
+}
+
+/* ============ 战斗模态框 ============ */
+#cinemaworld-modal.cw-battle-modal {
+    z-index: 210;
+    pointer-events: auto;
+    max-width: 1320px;
+    width: 95%;
+    padding: 20px 24px;
+}
+#cinemaworld-modal.cw-battle-modal::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .6);
+    z-index: -1;
+    pointer-events: auto;
+}
+
+/* ============ 容器 ============ */
+.cw-battle-container {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 500px;
+}
+
+/* ============ 顶栏 ============ */
+.cw-battle-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 10px 16px;
+    background: rgba(0, 0, 0, .35);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 10px;
+    font-size: 14px;
+    color: #ccc;
+}
+.cw-battle-header-left { text-align: left; color: #888; font-size: 13px; }
+.cw-battle-header-center { font-weight: 700; color: #fff; font-size: 15px; }
+.cw-battle-header-right { text-align: right; }
+
+.cw-battle-rule-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(120, 150, 255, .2);
+    border: 1px solid rgba(120, 150, 255, .4);
+    color: #9ab0ff;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all .15s ease;
+}
+.cw-battle-rule-btn:hover {
+    background: rgba(120, 150, 255, .5);
+    border-color: rgba(120, 150, 255, .9);
+    color: #fff;
+    transform: scale(1.1);
+}
+
+/* ============ 三栏主体 ============ */
+.cw-battle-body {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr 1fr;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+}
+.cw-battle-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+/* ============ 左右面板（玩家/敌人） ============ */
+.cw-battle-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 14px;
+    border-radius: 14px;
+    border: 1.5px solid rgba(255, 255, 255, .1);
+    background: rgba(255, 255, 255, .02);
+    transition: all .3s ease;
+    height: 100%;
+    box-sizing: border-box;
+}
+.cw-battle-panel-player {
+    background: linear-gradient(180deg, rgba(30, 60, 90, .25), rgba(15, 25, 45, .15));
+    border-color: rgba(120, 180, 255, .3);
+}
+.cw-battle-panel-enemy {
+    background: linear-gradient(180deg, rgba(90, 30, 30, .3), rgba(45, 15, 15, .2));
+    border-color: rgba(216, 74, 74, .3);
+}
+.cw-battle-panel-enemy.dead {
+    opacity: 0.45;
+    filter: grayscale(70%);
+}
+
+/* ============ 立绘区 ============ */
+.cw-battle-sprite-wrap {
+    width: 100%;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, .15);
+    position: relative;
+    flex-shrink: 0;
+}
+.cw-battle-sprite-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 20px rgba(0, 0, 0, .6));
+    animation: cwBattleSpriteIdle 3s ease-in-out infinite;
+}
+@keyframes cwBattleSpriteIdle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+.cw-battle-sprite-icon {
+    font-size: 120px;
+    line-height: 1;
+    filter: drop-shadow(0 4px 20px rgba(216, 74, 74, .5));
+    animation: cwBattleSpriteIdle 3s ease-in-out infinite;
+}
+.cw-battle-sprite-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    font-size: 72px;
+    font-weight: bold;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, .6);
+}
+
+/* ============ 名字 ============ */
+.cw-battle-panel-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, .6);
+    text-align: center;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cw-battle-panel-enemy .cw-battle-panel-name {
+    color: #ffb8b8;
+}
+
+/* ============ 状态条 ============ */
+.cw-battle-stat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+.cw-battle-stat-icon {
+    font-size: 14px;
+    width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.cw-battle-stat-bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(0, 0, 0, .5);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.cw-battle-stat-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .4s ease;
+    box-shadow: 0 0 6px rgba(255, 255, 255, .3), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+.cw-battle-stat-fill.hp {
+    background: linear-gradient(90deg, #7dd87d, #9ee89e);
+}
+.cw-battle-stat-fill.hp-enemy {
+    background: linear-gradient(90deg, #d84a4a, #ff6b6b);
+}
+.cw-battle-stat-fill.other {
+    background: linear-gradient(90deg, #7da8ff, #a8c4ff);
+}
+.cw-battle-stat-num {
+    font-size: 11px;
+    color: #ccc;
+    font-family: monospace;
+    font-weight: 600;
+    min-width: 60px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* ============ 属性网格 ============ */
+.cw-battle-attrs {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    width: 100%;
+    padding: 8px 0;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.cw-battle-attr {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    padding: 2px 6px;
+}
+.cw-battle-attr-label { color: #888; }
+.cw-battle-attr-value {
+    color: #fff;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+/* ============ 状态/技能标签 ============ */
+.cw-battle-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    margin-top: 10px;
+    max-height: 76px;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+}
+.cw-battle-tag {
+    font-size: 10px;
+    padding: 3px 8px;
+    background: rgba(120, 150, 255, .15);
+    border: 1px solid rgba(120, 150, 255, .3);
+    border-radius: 10px;
+    color: #9ab0ff;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-sizing: border-box;
+    cursor: default;
+}
+.cw-battle-tag-status {
+    background: rgba(216, 74, 74, .15) !important;
+    border-color: rgba(216, 74, 74, .4) !important;
+    color: #ffb8b8 !important;
+}
+.cw-battle-tag-skill {
+    background: rgba(120, 80, 180, .15) !important;
+    border-color: rgba(120, 80, 180, .4) !important;
+    color: #c8a8ff !important;
+}
+.cw-battle-tags-more {
+    background: rgba(100, 100, 100, .2) !important;
+    border-color: rgba(150, 150, 150, .3) !important;
+    color: #aaa !important;
+    font-weight: 700 !important;
+}
+
+/* ============ 中栏：日志 ============ */
+.cw-battle-log-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: rgba(0, 0, 0, .35);
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 12px;
+    overflow: hidden;
+    min-height: 200px;
+    max-height: 280px;
+    /* ★ 新增：低于行动面板的 z-index */
+    position: relative;
+    z-index: 1;
+}
+.cw-battle-log-title {
+    font-size: 12px;
+    color: #888;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    letter-spacing: .5px;
+    flex-shrink: 0;
+}
+.cw-battle-log-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 14px;
+    min-height: 0;
+}
+.cw-battle-log-body::-webkit-scrollbar { width: 5px; }
+.cw-battle-log-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .15);
+    border-radius: 3px;
+}
+.cw-battle-log-line {
+    font-size: 12px;
+    color: #bbb;
+    line-height: 1.6;
+    padding: 3px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, .04);
+}
+.cw-battle-log-line:last-child {
+    border-bottom: none;
+}
+
+/* ============ 中栏：行动 ============ */
+/* ============ 中栏：行动 ============ */
+.cw-battle-actions-panel {
+    flex-shrink: 0;
+    min-height: 130px;
+    /* ★ 新增：允许 tooltip 溢出 */
+    overflow: visible;
+    position: relative;
+    z-index: 10;
+}
+.cw-battle-end-text {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+    font-size: 15px;
+    font-weight: 600;
+}
+.cw-battle-action-grid {
+    display: grid;
+    /* ★ 自适应：每列最小 100px，能放几列放几列 */
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    /* ★ 防止网格被内容撑爆 */
+    min-width: 0;
+}
+/* ==================== 战斗行动按钮（简洁 + 悬浮详情） ==================== */
+
+/* 按钮本体 - 保持 overflow: visible 让 tooltip 能溢出 */
+.cw-battle-action {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(40,40,60,.85), rgba(25,25,40,.95));
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all .18s ease;
+    color: #ddd;
+    text-align: left;
+    min-width: 0;
+    overflow: visible;
+    /* ★ 新增：确保按钮不被容器裁剪 */
+    isolation: isolate;
+}
+.cw-battle-action:hover:not(.disabled) {
+    background: linear-gradient(135deg, rgba(90, 110, 180, .9), rgba(60, 70, 130, .95));
+    border-color: rgba(160, 190, 255, .9);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(100, 140, 255, .4);
+}
+.cw-battle-action:active:not(.disabled) {
+    transform: translateY(0) scale(.97);
+}
+.cw-battle-action.selected {
+    border-color: #ffd76b;
+    box-shadow: 0 0 20px rgba(255, 215, 100, .6);
+    animation: cwActionPulse .4s ease;
+}
+@keyframes cwActionPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+.cw-battle-action.disabled {
+    opacity: 0.32;
+    cursor: not-allowed;
+    filter: grayscale(60%);
+}
+.cw-battle-action-icon { font-size: 20px; line-height: 1; }
+.cw-battle-action-name {
+    font-size: 12px;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+    text-align: center;
+}
+.cw-battle-action-cd {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    font-size: 10px;
+    color: #ff9d4d;
+    font-weight: 700;
+}
+.cw-battle-action-uses {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    font-size: 10px;
+    color: #9ab0ff;
+    font-weight: 700;
+}
+.cw-battle-action-source {
+    font-size: 9px;
+    color: #9ab0ff;
+    opacity: 0.75;
+    margin-top: 1px;
+    letter-spacing: 0.3px;
+    text-align: center;
+}
+
+/* ============ 行动类型配色 ============ */
+.cw-battle-action.cw-battle-action-attack {
+    background: linear-gradient(135deg, rgba(120, 50, 50, .7), rgba(80, 30, 30, .85));
+    border-color: rgba(216, 74, 74, .45);
+}
+.cw-battle-action.cw-battle-action-attack:hover:not(.disabled) {
+    background: linear-gradient(135deg, rgba(160, 60, 60, .9), rgba(110, 40, 40, .95));
+    border-color: rgba(255, 120, 120, .9);
+    box-shadow: 0 6px 20px rgba(216, 74, 74, .5);
+}
+.cw-battle-action.cw-battle-action-heal {
+    background: linear-gradient(135deg, rgba(50, 120, 70, .7), rgba(30, 80, 50, .85));
+    border-color: rgba(80, 216, 120, .45);
+}
+.cw-battle-action.cw-battle-action-heal:hover:not(.disabled) {
+    background: linear-gradient(135deg, rgba(70, 160, 90, .9), rgba(40, 110, 60, .95));
+    border-color: rgba(120, 255, 160, .9);
+    box-shadow: 0 6px 20px rgba(80, 216, 120, .5);
+}
+.cw-battle-action.cw-battle-action-defend {
+    background: linear-gradient(135deg, rgba(50, 80, 140, .7), rgba(30, 50, 90, .85));
+    border-color: rgba(80, 140, 216, .45);
+}
+.cw-battle-action.cw-battle-action-defend:hover:not(.disabled) {
+    background: linear-gradient(135deg, rgba(70, 110, 180, .9), rgba(40, 70, 120, .95));
+    border-color: rgba(120, 180, 255, .9);
+    box-shadow: 0 6px 20px rgba(80, 140, 216, .5);
+}
+.cw-battle-action.cw-battle-action-flee {
+    background: linear-gradient(135deg, rgba(80, 80, 80, .7), rgba(50, 50, 50, .85));
+    border-color: rgba(140, 140, 140, .45);
+}
+.cw-battle-action.cw-battle-action-flee:hover:not(.disabled) {
+    background: linear-gradient(135deg, rgba(110, 110, 110, .9), rgba(70, 70, 70, .95));
+    border-color: rgba(180, 180, 180, .9);
+    box-shadow: 0 6px 20px rgba(140, 140, 140, .5);
+}
+
+/* ============ 规则叠加层 ============ */
+#cw-battle-rule-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .7);
+    backdrop-filter: blur(6px);
+    z-index: 250;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+.cw-battle-rule-panel {
+    width: 100%;
+    max-width: 640px;
+    max-height: 85vh;
+    background: linear-gradient(180deg, rgba(24, 26, 44, .98), rgba(16, 18, 32, .99));
+    border: 1.5px solid rgba(255, 255, 255, .18);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .8);
+    animation: cwRuleIn .2s ease;
+}
+@keyframes cwRuleIn {
+    from { opacity: 0; transform: scale(.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+.cw-battle-rule-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+.cw-battle-rule-meta {
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+}
+.cw-battle-rule-meta span {
+    color: #7da8ff;
+    font-weight: 600;
+}
+.cw-battle-rule-hint {
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+}
+.cw-battle-rule-preview {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 200px;
+    max-height: 50vh;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, .35);
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 8px;
+    color: #ccc;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+}
+.cw-battle-rule-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding-top: 4px;
+}
+
+/* ============ 战斗预览 ============ */
+.cw-battle-preview-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+    justify-content: center;
+}
+.cw-battle-preview-badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    background: rgba(120, 150, 255, .15);
+    border: 1px solid rgba(120, 150, 255, .3);
+    border-radius: 10px;
+    color: #9ab0ff;
+}
+.cw-battle-preview-music {
+    font-size: 12px;
+    color: #c8a8ff;
+    padding: 8px 12px;
+    background: rgba(120, 80, 180, .1);
+    border: 1px solid rgba(120, 80, 180, .25);
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+
+/* ============================================================
+   ★ 战斗行动按钮补充（原第 12 节末尾的覆盖规则，已修正语法错误）
+   必须排在战斗样式之后，故合并到此文件末尾。
+   ============================================================ */
+
+/* ==================== 战斗行动按钮（简洁 + 悬浮详情） ==================== */
+
+/* 按钮本体 */
+.cw-battle-action {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(40,40,60,.85), rgba(25,25,40,.95));
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all .18s ease;
+    color: #ddd;
+    text-align: left;
+    min-width: 0;
+    overflow: visible;   /* 关键：让 tooltip 能溢出 */
+}
+
+.cw-battle-action:hover:not(.disabled) {
+    border-color: rgba(120,150,255,.55);
+    background: linear-gradient(135deg, rgba(50,55,85,.9), rgba(35,38,60,.98));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(80,110,220,.25);
+    z-index: 10;   /* 让 hover 的按钮浮在其他按钮之上 */
+}
+
+.cw-battle-action.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* 主区域：图标 + 名字 */
+.cw-battle-action-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.cw-battle-action-icon {
+    font-size: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.cw-battle-action-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: .3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 底部徽章 */
+.cw-battle-action-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.cw-battle-action-cd {
+    font-size: 10px;
+    color: #ffcf80;
+    background: rgba(255,207,128,.15);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,207,128,.25);
+}
+
+.cw-battle-action-uses {
+    font-size: 10px;
+    color: #ff9d9d;
+    background: rgba(255,120,120,.15);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,120,120,.25);
+}
+
+.cw-battle-action-source {
+    font-size: 10px;
+    color: #a8d4ff;
+    background: rgba(168,212,255,.12);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* ==================== 悬浮提示层 ==================== */
+.cw-battle-action-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);   /* 出现在按钮上方 */
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    min-width: 240px;
+    max-width: 320px;
+    padding: 12px 14px;
+    background: rgba(15,15,25,.98);
+    border: 1px solid rgba(120,150,255,.5);
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.7), 0 0 0 1px rgba(120,150,255,.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease, transform .15s ease;
+    z-index: 1000;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #ddd;
+    text-align: left;
+    white-space: normal;
+}
+
+/* 小三角 */
+.cw-battle-action-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(120,150,255,.5);
+}
+
+/* 悬浮时显示 */
+.cw-battle-action:hover:not(.disabled) .cw-battle-action-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* 提示层内部结构 */
+.cw-tip-desc {
+    color: #b8b8c8;
+    font-style: italic;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.cw-tip-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 12px;
+}
+
+.cw-tip-label {
+    color: #9ab0ff;
+    flex-shrink: 0;
+    min-width: 52px;
+    font-size: 11px;
+}
+
+.cw-tip-value {
+    color: #ddd;
+    flex: 1;
+    word-break: break-word;
+}
+
+.cw-tip-formula {
+    font-family: 'Consolas', 'Monaco', monospace;
+    color: #9ab0ff;
+    font-size: 11px;
+    background: rgba(120,150,255,.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1.5;
+}
+
+.cw-tip-estimate {
+    color: #9ee89e;
+    font-weight: 600;
+}
+
+.cw-tip-cost {
+    color: #ff9d9d;
+}
+
+.cw-tip-effect {
+    color: #ffcf80;
+}
+
+/* ==================== 兼容旧样式：隐藏旧的 formula / estimate 块 ==================== */
+/* （如果你之前加过 .cw-battle-action-formula，会被下面的规则覆盖为不显示） */
+.cw-battle-action > .cw-battle-action-formula,
+.cw-battle-action > .cw-battle-action-estimate,
+.cw-battle-action > .cw-battle-action-cost {
+    display: none !important;
+}

@@ -1,0 +1,134 @@
+/* ============================================================
+   4. 场景头像栏
+   来源：SceneAvatarBarManager.addStyles()
+   原 id: cinemaworld-scene-avatar-styles
+   ============================================================ */
+
+   #cinemaworld-scene-avatars {
+    position: absolute;
+    top: 150px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 14;
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    padding-right: 6px;
+}
+#cinemaworld-scene-avatars::-webkit-scrollbar {
+    width: 5px;
+}
+#cinemaworld-scene-avatars::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .3);
+    border-radius: 3px;
+}
+.cinemaworld-scene-avatar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(12, 15, 30, .82);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    border: 1.5px solid rgba(255, 255, 255, .22);
+    border-radius: 32px;
+    padding: 5px 10px 5px 5px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    width: fit-content;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+.cinemaworld-scene-avatar-item:hover {
+    background: rgba(25, 32, 60, .95);
+    border-color: rgba(140, 170, 255, .7);
+    transform: translateX(4px);
+    box-shadow: 0 6px 20px rgba(80, 120, 255, .35);
+}
+.cinemaworld-scene-avatar-item.hidden-state {
+    opacity: 0.7;
+    border-color: rgba(255, 255, 255, .12);
+}
+.cinemaworld-scene-avatar-item.hidden-state .cinemaworld-scene-avatar-face {
+    filter: grayscale(100%);
+}
+.cinemaworld-scene-avatar-face {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, .3);
+    box-shadow: 0 0 10px rgba(102, 126, 234, .4);
+}
+.cinemaworld-scene-avatar-face img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.cinemaworld-scene-avatar-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+    letter-spacing: .2px;
+}
+.cinemaworld-scene-avatar-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .3);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+}
+.cinemaworld-scene-avatar-btn:hover {
+    background: rgba(120, 150, 255, .7);
+    border-color: rgba(160, 190, 255, 1);
+    transform: scale(1.15);
+    box-shadow: 0 0 12px rgba(120, 150, 255, .6);
+}
+.cinemaworld-scene-avatar-layer-toggle {
+    margin-top: 6px;
+    padding: 9px 16px;
+    background: rgba(15, 18, 35, .85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1.5px solid rgba(140, 170, 255, .5);
+    border-radius: 24px;
+    color: #d8e4ff;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    width: fit-content;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .08);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .8);
+}
+.cinemaworld-scene-avatar-layer-toggle:hover {
+    background: rgba(40, 60, 120, .95);
+    border-color: rgba(160, 190, 255, 1);
+    color: #fff;
+    transform: scale(1.03);
+    box-shadow: 0 6px 18px rgba(80, 120, 255, .5);
+}

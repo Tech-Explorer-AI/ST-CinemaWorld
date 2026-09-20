@@ -1,0 +1,807 @@
+/* ============================================================
+   14. 虚拟社交
+   ============================================================ */
+
+/* ---------- App 头部额外按钮 ---------- */
+.cw-phone-header-action {
+    background: none;
+    border: none;
+    color: #0a84ff;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 5px 10px;
+    font-weight: 400;
+}
+.cw-phone-header-action:active { opacity: 0.5; }
+
+/* ---------- 标签栏 ---------- */
+.cw-social-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.6);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cw-social-tab {
+    flex: 1;
+    padding: 12px;
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 14px;
+    cursor: pointer;
+    position: relative;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+.cw-social-tab.active {
+    color: #fff;
+    border-bottom-color: #0a84ff;
+}
+.cw-social-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: #ff3b30;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* ---------- 会话列表 ---------- */
+.cw-social-body { padding: 0; }
+.cw-social-conv-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
+}
+.cw-social-conv-item:active { background: rgba(255, 255, 255, 0.06); }
+.cw-social-conv-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 600;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.cw-social-conv-avatar-group {
+    font-size: 22px;
+}
+.cw-social-conv-main {
+    flex: 1;
+    min-width: 0;
+}
+.cw-social-conv-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+.cw-social-conv-name {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+.cw-social-conv-time {
+    color: #666;
+    font-size: 11px;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+.cw-social-conv-preview {
+    color: #888;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cw-social-conv-badge {
+    position: absolute;
+    right: 14px;
+    bottom: 12px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #ff3b30;
+    color: #fff;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---------- 空状态 ---------- */
+.cw-social-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+.cw-social-empty-icon { font-size: 48px; margin-bottom: 15px; opacity: 0.5; }
+.cw-social-empty-text { font-size: 14px; margin-bottom: 6px; }
+.cw-social-empty-hint { font-size: 11px; color: #444; }
+
+/* ---------- 聊天页 ---------- */
+.cw-social-chat-header { position: relative; }
+.cw-social-chat-title {
+    flex: 1;
+    text-align: center;
+}
+.cw-social-chat-name {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+}
+.cw-social-chat-sub {
+    color: #888;
+    font-size: 11px;
+    margin-top: 2px;
+}
+.cw-social-chat-topic {
+    padding: 8px 14px;
+    background: rgba(255, 184, 77, 0.1);
+    border-bottom: 1px solid rgba(255, 184, 77, 0.2);
+    color: #ffcf80;
+    font-size: 12px;
+    line-height: 1.4;
+}
+/* ============================================================
+   聊天消息：标准左右布局
+   ============================================================ */
+
+.cw-social-chat-body {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px 18px;              /* 平板：左右留白多一点 */
+    background: #0d0d0f;
+    display: flex;                    /* ★ 关键：用 flex 列 */
+    flex-direction: column;
+    gap: 14px;                        /* ★ 消息之间统一间距 */
+    -webkit-overflow-scrolling: touch;
+}
+.cw-social-chat-body::-webkit-scrollbar { width: 5px; }
+.cw-social-chat-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+}
+
+/* ---------- 消息行 ---------- */
+.cw-social-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 100%;
+    animation: cwMsgIn 0.18s ease;
+}
+@keyframes cwMsgIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 角色（左） */
+.cw-social-msg.is-other {
+    justify-content: flex-start;
+    padding-right: 60px;             /* ★ 左侧消息右边留白，不贴到右边 */
+}
+
+/* 玩家（右） */
+.cw-social-msg.is-player {
+    justify-content: flex-end;
+    padding-left: 60px;              /* ★ 对称留白 */
+}
+
+/* ---------- 头像 ---------- */
+.cw-social-msg-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    flex-shrink: 0;
+    overflow: hidden;
+    align-self: flex-start;
+}
+.cw-social-msg-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.cw-social-msg-avatar-player {
+    background: linear-gradient(135deg, #4a9d5c, #2d7a3e);
+}
+
+/* ---------- 内容区（名字 + 气泡）---------- */
+.cw-social-msg-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 100%;
+    min-width: 0;
+}
+
+/* 玩家侧内容右对齐 */
+.cw-social-msg.is-player .cw-social-msg-content {
+    align-items: flex-end;
+}
+
+/* 群聊里角色名 */
+.cw-social-msg-name {
+    font-size: 12px;
+    color: #8a8a96;
+    padding: 0 4px;
+    margin-bottom: 2px;
+}
+
+/* ---------- 气泡 ---------- */
+.cw-social-msg-bubble {
+    padding: 11px 16px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.55;
+    word-break: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* 角色气泡：深灰、左上角是直角 */
+.cw-social-msg.is-other .cw-social-msg-bubble {
+    background: #2a2a2e;
+    color: #e8e8ea;
+    border-top-left-radius: 4px;
+}
+
+/* 玩家气泡：蓝绿渐变、右上角是直角 */
+.cw-social-msg.is-player .cw-social-msg-bubble {
+    background: linear-gradient(135deg, #2b9e6d, #1f7d55);
+    color: #fff;
+    border-top-right-radius: 4px;
+}
+
+/* ---------- 时间：放在气泡下方、小灰字 ---------- */
+.cw-social-msg-time {
+    font-size: 11px;
+    color: #555;
+    padding: 0 6px;
+    margin-top: -2px;
+}
+.cw-social-msg.is-player .cw-social-msg-time {
+    text-align: right;
+}
+
+/* ---------- 系统消息（居中）---------- */
+.cw-social-msg-system {
+    text-align: center;
+    margin: 4px 0;
+}
+.cw-social-msg-system span {
+    display: inline-block;
+    padding: 5px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    color: #7a7a85;
+    font-size: 12px;
+}
+
+/* ---------- 正在输入 ---------- */
+.cw-social-typing {
+    display: flex;
+    gap: 5px;
+    padding: 12px 16px;
+    background: #2a2a2e;
+    border-radius: 16px;
+    border-top-left-radius: 4px;
+    width: fit-content;
+    margin-left: 54px;               /* 对齐到头像右侧 */
+    margin-right: auto;              /* 靠左 */
+}
+.cw-social-typing span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #888;
+    animation: cwTypingBounce 1.2s infinite;
+}
+.cw-social-typing span:nth-child(2) { animation-delay: 0.2s; }
+.cw-social-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes cwTypingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-5px); opacity: 1; }
+}
+
+/* ---------- 输入栏 ---------- */
+.cw-social-chat-input-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+    height: 50px;
+    box-sizing: border-box;
+    align-items: center;
+}
+.cw-social-chat-input-bar input {
+    flex: 1;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    color: #fff;
+    font-size: 13px;
+    outline: none;
+    font-family: inherit;
+}
+.cw-social-chat-input-bar input:focus {
+    border-color: rgba(10, 132, 255, 0.6);
+}
+.cw-social-chat-input-bar button {
+    padding: 8px 16px;
+    background: #0a84ff;
+    border: none;
+    border-radius: 18px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease;
+}
+.cw-social-chat-input-bar button:active { background: #0060df; }
+.cw-social-chat-input-bar button:disabled { opacity: 0.5; }
+
+/* ---------- 新建菜单 ---------- */
+.cw-social-create-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.cw-social-create-card {
+    background: linear-gradient(135deg, rgba(50, 55, 85, 0.8), rgba(30, 32, 55, 0.9));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+.cw-social-create-card:hover {
+    background: linear-gradient(135deg, rgba(80, 100, 180, 0.7), rgba(60, 70, 130, 0.8));
+    border-color: rgba(160, 190, 255, 0.6);
+    transform: translateY(-2px);
+}
+.cw-social-create-icon { font-size: 36px; margin-bottom: 10px; }
+.cw-social-create-name { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+.cw-social-create-hint { font-size: 11px; color: #999; }
+
+/* ---------- 角色选择列表 ---------- */
+.cw-social-char-list {
+    max-height: 50vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 4px;
+}
+.cw-social-char-list::-webkit-scrollbar { width: 4px; }
+.cw-social-char-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+.cw-social-char-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+}
+.cw-social-char-item:hover {
+    background: rgba(120, 150, 255, 0.12);
+    border-color: rgba(120, 150, 255, 0.4);
+}
+.cw-social-char-item.selected {
+    background: rgba(120, 150, 255, 0.2);
+    border-color: rgba(160, 190, 255, 0.7);
+}
+.cw-social-char-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.cw-social-char-info { flex: 1; min-width: 0; }
+.cw-social-char-name {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+.cw-social-char-sub {
+    color: #888;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cw-social-char-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+.cw-social-char-item.selected .cw-social-char-check {
+    background: #0a84ff;
+    border-color: #0a84ff;
+}
+
+/* ---------- 表单 ---------- */
+.cw-social-form-row { margin-bottom: 12px; }
+.cw-social-form-label {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+/* ---------- 聊天菜单 ---------- */
+.cw-social-chat-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.cw-social-menu-item {
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    color: #ddd;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.cw-social-menu-item:hover {
+    background: rgba(120, 150, 255, 0.15);
+    border-color: rgba(120, 150, 255, 0.4);
+}
+.cw-social-menu-item.danger {
+    color: #ffb8b8;
+}
+.cw-social-menu-item.danger:hover {
+    background: rgba(216, 74, 74, 0.2);
+    border-color: rgba(216, 74, 74, 0.5);
+}
+
+/* ---------- 朋友圈动态 ---------- */
+.cw-social-moments-header {
+    padding: 10px 14px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.3);
+}
+.cw-social-moments-refresh {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    color: #ccc;
+    font-size: 12px;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+.cw-social-moments-refresh:hover {
+    background: rgba(10, 132, 255, 0.25);
+    border-color: rgba(10, 132, 255, 0.5);
+    color: #fff;
+}
+
+.cw-social-moment {
+    background: rgba(28, 28, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 14px;
+    margin: 10px;
+    animation: cwMomentIn 0.3s ease;
+}
+@keyframes cwMomentIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.cw-social-moment-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.cw-social-moment-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.cw-social-moment-author { flex: 1; min-width: 0; }
+.cw-social-moment-name {
+    color: #7da8ff;
+    font-size: 14px;
+    font-weight: 600;
+}
+.cw-social-moment-time {
+    color: #666;
+    font-size: 11px;
+    margin-top: 2px;
+}
+.cw-social-moment-content {
+    color: #e0e0e0;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.cw-social-moment-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cw-social-moment-like,
+.cw-social-moment-comment-btn {
+    flex: 1;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    color: #aaa;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+.cw-social-moment-like:hover,
+.cw-social-moment-comment-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+.cw-social-moment-like.liked {
+    background: rgba(255, 80, 120, 0.15);
+    border-color: rgba(255, 80, 120, 0.4);
+    color: #ff8eb8;
+}
+.cw-social-moment-likes {
+    font-size: 11px;
+    color: #ff8eb8;
+    padding: 8px 0 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    margin-top: 8px;
+    line-height: 1.5;
+    word-break: break-word;
+}
+.cw-social-moment-comments {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.cw-social-comment {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #ccc;
+    word-break: break-word;
+}
+.cw-social-comment-author {
+    color: #7da8ff;
+    font-weight: 500;
+}
+.cw-social-comment-content { color: #ddd; }
+
+.cw-social-moment-comment-input {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+}
+.cw-social-moment-comment-input input {
+    flex: 1;
+    padding: 7px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    color: #fff;
+    font-size: 12px;
+    outline: none;
+    font-family: inherit;
+}
+.cw-social-moment-comment-input input:focus {
+    border-color: rgba(10, 132, 255, 0.5);
+}
+.cw-social-moment-comment-input button {
+    padding: 7px 14px;
+    background: #0a84ff;
+    border: none;
+    border-radius: 16px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease;
+}
+.cw-social-moment-comment-input button:active { background: #0060df; }
+/* ---------- 聊天页：占满整屏的 flex 列 ---------- */
+.cw-social-chat-page {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: #0a0a0a;
+}
+
+.cw-social-chat-page .cw-phone-app-header {
+    flex-shrink: 0;
+}
+
+.cw-social-chat-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 10px;
+    min-height: 0;           /* ★ 关键：让 flex 子项能收缩，否则 overflow 失效 */
+}
+
+.cw-social-chat-input-bar {
+    flex-shrink: 0;          /* ★ 关键：不许被 body 挤走 */
+    /* 其余样式不变 */
+}
+
+/* ============================================================
+   朋友圈：删除入口 + 清空按钮
+   ============================================================ */
+
+   .cw-social-moment-head {
+    position: relative;
+}
+
+.cw-social-moment-menu {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #aaa;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    padding: 0;
+    line-height: 1;
+    font-family: inherit;
+}
+.cw-social-moment-menu:hover {
+    background: rgba(255, 120, 120, 0.15);
+    border-color: rgba(255, 120, 120, 0.4);
+    color: #ffb8b8;
+}
+
+/* 顶部两个按钮并排 */
+.cw-social-moments-header {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.cw-social-moments-clear {
+    background: rgba(216, 74, 74, 0.1);
+    border: 1px solid rgba(216, 74, 74, 0.3);
+    border-radius: 18px;
+    color: #ffb8b8;
+    font-size: 12px;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+.cw-social-moments-clear:hover {
+    background: rgba(216, 74, 74, 0.3);
+    border-color: rgba(216, 74, 74, 0.6);
+    color: #fff;
+}
+
+/* ============================================================
+   朋友圈：发动态选人框
+   ============================================================ */
+
+   .cw-social-moment-picker-hint {
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #ccc;
+    min-height: 20px;
+}
+.cw-social-picker-label {
+    color: #888;
+    margin-right: 4px;
+}
+
+.cw-social-moment-picker-list {
+    max-height: 45vh;
+    overflow-y: auto;
+    padding-right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.cw-social-moment-picker-list::-webkit-scrollbar { width: 4px; }
+.cw-social-moment-picker-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}

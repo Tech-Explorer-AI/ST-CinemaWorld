@@ -1,0 +1,115 @@
+/* ============================================================
+   14. 立绘点击热区 + 气泡
+   来源：click.js 配套
+   ============================================================ */
+
+/* ============ 热区层 ============ */
+.cw-hotspot-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;   /* 默认穿透，热区自己开启 */
+    z-index: 3;
+}
+
+.cw-hotspot {
+    position: absolute;
+    /* ★ left / width 现在由 JS 设，不要再写 left:0; right:0 */
+    pointer-events: auto;
+    cursor: pointer;
+    transition: background .2s ease;
+    border-radius: 8px;
+}
+
+/* 悬浮时给一点极淡的光晕提示"这里能点" */
+.cw-hotspot:hover {
+    background: radial-gradient(
+        ellipse at center,
+        rgba(180, 210, 255, .18) 0%,
+        rgba(180, 210, 255, .08) 45%,
+        transparent 75%
+    );
+    box-shadow: inset 0 0 30px rgba(140, 170, 255, .12);
+}
+
+/* 点击瞬间的闪光 */
+.cw-hotspot:active {
+    background: radial-gradient(
+        ellipse at center,
+        rgba(180, 210, 255, .35) 0%,
+        transparent 70%
+    );
+}
+
+/* 手机 / 触摸设备：不显示 hover 光晕 */
+@media (hover: none) {
+    .cw-hotspot:hover {
+        background: transparent;
+        box-shadow: none;
+    }
+}
+
+/* ============ 立绘图片：交叉淡入过渡 ============ */
+/* .cinemaworld-scene-sprite-img {
+    transition: opacity .35s ease;
+} */
+
+/* 淡入中的新图，稍微浮起一点，增加层次 */
+/* .cw-sprite-fading {
+    animation: cwSpriteFadeIn .35s ease;
+} */
+/* @keyframes cwSpriteFadeIn {
+    from { transform: translateY(4px); }
+    to   { transform: translateY(0); }
+} */
+
+/* ============ 点击气泡 ============ */
+.cw-click-bubble {
+    position: absolute;
+    bottom: 78%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    padding: 10px 16px;
+    background: rgba(20, 25, 45, .96);
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    border: 1.5px solid rgba(140, 170, 255, .5);
+    border-radius: 16px;
+    color: #fff;
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 240px;
+    min-width: 60px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity .25s ease, transform .25s ease;
+    pointer-events: none;
+    box-shadow:
+        0 8px 28px rgba(0, 0, 0, .7),
+        0 0 0 1px rgba(140, 170, 255, .1),
+        inset 0 1px 0 rgba(255, 255, 255, .08);
+    z-index: 10;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.cw-click-bubble.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* 小三角 */
+.cw-click-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: rgba(140, 170, 255, .5);
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .4));
+}
+
+/* 气泡里的换行更宽松 */
+.cw-click-bubble br {
+    line-height: 1.8;
+}

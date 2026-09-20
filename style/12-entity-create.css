@@ -1,0 +1,11 @@
+/* ============================================================
+   12. 创建实体类型选择卡片（动态注入，无固定 id）
+   来源：SceneItemBrowserManager.openCreateMenu()
+   原 id: cw-create-entity-styles
+   ============================================================ */
+
+   .cw-create-entity-card:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.15);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .5);
+}

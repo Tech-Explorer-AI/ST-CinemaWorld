@@ -1,0 +1,477 @@
+/* ============================================================
+   CinemaWorld · 18-background-gen.css
+   AI 背景图生成模块
+   ============================================================ */
+
+/* ---------- 浮动按钮 ---------- */
+.cw-bg-gen-btn {
+    position: fixed;
+    right: 20px;
+    bottom: 260px;                     /* 在场景行动栏上方 */
+    z-index: 9999;
+
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 8px 14px;
+    background: linear-gradient(135deg, rgba(0,180,255,.18), rgba(120,80,220,.22));
+    border: 1px solid rgba(0,200,255,.45);
+    border-radius: 20px;
+    color: #9adfff;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+
+    box-shadow: 0 4px 14px rgba(0,150,255,.25);
+    transition: all .2s ease;
+    backdrop-filter: blur(8px);
+}
+
+.cw-bg-gen-btn:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, rgba(0,200,255,.3), rgba(140,100,240,.35));
+    border-color: rgba(0,220,255,.7);
+    box-shadow: 0 6px 20px rgba(0,180,255,.45);
+    color: #fff;
+}
+
+.cw-bg-gen-btn:active {
+    transform: translateY(0);
+}
+
+.cw-bg-gen-icon {
+    font-size: 15px;
+    line-height: 1;
+}
+
+.cw-bg-gen-label {
+    letter-spacing: .3px;
+}
+
+/* 生成中：脉冲 + 禁用 */
+.cw-bg-gen-btn.cw-bg-gen-loading {
+    pointer-events: none;
+    opacity: .85;
+    animation: cw-bg-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cw-bg-pulse {
+    0%, 100% { box-shadow: 0 4px 14px rgba(0,150,255,.25); }
+    50%      { box-shadow: 0 4px 26px rgba(0,200,255,.6); }
+}
+
+/* ---------- 手机 App 样式 ---------- */
+.cw-bggen-card {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+
+.cw-bggen-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #9ab0ff;
+    margin-bottom: 10px;
+    letter-spacing: .3px;
+}
+
+.cw-bggen-hint {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.6;
+    margin-top: 6px;
+}
+
+.cw-bggen-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #ddd;
+    user-select: none;
+}
+
+.cw-bggen-switch input {
+    width: 16px;
+    height: 16px;
+    accent-color: #4a9dff;
+    cursor: pointer;
+}
+
+.cw-bggen-field {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.cw-bggen-field span {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.cw-bggen-field input,
+.cw-bggen-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    background: rgba(0,0,0,.35);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px;
+    color: #ddd;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    resize: vertical;
+}
+
+.cw-bggen-field input:focus,
+.cw-bggen-field textarea:focus {
+    border-color: rgba(120,150,255,.5);
+    background: rgba(0,0,0,.5);
+}
+
+.cw-bggen-row {
+    display: flex;
+    gap: 8px;
+}
+
+.cw-bggen-field.half {
+    flex: 1;
+}
+
+.cw-bggen-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 8px;
+    color: #ccc;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .2s;
+}
+
+.cw-bggen-btn:hover {
+    background: rgba(255,255,255,.12);
+    border-color: rgba(255,255,255,.3);
+    color: #fff;
+}
+
+.cw-bggen-btn.primary {
+    background: linear-gradient(135deg, rgba(80,140,255,.25), rgba(120,80,240,.3));
+    border-color: rgba(120,150,255,.5);
+    color: #b8cfff;
+}
+
+.cw-bggen-btn.primary:hover {
+    background: linear-gradient(135deg, rgba(80,140,255,.4), rgba(120,80,240,.45));
+    color: #fff;
+}
+
+.cw-bggen-status {
+    font-size: 12px;
+    color: #888;
+}
+
+.cw-bggen-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.cw-bggen-radio {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #ccc;
+    cursor: pointer;
+    user-select: none;
+}
+
+.cw-bggen-radio input {
+    accent-color: #4a9dff;
+    cursor: pointer;
+}
+
+.cw-bggen-workflow-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cw-bggen-workflow-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(0,0,0,.25);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 8px;
+    transition: all .2s;
+}
+
+.cw-bggen-workflow-item.active {
+    background: rgba(120,150,255,.15);
+    border-color: rgba(120,150,255,.4);
+}
+
+.cw-bggen-workflow-name {
+    flex: 1;
+    font-size: 12px;
+    color: #ccc;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cw-bggen-workflow-item.active .cw-bggen-workflow-name {
+    color: #b8cfff;
+    font-weight: 600;
+}
+
+.cw-bggen-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    background: rgba(120,150,255,.2);
+    border-radius: 8px;
+    color: #9ab0ff;
+}
+
+.cw-bggen-del {
+    background: none;
+    border: none;
+    color: #d87d7d;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    opacity: .6;
+    transition: all .2s;
+}
+
+.cw-bggen-del:hover {
+    opacity: 1;
+    background: rgba(216,125,125,.15);
+}
+
+.cw-bggen-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.cw-bggen-actions .cw-bggen-btn {
+    flex: 1;
+    justify-content: center;
+}
+
+/* ---------- 工作流节点配置面板 ---------- */
+.cw-bggen-mini-btn {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all .2s;
+}
+
+.cw-bggen-mini-btn:hover {
+    background: rgba(120,150,255,.15);
+    color: #9ab0ff;
+}
+
+/* 节点配置弹窗 */
+.cw-bggen-node-modal {
+    padding: 20px;
+}
+
+.cw-bggen-node-modal-hint {
+    font-size: 12px;
+    color: #888;
+    line-height: 1.6;
+    margin-bottom: 14px;
+    padding: 10px;
+    background: rgba(120,150,255,.06);
+    border-radius: 8px;
+    border-left: 3px solid rgba(120,150,255,.4);
+}
+
+.cw-bggen-node-modal-hint code {
+    background: rgba(0,0,0,.4);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #9ab0ff;
+    font-size: 11px;
+}
+
+.cw-bggen-node-config {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(0,0,0,.25);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.06);
+}
+
+.cw-bggen-node-config-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    align-items: center;
+    gap: 10px;
+}
+
+.cw-bggen-node-config-row label {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.cw-bggen-node-select {
+    width: 100%;
+    padding: 7px 10px;
+    background: rgba(0,0,0,.4);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px;
+    color: #ddd;
+    font-size: 12px;
+    font-family: monospace;
+    outline: none;
+    cursor: pointer;
+}
+
+.cw-bggen-node-select:focus {
+    border-color: rgba(120,150,255,.5);
+    background: rgba(0,0,0,.6);
+}
+
+.cw-bggen-node-empty {
+    font-size: 12px;
+    color: #d87d7d;
+    padding: 7px 0;
+}
+
+.cw-bggen-node-list-title {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.cw-bggen-node-list {
+    max-height: 260px;
+    overflow-y: auto;
+    background: rgba(0,0,0,.2);
+    border-radius: 8px;
+    padding: 6px;
+    border: 1px solid rgba(255,255,255,.05);
+}
+
+.cw-bggen-node-row {
+    display: grid;
+    grid-template-columns: 60px 140px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .15s;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+.cw-bggen-node-row:hover {
+    background: rgba(120,150,255,.1);
+}
+
+.cw-bggen-node-id {
+    color: #9ab0ff;
+    font-weight: 600;
+}
+
+.cw-bggen-node-type {
+    color: #888;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cw-bggen-node-preview {
+    color: #666;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cw-bggen-node-tags {
+    display: flex;
+    gap: 4px;
+}
+
+.cw-bggen-node-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-family: sans-serif;
+}
+
+.cw-bggen-node-tag.primary {
+    background: rgba(120,200,120,.2);
+    color: #9ee89e;
+}
+
+.cw-bggen-node-tag.negative {
+    background: rgba(216,125,125,.2);
+    color: #ffb8b8;
+}
+
+.cw-bggen-node-tag.dim {
+    background: rgba(150,150,150,.2);
+    color: #aaa;
+}
+
+.cw-bggen-node-tag.seed {
+    background: rgba(255,207,128,.15);
+    color: #ffcf80;
+}
+
+.cw-bggen-node-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,.08);
+}
+
+/* ---------- 提示词风格选择器 ---------- */
+.cw-bggen-radio {
+    align-items: flex-start;   /* 多行内容顶部对齐 */
+}
+
+.cw-bggen-radio input[type="radio"] {
+    margin-top: 3px;           /* radio 与首行对齐 */
+    flex-shrink: 0;
+}
+
+.cw-bggen-radio > div {
+    flex: 1;
+    min-width: 0;
+}

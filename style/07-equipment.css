@@ -1,0 +1,51 @@
+/* ============================================================
+   7. 装备栏
+   来源：EquipmentManager._injectEquipStyles()
+   原 id: cw-equip-styles
+   ============================================================ */
+
+   .cw-equip-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    padding: 10px;
+    background: rgba(0, 0, 0, .2);
+    border-radius: 12px;
+}
+.cw-equip-slot {
+    position: relative;
+    aspect-ratio: 1/1;
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+.cw-equip-slot:hover {
+    background: rgba(255, 180, 80, .2);
+    border-color: rgba(255, 180, 80, .6);
+    transform: scale(1.05);
+}
+.cw-equip-slot.empty {
+    background: rgba(255, 255, 255, .02);
+    border-style: dashed;
+}
+.cw-equip-slot-icon {
+    font-size: 28px;
+    line-height: 1;
+}
+.cw-equip-slot-empty {
+    font-size: 20px;
+    color: #555;
+}
+.cw-equip-slot-label {
+    position: absolute;
+    left: 4px;
+    top: 2px;
+    font-size: 10px;
+    color: #666;
+    font-family: monospace;
+}
