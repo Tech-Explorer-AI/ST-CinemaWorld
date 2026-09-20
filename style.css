@@ -1,0 +1,25 @@
+/* ============================================================
+   CinemaWorld · 统一样式表（入口）
+   ------------------------------------------------------------
+   实际样式已按功能拆分到 style/ 目录。
+   加载顺序 = 数字前缀顺序，请勿随意调整。
+   ============================================================ */
+
+   @import url('./style/01-avatar.css');
+   @import url('./style/02-ui-core.css');
+   @import url('./style/03-scene-sprite.css');
+   @import url('./style/04-scene-avatar.css');
+   @import url('./style/05-vn.css');
+   @import url('./style/06-inventory.css');
+   @import url('./style/07-equipment.css');
+   @import url('./style/08-shop.css');
+   @import url('./style/09-phone.css');
+   @import url('./style/10-battle.css');
+   @import url('./style/11-simulation.css');
+   @import url('./style/12-entity-create.css');
+   @import url('./style/13-scene-browser.css');
+   @import url('./style/14-social.css');
+   @import url('./style/15-bond.css');
+   @import url('./style/16-click.css');
+   @import url('./style/17-citybuilder.css');
+   @import url('./style/18-background-gen.css');

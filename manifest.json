@@ -1,0 +1,10 @@
+{
+  "display_name": "Cinema World🌏",
+  "description": "在AI创造的世界中游乐.",
+  "loading_order": 20,
+  "js": "index.js",
+  "css": "style.css",
+  "author": "技术探客",
+  "version": "0.0.1",
+  "minimum_client_version": "1.11.0"
+}
