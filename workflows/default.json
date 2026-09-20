@@ -1,0 +1,21 @@
+{
+    "1":  { "inputs": { "images": ["8", 0] }, "class_type": "PreviewImage" },
+    "8":  { "inputs": { "samples": ["19", 0], "vae": ["15", 0] }, "class_type": "VAEDecode" },
+    "11": { "inputs": { "text": "", "clip": ["54", 0] }, "class_type": "CLIPTextEncode" },
+    "12": { "inputs": { "text": "", "clip": ["54", 0] }, "class_type": "CLIPTextEncode" },
+    "15": { "inputs": { "vae_name": "qwen_image_vae.safetensors" }, "class_type": "VAELoader" },
+    "19": {
+      "inputs": {
+        "seed": 12345, "steps": 8, "cfg": 1,
+        "sampler_name": "er_sde", "scheduler": "simple", "denoise": 1,
+        "model": ["61", 0], "positive": ["11", 0],
+        "negative": ["12", 0], "latent_image": ["28", 0]
+      },
+      "class_type": "KSampler"
+    },
+    "28": { "inputs": { "width": 1200, "height": 800, "batch_size": 1 }, "class_type": "EmptyLatentImage" },
+    "44": { "inputs": { "unet_name": "anima-base-v1.0.safetensors", "weight_dtype": "default" }, "class_type": "UNETLoader" },
+    "54": { "inputs": { "clip_name": "qwen_3_06b_base.safetensors", "type": "qwen_image", "device": "default" }, "class_type": "CLIPLoader" },
+    "61": { "inputs": { "lora_name": "Anima\\anima-turbo-lora-v0.2.safetensors", "strength_model": 1, "model": ["44", 0] }, "class_type": "LoraLoaderModelOnly" },
+    "62": { "inputs": { "filename_prefix": "CinemaWorld_bg", "images": ["1", 0] }, "class_type": "SaveImage" }
+  }
