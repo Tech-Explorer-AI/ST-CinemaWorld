@@ -24,7 +24,7 @@
             }
         }
         // 最后兜底：保持原样
-        return 'scripts/extensions/third-party/CinemaWorld/';
+        return 'scripts/extensions/third-party/ST-CinemaWorld-main/';
     })();
     // ★ 严格按依赖顺序加载，不能乱
     const MODULES = [
