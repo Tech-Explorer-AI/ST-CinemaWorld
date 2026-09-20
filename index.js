@@ -3,8 +3,6 @@
 // 模块化入口
 // ============================================================
 
-
-
 (function () {
     'use strict';
 
@@ -26,6 +24,7 @@
         // 最后兜底：保持原样
         return 'scripts/extensions/third-party/ST-CinemaWorld-main/';
     })();
+
     // ★ 严格按依赖顺序加载，不能乱
     const MODULES = [
         'modules/css-loader.js',     // L0：样式加载器
@@ -117,23 +116,126 @@
         }
     }
 
-    // ---------- 悬浮入口按钮（原样保留） ----------
     function addEnterButton() {
-        if (document.getElementById('cinemaworld-enter-btn')) return;
-
+        if (document.getElementById('cinemaworld-enter-wrapper')) return;
+    
         const style = document.createElement('style');
+        style.id = 'cinemaworld-enter-btn-styles';
         style.textContent = `
-            #cinemaworld-enter-btn{position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:30px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;cursor:pointer;font-size:24px;box-shadow:0 4px 15px rgba(0,0,0,.3);z-index:10000;transition:all .3s;display:flex;align-items:center;justify-content:center;}
-            #cinemaworld-enter-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,0,0,.5);}
-            #cinemaworld-enter-btn.in-plugin{background:linear-gradient(135deg,#d87d7d,#a85a5a);z-index:10001;}
+            /* ============================================================ */
+            /* 全屏锚点容器：铺满视口，不接收点击，只用来定位按钮          */
+            /* ============================================================ */
+            #cinemaworld-enter-wrapper {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+                pointer-events: none !important;
+                z-index: 2147483647 !important;   /* ★ 最高 */
+                transform: translateZ(0);
+                isolation: isolate;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: 0 !important;
+                overflow: visible !important;
+            }
+    
+            #cinemaworld-enter-btn {
+                position: absolute !important;
+                right: max(20px, env(safe-area-inset-right, 20px)) !important;
+                bottom: max(20px, env(safe-area-inset-bottom, 20px)) !important;
+                width: 80px !important;
+                height: 80px !important;
+                border-radius: 40px !important;
+                background: linear-gradient(135deg, #667eea, #764ba2) !important;
+                color: #fff !important;
+                border: none !important;
+                cursor: pointer !important;
+                font-size: 36px !important;
+                box-shadow: 0 4px 15px rgba(0,0,0,.3) !important;
+                pointer-events: auto !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                transition: all .3s !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                user-select: none !important;
+                -webkit-tap-highlight-color: transparent !important;
+                touch-action: manipulation !important;
+            }
+            #cinemaworld-enter-btn:hover {
+                transform: scale(1.1) !important;
+                box-shadow: 0 6px 20px rgba(0,0,0,.5) !important;
+            }
+            #cinemaworld-enter-btn:active {
+                transform: scale(0.95) !important;
+            }
+            #cinemaworld-enter-btn.in-plugin {
+                background: linear-gradient(135deg, #d87d7d, #a85a5a) !important;
+            }
+    
+            /* 手机（<768px）默认中右侧 */
+            @media (max-width: 768px) {
+                #cinemaworld-enter-btn {
+                    width: 54px !important;
+                    height: 54px !important;
+                    font-size: 22px !important;
+                    border-radius: 27px !important;
+                    right: 12px !important;
+                    bottom: auto !important;
+                    top: 50% !important;
+                    transform: translateY(-50%) !important;
+                }
+                #cinemaworld-enter-btn:hover {
+                    transform: translateY(-50%) scale(1.08) !important;
+                }
+                #cinemaworld-enter-btn:active {
+                    transform: translateY(-50%) scale(0.95) !important;
+                }
+            }
+    
+            /* 手机竖屏：靠底部，避开 ST 输入框 + iPhone 安全区 */
+            @media (max-width: 768px) and (orientation: portrait) {
+                #cinemaworld-enter-btn {
+                    top: auto !important;
+                    bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+                    transform: none !important;
+                }
+                #cinemaworld-enter-btn:hover {
+                    transform: scale(1.08) !important;
+                }
+                #cinemaworld-enter-btn:active {
+                    transform: scale(0.95) !important;
+                }
+            }
+    
+            /* 极窄屏（<400px） */
+            @media (max-width: 400px) {
+                #cinemaworld-enter-btn {
+                    width: 48px !important;
+                    height: 48px !important;
+                    font-size: 20px !important;
+                    border-radius: 24px !important;
+                    right: 10px !important;
+                }
+            }
         `;
         document.head.appendChild(style);
-
+    
+        const wrapper = document.createElement('div');
+        wrapper.id = 'cinemaworld-enter-wrapper';
+    
         const btn = document.createElement('button');
         btn.id = 'cinemaworld-enter-btn';
         btn.innerHTML = '🎬';
         btn.title = '进入 CinemaWorld';
-        btn.onclick = () => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             const container = document.getElementById('cinemaworld-container');
             const isActive = container && container.classList.contains('active');
             if (isActive) {
@@ -141,8 +243,21 @@
             } else {
                 window.UIManager.enterCinemaWorld();
             }
-        };
-        document.body.appendChild(btn);
+        });
+    
+        wrapper.appendChild(btn);
+        document.documentElement.appendChild(wrapper);
+    
+        // ★ 保底：如果酒馆往 html 末尾塞了更高层级元素，把 wrapper 移到最后
+        const mo = new MutationObserver(() => {
+            if (wrapper.parentElement === document.documentElement &&
+                wrapper !== document.documentElement.lastElementChild) {
+                document.documentElement.appendChild(wrapper);
+            }
+        });
+        mo.observe(document.documentElement, { childList: true });
+    
+        console.log('[CinemaWorld] 入口按钮已挂载到 documentElement');
     }
 
     // ---------- 启动 ----------
