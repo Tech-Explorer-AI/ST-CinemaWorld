@@ -23,18 +23,23 @@
 .cw-quick-tag:active {
     transform: scale(.95);
 }
-#cinemaworld-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 9999;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    display: none;
-    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    color: #e0e0e0;
-    overflow: hidden;
+#cinemaworld-container{
+    position:fixed;
+    top:0;left:0;
+    width:100vw;
+    height:100vh;
+    height:100dvh;              /* ★ 动态视口，避开移动端地址栏 */
+    z-index:99999;              /* ★ 提到 ST 之上 */
+    background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
+    display:none;
+    font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+    color:#e0e0e0;
+    overflow:hidden;
+    contain:layout paint;  /* ★ 隔离，避免 ST 干预 */
+    isolation:isolate;
+    touch-action:manipulation;
+    -webkit-user-select:none;
+    user-select:none;
 }
 #cinemaworld-container.active {
     display: block;

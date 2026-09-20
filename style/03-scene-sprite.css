@@ -39,9 +39,7 @@
     transition: transform 0.3s ease;
 }
 .cinemaworld-scene-sprite.hidden-state {
-    opacity: 0.3;
-    filter: grayscale(100%);
-    transform: scale(0.95);
+    display: none !important;
 }
 .cinemaworld-scene-sprite:hover {
     transform: translateY(-5px) scale(1.02);

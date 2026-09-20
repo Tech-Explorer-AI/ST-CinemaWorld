@@ -40,7 +40,7 @@
     width: 100%;
     height: 100%;
     display: none;
-    z-index: 100;
+    z-index: 100001;
     cursor: pointer;
 }
 #cinemaworld-vn-layer.active {
