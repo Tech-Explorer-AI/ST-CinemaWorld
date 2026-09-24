@@ -105,7 +105,7 @@
 .cw-shop-slot-count {
     position: absolute;
     right: 3px;
-    bottom: 3px;
+    top: 3px;
     min-width: 16px;
     height: 16px;
     padding: 0 4px;
