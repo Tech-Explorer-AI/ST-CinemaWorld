@@ -8,71 +8,117 @@
 
     // 利用当前脚本标签的 src 反推目录
     const BASE_PATH = (() => {
-        // 找到加载本 index.js 的 script 标签
-        const scripts = document.querySelectorAll('script[src*="CinemaWorld"], script[src*="CinemaMode"]');
-        // 更通用的做法：用 document.currentScript（在同步执行时有效）
         const cur = document.currentScript;
         if (cur && cur.src) {
             return cur.src.replace(/index\.js.*$/, '');
         }
-        // 兜底：遍历所有 script，找 src 里含本扩展名的
         for (const s of document.querySelectorAll('script[src]')) {
             if (/CinemaWorld|CinemaMode/i.test(s.src) && /index\.js/.test(s.src)) {
                 return s.src.replace(/index\.js.*$/, '');
             }
         }
-        // 最后兜底：保持原样
         return 'scripts/extensions/third-party/ST-CinemaWorld-main/';
     })();
 
-    // ★ 严格按依赖顺序加载，不能乱
+    // ============================================================
+    // ★ 公共加载器：挂到 window 上，供子目录 index.js 复用
+    // BASE 指向 modules/ 目录，所有路径相对它解析
+    // ============================================================
+    window.CWLoader = {
+        BASE: BASE_PATH + 'modules/',
+
+        load(filename, key) {
+            key = key || filename;
+            return new Promise((resolve) => {
+                if (document.querySelector(`script[data-cw-module="${key}"]`)) {
+                    resolve();
+                    return;
+                }
+                const s = document.createElement('script');
+                s.src = this.BASE + filename;
+                s.dataset.cwModule = key;
+                s.onload = () => {
+                    console.log(`[CinemaWorld] 模块已加载: ${key}`);
+                    resolve();
+                };
+                s.onerror = () => {
+                    console.error(`[CinemaWorld] 模块加载失败: ${key}`);
+                    resolve();   // 不阻塞后续
+                };
+                document.head.appendChild(s);
+            });
+        },
+
+        async loadAll(list, keyPrefix = '') {
+            for (const f of list) {
+                await this.load(keyPrefix + f, keyPrefix + f);
+            }
+        }
+    };
+
+    // ============================================================
+    // ★ 严格按依赖顺序加载，不能乱（路径相对 modules/）
+    // ============================================================
     const MODULES = [
-        'modules/css-loader.js',     // L0：样式加载器
-        'modules/core.js',           // L1：核心状态 + 角色档案 + 骰子 + 语义
-        'modules/world.js',          // L2：世界管理 + 背景 + 音乐 + 立绘
-        'modules/player.js',         // L2：玩家状态 + 装备 + 派生 + 标签效果
-        'modules/scene.js',          // L3：场景浏览/编辑/行动/立绘层/头像栏
-        'modules/story.js',          // L3：剧情 + 章节 + 交互历史/摘要
-        'modules/rules.js',          // L3：规则引擎 + 触发器 + 游戏钩子
-        'modules/interact.js',       // L4：效果系统 + 交互 + 背包 + 商店
-        'modules/battle.js',         // L4：战斗系统
-        'modules/simulation.js',     // L4：模拟经营
-        'modules/city.js',           // L4：模拟经营
-        'modules/industry.js',           // L4：模拟经营
-        'modules/background-gen.js', // L4：AI 背景图生成（引擎层）
-        'modules/background-ui.js',  // L5：AI 背景图生成（UI 层，依赖 PhoneUIManager）
-        'modules/social.js',         // L5：虚拟社交
-        'modules/bond.js',           // L5：羁绊模块
-        'modules/click.js',  
-        'modules/ui.js',             // L5：UI + VN + 手机 + 玩家创建 + 启动
-        'modules/save.js',           // L6：存档（依赖所有模块）
+        'css-loader.js',             // L0：样式加载器
+        'core.js',                   // L1：核心状态 + 角色档案 + 骰子 + 语义
+        'world.js',                  // L2：世界管理 + 背景 + 音乐 + 立绘
+        'player.js',                 // L2：玩家状态 + 装备 + 派生 + 标签效果
+        'scene.js',                  // L3：场景浏览/编辑/行动/立绘层/头像栏
+        'story.js',                  // L3：剧情 + 章节 + 交互历史/摘要
+        'rules.js',                  // L3：规则引擎 + 触发器 + 游戏钩子
+        'interact.js',               // L4：效果系统 + 交互 + 背包 + 商店
+        'item-effect.js',            // L4：效果系统 + 交互 + 背包 + 商店
+        'battle.js',                 // L4：战斗系统
+        'simulation.js',             // L4：模拟经营
+        'city.js',                   // L4：模拟经营
+        'industry.js',               // L4：模拟经营
+        'background-gen.js',         // L4：AI 背景图生成（引擎层）
+        'background-ui.js',          // L5：AI 背景图生成（UI 层）
+        'social.js',                 // L5：虚拟社交
+        'bond.js',                   // L5：羁绊模块
+        'ui.js',                     // L5：UI + VN + 手机 + 玩家创建 + 启动
+
+        // ↓ 子目录聚合入口（各自内部自己加载）
+        'TTS/index.js',
+        'map/index.js',
+        'strategy/index.js',
+
+        'click.js',
+        'save.js',                   // L6：存档（依赖所有模块）
     ];
 
-    // ---------- 动态加载单个脚本 ----------
+    // ---------- 加载单个脚本（复用 CWLoader）----------
     function loadScript(filename) {
-        return new Promise((resolve) => {
-            const exist = document.querySelector(`script[data-cw-module="${filename}"]`);
-            if (exist) { resolve(); return; }
+        return window.CWLoader.load(filename, filename);
+    }
 
-            const s = document.createElement('script');
-            s.src = BASE_PATH + filename;
-            s.dataset.cwModule = filename;
-            s.onload = () => {
-                console.log(`[CinemaWorld] 模块已加载: ${filename}`);
-                resolve();
-            };
-            s.onerror = () => {
-                console.error(`[CinemaWorld] 模块加载失败: ${filename}`);
-                resolve();   // 不阻塞后续
-            };
-            document.head.appendChild(s);
-        });
+    // ---------- 等待子目录聚合入口挂出 Promise ----------
+    async function awaitAggregator(promiseGetter) {
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+            const p = promiseGetter();
+            if (p) return p;
+            await new Promise((r) => setTimeout(r, 20));
+        }
+        console.warn('[CinemaWorld] 聚合入口未挂载 Promise，超时放行');
     }
 
     // ---------- 按顺序加载所有模块 ----------
     async function loadAll() {
         for (const m of MODULES) {
             await loadScript(m);
+
+            // 加载完聚合入口后，等它内部全部加载完
+            if (m === 'map/index.js') {
+                await awaitAggregator(() => window.CinemaWorldMapLoader);
+                await awaitAggregator(() => window.CinemaWorldMap3DLoader);
+            } else if (m === 'strategy/index.js') {
+                await awaitAggregator(() => window.CinemaWorldStrategyLoader);
+            }else if (m === 'TTS/index.js') {
+                // ★ 新增
+                await awaitAggregator(() => window.CinemaWorldTTSLoader);
+            }
         }
     }
 
@@ -133,7 +179,7 @@
                 height: 100vh !important;
                 height: 100dvh !important;
                 pointer-events: none !important;
-                z-index: 2147483647 !important;   /* ★ 最高 */
+                z-index: 2147483647 !important;
                 transform: translateZ(0);
                 isolation: isolate;
                 margin: 0 !important;
