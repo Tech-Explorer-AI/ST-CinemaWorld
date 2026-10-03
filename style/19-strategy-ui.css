@@ -1,0 +1,1099 @@
+/* ============================================================
+   CinemaWorld · 19-strategy-ui.css
+   战略面板 + 内政（阶级社会 + 无阶级社会）+ 规则面板
+   ============================================================ */
+
+/* ==================== 通用按钮 ==================== */
+.cw-ws-btn-wide {
+    width: 100%;
+    padding: 8px 10px;
+    background: linear-gradient(135deg, rgba(120,80,180,.25), rgba(80,120,180,.25));
+    border: 1px solid rgba(120,150,255,.35);
+    border-radius: 8px;
+    color: #c8d8ff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: inherit;
+}
+.cw-ws-btn-wide:hover {
+    background: linear-gradient(135deg, rgba(120,80,180,.45), rgba(80,120,180,.45));
+    border-color: rgba(120,150,255,.6);
+}
+
+/* ==================== 面板容器 ==================== */
+.cw-strategy-modal {
+    max-width: 640px !important;
+    width: 92vw !important;
+}
+
+/* ==================== Tab 导航 ==================== */
+.cw-strategy-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 14px;
+    padding: 4px;
+    background: rgba(0, 0, 0, .25);
+    border-radius: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.cw-strategy-tabs::-webkit-scrollbar { display: none; }
+
+.cw-strategy-tab {
+    flex: 1;
+    min-width: 70px;
+    padding: 8px 6px;
+    background: transparent;
+    border: none;
+    border-radius: 7px;
+    color: #888;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .18s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.cw-strategy-tab:hover {
+    background: rgba(255, 255, 255, .06);
+    color: #ccc;
+}
+.cw-strategy-tab.active {
+    background: linear-gradient(135deg, rgba(120, 150, 255, .3), rgba(160, 120, 255, .25));
+    color: #c8d8ff;
+    box-shadow: 0 2px 8px rgba(120, 150, 255, .2);
+}
+
+.cw-strategy-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 8px;
+    line-height: 1;
+}
+
+/* ==================== 内容区 ==================== */
+.cw-strategy-content {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .15) transparent;
+}
+.cw-strategy-content::-webkit-scrollbar { width: 6px; }
+.cw-strategy-content::-webkit-scrollbar-track { background: transparent; }
+.cw-strategy-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .15);
+    border-radius: 3px;
+}
+.cw-strategy-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, .25);
+}
+
+/* ==================== 势力头部 ==================== */
+.cw-strategy-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(120, 80, 180, .18), rgba(80, 120, 180, .12));
+    border: 1px solid rgba(120, 150, 255, .22);
+    border-radius: 12px;
+    margin-bottom: 14px;
+}
+.cw-strategy-header-icon {
+    font-size: 42px;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 8px rgba(120, 150, 255, .4));
+}
+.cw-strategy-header-info { flex: 1; min-width: 0; }
+.cw-strategy-header-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+    letter-spacing: .3px;
+}
+.cw-strategy-header-desc {
+    font-size: 12px;
+    color: #aab;
+    line-height: 1.65;
+}
+
+/* ==================== 分区 ==================== */
+.cw-strategy-section {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, .03);
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-radius: 10px;
+}
+.cw-strategy-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ab0ff;
+    letter-spacing: .5px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(120, 150, 255, .15);
+}
+
+/* ==================== 字段 ==================== */
+.cw-strategy-field-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255, 255, 255, .04);
+}
+.cw-strategy-field-row:last-child { border-bottom: none; }
+.cw-strategy-field-row .key { color: #aab; }
+.cw-strategy-field-row .val { color: #ffd76b; font-weight: 600; }
+
+.cw-strategy-field { margin-bottom: 10px; }
+.cw-strategy-field:last-child { margin-bottom: 0; }
+.cw-strategy-field-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 5px;
+    font-size: 12px;
+}
+.cw-strategy-field-label > span:first-child { color: #ccc; }
+.cw-strategy-field-label > span:last-child {
+    color: #888;
+    font-family: monospace;
+    font-size: 11px;
+}
+.cw-strategy-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, .08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.cw-strategy-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7da8ff, #a8c4ff);
+    border-radius: 3px;
+    transition: width .35s ease;
+    box-shadow: 0 0 6px rgba(120, 150, 255, .5);
+}
+
+/* ==================== 卡片 ==================== */
+.cw-strategy-card {
+    background: linear-gradient(135deg, rgba(50, 45, 65, .6), rgba(35, 30, 50, .75));
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    transition: all .2s ease;
+}
+.cw-strategy-card:last-child { margin-bottom: 0; }
+.cw-strategy-card:hover {
+    border-color: rgba(120, 150, 255, .3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
+}
+.cw-strategy-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.cw-strategy-card-icon {
+    font-size: 30px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.cw-strategy-card-title { flex: 1; min-width: 0; }
+.cw-strategy-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 3px;
+}
+.cw-strategy-card-sub {
+    font-size: 11px;
+    font-weight: 500;
+}
+.cw-strategy-card-desc {
+    font-size: 12px;
+    color: #aab;
+    line-height: 1.6;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, .2);
+    border-radius: 6px;
+}
+
+/* ==================== 数据芯片 ==================== */
+.cw-strategy-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+}
+.cw-strategy-chip {
+    display: inline-block;
+    padding: 3px 9px;
+    background: rgba(120, 150, 255, .12);
+    border: 1px solid rgba(120, 150, 255, .25);
+    border-radius: 10px;
+    font-size: 11px;
+    color: #9ab0ff;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.cw-strategy-chip.small {
+    padding: 2px 7px;
+    font-size: 10px;
+    background: rgba(255, 255, 255, .05);
+    border-color: rgba(255, 255, 255, .12);
+    color: #aab;
+}
+
+/* ==================== 势力分布 ==================== */
+.cw-strategy-presence {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, .25);
+    border-radius: 8px;
+    border-left: 3px solid rgba(120, 150, 255, .4);
+}
+.cw-strategy-presence-title {
+    font-size: 11px;
+    color: #888;
+    font-weight: 600;
+    letter-spacing: .5px;
+    margin-bottom: 6px;
+}
+.cw-strategy-presence-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 4px 0;
+    font-size: 11px;
+    gap: 10px;
+}
+.cw-strategy-presence-row .name {
+    color: #c8d8ff;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+.cw-strategy-presence-row .vals {
+    color: #888;
+    text-align: right;
+    word-break: break-word;
+}
+
+/* ==================== 行动卡片 ==================== */
+.cw-strategy-action-card {
+    background: linear-gradient(135deg, rgba(60, 50, 80, .55), rgba(40, 35, 60, .8));
+    border: 1px solid rgba(120, 150, 255, .18);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    transition: all .2s ease;
+}
+.cw-strategy-action-card:last-child { margin-bottom: 0; }
+.cw-strategy-action-card:hover {
+    border-color: rgba(120, 150, 255, .45);
+    box-shadow: 0 4px 20px rgba(120, 150, 255, .15);
+    transform: translateY(-1px);
+}
+.cw-strategy-action-card.completed {
+    opacity: .55;
+    border-color: rgba(255, 255, 255, .08);
+}
+.cw-strategy-action-card.completed:hover { transform: none; box-shadow: none; }
+.cw-strategy-action-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.cw-strategy-action-icon {
+    font-size: 30px;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 6px rgba(255, 200, 100, .3));
+}
+.cw-strategy-action-title { flex: 1; min-width: 0; }
+.cw-strategy-action-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+}
+.cw-strategy-action-hint {
+    font-size: 12px;
+    color: #aab;
+    line-height: 1.6;
+}
+
+/* ==================== 回合历史 ==================== */
+.cw-strategy-turn-log {
+    padding: 12px 14px;
+    background: rgba(0, 0, 0, .22);
+    border-radius: 10px;
+    border-left: 3px solid rgba(120, 150, 255, .35);
+    margin-bottom: 10px;
+}
+.cw-strategy-turn-log:last-child { margin-bottom: 0; }
+.cw-strategy-turn-log-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    font-weight: 700;
+    color: #c8d8ff;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+.cw-strategy-turn-log-section { margin-top: 8px; }
+.cw-strategy-turn-log-label {
+    font-size: 11px;
+    color: #888;
+    font-weight: 600;
+    letter-spacing: .3px;
+    margin-bottom: 4px;
+}
+.cw-strategy-turn-log-line {
+    font-size: 12px;
+    color: #ccc;
+    line-height: 1.7;
+    padding-left: 8px;
+    position: relative;
+}
+.cw-strategy-turn-log-line::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: #666;
+}
+.cw-strategy-turn-log-line strong {
+    color: #9ab0ff;
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+/* ==================== 开关 ==================== */
+.cw-strategy-settings {
+    background: rgba(255, 255, 255, .03);
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-radius: 10px;
+    padding: 4px 14px;
+    margin-bottom: 14px;
+}
+.cw-strategy-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .05);
+}
+.cw-strategy-setting-row:last-child { border-bottom: none; }
+.cw-strategy-setting-label { flex: 1; min-width: 0; }
+.cw-strategy-setting-title {
+    font-size: 13px;
+    color: #ddd;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.cw-strategy-setting-desc {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.5;
+}
+
+.cw-strategy-switch {
+    position: relative;
+    display: inline-block;
+    width: 42px;
+    height: 24px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+.cw-strategy-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+.cw-strategy-switch-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, .15);
+    border-radius: 12px;
+    transition: background .2s;
+}
+.cw-strategy-switch-slider::before {
+    content: '';
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+.cw-strategy-switch input:checked + .cw-strategy-switch-slider {
+    background: linear-gradient(135deg, #667eea, #a06cd5);
+}
+.cw-strategy-switch input:checked + .cw-strategy-switch-slider::before {
+    transform: translateX(18px);
+}
+
+/* ==================== 领袖卡 ==================== */
+.cw-strategy-leader {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(180, 140, 60, .12), rgba(120, 100, 40, .06));
+    border: 1px solid rgba(216, 192, 125, .25);
+    border-radius: 10px;
+}
+.cw-strategy-leader-icon {
+    font-size: 42px;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 6px rgba(216, 192, 125, .35));
+}
+.cw-strategy-leader-info { flex: 1; min-width: 0; }
+.cw-strategy-leader-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f0d9a0;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.cw-strategy-leader-desc {
+    font-size: 12px;
+    color: #b8a878;
+    line-height: 1.6;
+    margin-top: 4px;
+}
+
+.cw-strategy-title-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    background: rgba(216, 192, 125, .15);
+    border: 1px solid rgba(216, 192, 125, .35);
+    border-radius: 8px;
+    font-size: 10px;
+    color: #e0c890;
+    font-weight: 500;
+    letter-spacing: .3px;
+}
+.cw-strategy-title-badge.small {
+    font-size: 9px;
+    padding: 1px 6px;
+}
+.cw-strategy-gender {
+    font-size: 11px;
+    color: #888;
+    font-weight: 400;
+}
+
+/* ==================== 代表团 ==================== */
+.cw-strategy-delegate {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, .03);
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all .18s;
+}
+.cw-strategy-delegate:last-child { margin-bottom: 0; }
+.cw-strategy-delegate:hover {
+    background: rgba(120, 150, 255, .08);
+    border-color: rgba(120, 150, 255, .3);
+    transform: translateX(2px);
+}
+.cw-strategy-delegate-icon {
+    font-size: 26px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.cw-strategy-delegate-info { flex: 1; min-width: 0; }
+.cw-strategy-delegate-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ddd;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.cw-strategy-delegate-desc {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.5;
+}
+
+/* ==================== 立场标签 ==================== */
+.cw-strategy-stance {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .3px;
+}
+.cw-stance-war {
+    background: rgba(216, 125, 125, .18);
+    border: 1px solid rgba(216, 125, 125, .4);
+    color: #ffb8b8;
+}
+.cw-stance-peace {
+    background: rgba(125, 216, 125, .18);
+    border: 1px solid rgba(125, 216, 125, .4);
+    color: #9ee89e;
+}
+.cw-stance-neutral {
+    background: rgba(180, 180, 180, .15);
+    border: 1px solid rgba(180, 180, 180, .3);
+    color: #bbb;
+}
+.cw-stance-plot {
+    background: rgba(180, 125, 216, .18);
+    border: 1px solid rgba(180, 125, 216, .4);
+    color: #d8b8ff;
+}
+
+/* ============================================================ */
+/* 内政 · 政治结构                                              */
+/* ============================================================ */
+.cw-politics-regime-row {
+    padding: 10px 12px;
+    background: rgba(120, 150, 255, .06);
+    border: 1px solid rgba(120, 150, 255, .15);
+    border-radius: 8px;
+}
+.cw-politics-regime-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f0d9a0;
+    margin-bottom: 4px;
+}
+.cw-politics-regime-type {
+    font-size: 12px;
+    color: #9ab0ff;
+    margin-bottom: 6px;
+}
+.cw-politics-regime-desc {
+    font-size: 12px;
+    color: #aab;
+    line-height: 1.6;
+}
+
+/* ============================================================ */
+/* 内政 · 经济基础                                              */
+/* ============================================================ */
+.cw-politics-economy-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 5px 0;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, .04);
+}
+.cw-politics-economy-row:last-child { border-bottom: none; }
+.cw-politics-economy-row .key { color: #aab; }
+.cw-politics-economy-row .val { color: #ffd76b; font-weight: 600; }
+
+/* ============================================================ */
+/* 内政 · 时期                                                  */
+/* ============================================================ */
+.cw-politics-period {
+    padding: 10px 12px;
+    background: rgba(255, 154, 90, .08);
+    border: 1px solid rgba(255, 154, 90, .25);
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+.cw-politics-period-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #ff9a5a;
+    margin-bottom: 4px;
+}
+.cw-politics-period-desc {
+    font-size: 12px;
+    color: #aab;
+    line-height: 1.6;
+    margin-bottom: 6px;
+}
+.cw-politics-period-meta {
+    font-size: 11px;
+    color: #888;
+    font-family: monospace;
+}
+.cw-politics-mech-subtitle {
+    font-size: 11px;
+    color: #9ab0ff;
+    font-weight: 600;
+    letter-spacing: .5px;
+    margin: 10px 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(120, 150, 255, .12);
+}
+.cw-politics-mechanism {
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, .2);
+    border-radius: 6px;
+    border-left: 3px solid rgba(216, 192, 125, .4);
+    margin-bottom: 6px;
+}
+.cw-politics-mechanism:last-child { margin-bottom: 0; }
+.cw-politics-mechanism-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e0d0a0;
+    margin-bottom: 3px;
+}
+.cw-politics-mechanism-trigger {
+    font-size: 11px;
+    color: #888;
+    font-family: monospace;
+    margin-bottom: 2px;
+}
+.cw-politics-mechanism-effect {
+    font-size: 11px;
+    color: #9ab0ff;
+    font-family: monospace;
+    word-break: break-word;
+}
+
+/* ============================================================ */
+/* 内政 · 阶级 / 职能                                           */
+/* ============================================================ */
+.cw-politics-class {
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, .03);
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+.cw-politics-class:last-child { margin-bottom: 0; }
+.cw-politics-class-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.cw-politics-class-icon {
+    font-size: 28px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.cw-politics-class-info { flex: 1; min-width: 0; }
+.cw-politics-class-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 3px;
+}
+.cw-politics-class-meta {
+    font-size: 11px;
+    color: #9ab0ff;
+}
+.cw-politics-class-desc {
+    font-size: 12px;
+    color: #aab;
+    line-height: 1.6;
+    margin: 6px 0 4px;
+}
+
+.cw-politics-strata {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, .06);
+}
+.cw-politics-stratum {
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, .18);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    border-left: 3px solid rgba(120, 150, 255, .3);
+}
+.cw-politics-stratum:last-child { margin-bottom: 0; }
+.cw-politics-stratum-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #c8d8ff;
+    margin-bottom: 3px;
+}
+.cw-politics-stratum-meta {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 3px;
+}
+.cw-politics-stratum-desc {
+    font-size: 11px;
+    color: #aab;
+    line-height: 1.5;
+}
+
+/* ============================================================ */
+/* 内政 · 阶级矛盾                                              */
+/* ============================================================ */
+.cw-politics-contradiction {
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-top: 8px;
+    line-height: 1.5;
+}
+.cw-politics-contradiction.neutral {
+    background: rgba(180, 180, 180, .1);
+    color: #bbb;
+    border-left: 3px solid rgba(180, 180, 180, .4);
+}
+.cw-politics-contradiction.exploited {
+    background: rgba(216, 125, 125, .12);
+    color: #ffb8b8;
+    border-left: 3px solid rgba(216, 125, 125, .5);
+}
+.cw-politics-contradiction.exploiting {
+    background: rgba(216, 192, 125, .12);
+    color: #e0c890;
+    border-left: 3px solid rgba(216, 192, 125, .5);
+}
+
+.cw-politics-contradiction-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6px 0;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, .04);
+}
+.cw-politics-contradiction-row:last-child { border-bottom: none; }
+.cw-politics-contradiction-row .key { color: #aab; }
+.cw-politics-contradiction-row .val { color: #c8d8ff; font-weight: 600; }
+
+/* ============================================================ */
+/* 内政 · 利益集团                                              */
+/* ============================================================ */
+.cw-politics-group {
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(60, 50, 80, .5), rgba(40, 35, 60, .7));
+    border: 1px solid rgba(120, 150, 255, .18);
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+.cw-politics-group:last-child { margin-bottom: 0; }
+.cw-politics-group-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.cw-politics-group-icon {
+    font-size: 30px;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 6px rgba(255, 200, 100, .25));
+}
+.cw-politics-group-title { flex: 1; min-width: 0; }
+.cw-politics-group-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 3px;
+}
+.cw-politics-group-meta {
+    font-size: 12px;
+    color: #aab;
+}
+.cw-politics-group-desc {
+    font-size: 12px;
+    color: #aab;
+    line-height: 1.6;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, .2);
+    border-radius: 6px;
+}
+.cw-politics-group-subtitle {
+    font-size: 11px;
+    color: #9ab0ff;
+    font-weight: 600;
+    letter-spacing: .5px;
+    margin: 10px 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(120, 150, 255, .12);
+}
+
+/* ============================================================ */
+/* 内政 · 派系                                                  */
+/* ============================================================ */
+.cw-politics-faction {
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, .22);
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-left: 3px solid rgba(216, 192, 125, .4);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+.cw-politics-faction:last-child { margin-bottom: 0; }
+.cw-politics-faction-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.cw-politics-faction-icon {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.cw-politics-faction-title { flex: 1; min-width: 0; }
+.cw-politics-faction-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e0d0a0;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.cw-politics-faction-meta {
+    font-size: 11px;
+    color: #888;
+}
+.cw-politics-faction-desc {
+    font-size: 12px;
+    color: #aab;
+    line-height: 1.6;
+    margin-bottom: 6px;
+}
+.cw-politics-faction-opposes {
+    font-size: 11px;
+    color: #d87d7d;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(216, 125, 125, .2);
+}
+
+/* ============================================================ */
+/* 规则面板                                                     */
+/* ============================================================ */
+.cw-rule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.cw-rule-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, .18);
+    border-radius: 6px;
+    border-left: 3px solid rgba(120, 150, 255, .35);
+    font-size: 12px;
+    line-height: 1.6;
+}
+.cw-rule-item-field {
+    color: #9ab0ff;
+    font-weight: 600;
+    flex-shrink: 0;
+    min-width: 70px;
+}
+.cw-rule-item-text {
+    color: #ccc;
+    text-align: right;
+    flex: 1;
+    word-break: break-word;
+}
+
+.cw-rule-kv {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+.cw-rule-kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 5px 0;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, .04);
+}
+.cw-rule-kv-row:last-child { border-bottom: none; }
+.cw-rule-kv-row .key { color: #aab; }
+.cw-rule-kv-row .val { color: #ffd76b; font-weight: 600; }
+
+.cw-rule-formula {
+    font-family: monospace;
+    font-size: 11px;
+    color: #7da8ff;
+    padding: 8px 10px;
+    background: rgba(120, 150, 255, .08);
+    border: 1px dashed rgba(120, 150, 255, .25);
+    border-radius: 6px;
+    margin-top: 8px;
+    line-height: 1.6;
+    word-break: break-all;
+}
+.cw-rule-formula sup {
+    font-size: 9px;
+    vertical-align: super;
+}
+
+.cw-rule-disabled {
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+    padding: 8px 10px;
+    background: rgba(180, 180, 180, .08);
+    border-radius: 6px;
+}
+
+.cw-rule-raw {
+    font-family: monospace;
+    font-size: 11px;
+    color: #aab;
+    background: rgba(0, 0, 0, .3);
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.7;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* ============================================================ */
+/* 移动端适配                                                   */
+/* ============================================================ */
+@media (max-width: 640px) {
+    .cw-strategy-modal {
+        width: 96vw !important;
+        max-width: none !important;
+    }
+    .cw-strategy-tabs { gap: 2px; padding: 3px; }
+    .cw-strategy-tab {
+        min-width: 56px;
+        padding: 7px 4px;
+        font-size: 11px;
+    }
+    .cw-strategy-content { max-height: 55vh; }
+    .cw-strategy-header { padding: 12px; gap: 10px; }
+    .cw-strategy-header-icon { font-size: 34px; }
+    .cw-strategy-header-name { font-size: 16px; }
+    .cw-strategy-card,
+    .cw-strategy-action-card { padding: 12px; }
+    .cw-strategy-card-icon,
+    .cw-strategy-action-icon { font-size: 26px; }
+    .cw-strategy-card-name,
+    .cw-strategy-action-name { font-size: 14px; }
+    .cw-strategy-presence-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    .cw-strategy-presence-row .vals { text-align: left; }
+
+    .cw-politics-class,
+    .cw-politics-group { padding: 10px; }
+    .cw-politics-class-icon,
+    .cw-politics-group-icon { font-size: 24px; }
+    .cw-politics-class-name,
+    .cw-politics-group-name { font-size: 14px; }
+    .cw-politics-faction { padding: 8px 10px; }
+
+    .cw-rule-item {
+        flex-direction: column;
+        gap: 4px;
+    }
+    .cw-rule-item-text { text-align: left; }
+}
+
+/* ==================== 战略意图输入 ==================== */
+.cw-intent-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, .25);
+    border: 1px solid rgba(120, 150, 255, .25);
+    border-radius: 8px;
+    color: #ddd;
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color .2s;
+}
+.cw-intent-textarea:focus {
+    outline: none;
+    border-color: rgba(120, 150, 255, .55);
+    box-shadow: 0 0 0 2px rgba(120, 150, 255, .12);
+}
+.cw-intent-textarea::placeholder {
+    color: #666;
+    font-style: italic;
+}
+
+.cw-intent-examples {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: rgba(120, 150, 255, .06);
+    border: 1px solid rgba(120, 150, 255, .12);
+    border-radius: 6px;
+}
+.cw-intent-examples-label {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 6px;
+}
+.cw-intent-example {
+    display: inline-block;
+    margin: 2px 4px 2px 0;
+    padding: 4px 10px;
+    background: rgba(120, 150, 255, .12);
+    border: 1px solid rgba(120, 150, 255, .3);
+    border-radius: 12px;
+    color: #9ab0ff;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .15s;
+}
+.cw-intent-example:hover {
+    background: rgba(120, 150, 255, .25);
+    border-color: rgba(120, 150, 255, .5);
+    color: #c8d8ff;
+}

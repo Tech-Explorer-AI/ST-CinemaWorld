@@ -1,0 +1,814 @@
+/* ============================================================
+   CinemaWorld · 玩法区 & 农田 UI
+   ============================================================ */
+
+/* ---------- 划地提示条 ---------- */
+.cw-plot-hint {
+    position: fixed;
+    top: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100009;
+    padding: 12px 18px;
+    background: rgba(60, 80, 160, 0.95);
+    color: #fff;
+    font-size: 13px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    animation: cw-plot-hint-in 0.3s ease;
+    display: flex;
+    align-items: center;
+    backdrop-filter: blur(8px);
+    font-family: inherit;
+}
+
+@keyframes cw-plot-hint-in {
+    from { opacity: 0; transform: translate(-50%, -8px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ---------- Plot 信息卡 ---------- */
+.cw-plot-info-card {
+    position: fixed;
+    right: 24px;
+    top: 24px;
+    z-index: 100008;
+    width: 260px;
+    background: rgba(20, 22, 34, 0.95);
+    border: 1px solid rgba(120, 150, 255, 0.35);
+    border-radius: 14px;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    color: #fff;
+    font-family: inherit;
+    animation: cw-plot-card-in 0.3s ease;
+}
+
+@keyframes cw-plot-card-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.cw-plot-info-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cw-plot-info-emoji { font-size: 24px; line-height: 1; }
+.cw-plot-info-name {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cw-plot-info-close {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    color: #aaa;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+}
+.cw-plot-info-close:hover { background: rgba(255, 100, 100, 0.3); color: #fff; }
+
+.cw-plot-info-body { padding: 12px 16px; font-size: 12px; line-height: 1.8; }
+.cw-plot-info-row { display: flex; justify-content: space-between; gap: 10px; color: #ccc; }
+.cw-plot-info-row > span:first-child { color: #8898b8; }
+.cw-plot-info-notes {
+    margin-top: 8px; padding: 8px 10px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+    font-size: 12px; color: #aaa;
+}
+.cw-plot-info-actions {
+    display: flex; gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+.cw-plot-info-actions button {
+    flex: 1;
+    padding: 8px 10px;
+    background: rgba(120, 150, 255, 0.15);
+    border: 1px solid rgba(120, 150, 255, 0.3);
+    border-radius: 8px;
+    color: #9ab0ff;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+}
+.cw-plot-info-actions button:hover {
+    background: rgba(120, 150, 255, 0.3);
+    color: #fff;
+}
+
+/* ---------- 列表卡片 ---------- */
+.cw-plot-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.cw-plot-card:hover {
+    background: rgba(120, 150, 255, 0.1);
+    border-color: rgba(120, 150, 255, 0.4);
+}
+
+/* ---------- 类型选择卡片 ---------- */
+.cw-plot-type-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, .04);
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, .08);
+    margin-bottom: 6px;
+}
+
+/* ============================================================
+   农田 UI（区域级）
+   ============================================================ */
+.cw-farm-modal {
+    width: min(960px, 96vw) !important;
+    max-width: 960px !important;
+}
+
+.cw-farm-root {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.cw-farm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cw-farm-header-left { display: flex; align-items: center; gap: 12px; }
+.cw-farm-icon { font-size: 32px; }
+.cw-farm-title { font-size: 20px; font-weight: 700; color: #fff; }
+.cw-farm-subtitle { font-size: 12px; color: #888; margin-top: 2px; }
+.cw-farm-header-right { display: flex; align-items: center; gap: 10px; }
+.cw-farm-status {
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    background: rgba(255,255,255,0.08);
+    color: #ccc;
+}
+.cw-farm-status.growing { background: rgba(120,200,120,0.15); color: #a8e0a8; }
+.cw-farm-status.ready   { background: rgba(255,200,80,0.15);  color: #ffd76b; }
+.cw-farm-status.dead    { background: rgba(200,80,80,0.15);   color: #ffb0b0; }
+.cw-farm-close {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.08);
+    color: #ccc;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+}
+.cw-farm-close:hover { background: rgba(255,100,100,0.3); color: #fff; }
+
+.cw-farm-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    min-height: 420px;
+}
+
+/* 左侧 */
+.cw-farm-left { display: flex; flex-direction: column; gap: 16px; }
+.cw-farm-section {
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    padding: 14px;
+}
+.cw-farm-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #9ab0ff;
+    margin-bottom: 10px;
+}
+
+.cw-farm-env-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 40px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.cw-farm-env-label {
+    display: flex;
+    gap: 6px;
+    font-size: 12px;
+    color: #ccc;
+}
+.cw-farm-env-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.cw-farm-env-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #a8c4ff);
+    transition: width 0.3s ease;
+}
+.cw-farm-env-value {
+    font-size: 12px;
+    color: #ffd76b;
+    font-weight: 600;
+    text-align: right;
+    font-family: monospace;
+}
+
+/* 作物卡片 */
+.cw-farm-crop {
+    text-align: center;
+    padding: 16px;
+}
+.cw-farm-crop-icon { font-size: 48px; margin-bottom: 8px; }
+.cw-farm-crop-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 10px; }
+.cw-farm-crop-progress {
+    height: 10px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+.cw-farm-crop-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #7dd87d, #a8e0a8);
+    transition: width 0.3s ease;
+}
+.cw-farm-crop-pct {
+    font-size: 12px;
+    color: #9ab0ff;
+    font-family: monospace;
+}
+.cw-farm-crop.ready { animation: cw-farm-pulse 1.5s infinite; }
+.cw-farm-crop.ready .cw-farm-crop-ready-text {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #ffd76b;
+    font-weight: 600;
+}
+@keyframes cw-farm-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.02); }
+}
+.cw-farm-crop.empty { color: #888; font-size: 14px; }
+.cw-farm-crop.dead { color: #ffb0b0; font-size: 14px; }
+
+/* 右侧 */
+.cw-farm-right {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.cw-farm-tabs {
+    display: flex;
+    background: rgba(0,0,0,0.2);
+}
+.cw-farm-tab {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+.cw-farm-tab:hover { color: #ccc; }
+.cw-farm-tab.active {
+    color: #fff;
+    background: rgba(120,150,255,0.15);
+    box-shadow: inset 0 -2px 0 #7da8ff;
+}
+.cw-farm-tab-body {
+    flex: 1;
+    padding: 14px;
+    overflow-y: auto;
+    max-height: 480px;
+}
+
+/* 动作按钮 */
+.cw-farm-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    color: #fff;
+    text-align: left;
+    transition: all 0.15s;
+}
+.cw-farm-action-btn:hover {
+    background: rgba(120,150,255,0.12);
+    border-color: rgba(120,150,255,0.3);
+}
+.cw-farm-action-btn.primary {
+    background: rgba(120,200,120,0.15);
+    border-color: rgba(120,200,120,0.3);
+}
+.cw-farm-action-btn.primary:hover { background: rgba(120,200,120,0.25); }
+.cw-farm-action-icon { font-size: 24px; flex-shrink: 0; }
+.cw-farm-action-info { flex: 1; min-width: 0; }
+.cw-farm-action-name { font-size: 14px; font-weight: 600; }
+.cw-farm-action-meta {
+    font-size: 11px;
+    color: #888;
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 种子按钮 */
+.cw-farm-seed-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    color: #fff;
+    text-align: left;
+    transition: all 0.15s;
+}
+.cw-farm-seed-btn:hover {
+    background: rgba(120,200,120,0.12);
+    border-color: rgba(120,200,120,0.3);
+}
+.cw-farm-seed-icon { font-size: 24px; flex-shrink: 0; }
+.cw-farm-seed-info { flex: 1; min-width: 0; }
+.cw-farm-seed-name { font-size: 14px; font-weight: 600; }
+.cw-farm-seed-meta {
+    font-size: 11px;
+    color: #888;
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 日志 */
+.cw-farm-log-line {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.cw-farm-log-time { color: #667; flex-shrink: 0; font-family: monospace; }
+.cw-farm-log-text { color: #ccc; flex: 1; word-break: break-word; }
+
+.cw-farm-empty {
+    text-align: center;
+    padding: 30px 20px;
+    color: #666;
+    font-size: 13px;
+}
+
+/* 移动端 */
+@media (max-width: 640px) {
+    .cw-farm-body { grid-template-columns: 1fr; }
+    .cw-farm-modal { width: 96vw !important; }
+    .cw-plot-info-card { right: 12px; left: 12px; width: auto; top: auto; bottom: 12px; }
+    .cw-plot-hint { font-size: 12px; padding: 10px 14px; max-width: 92vw; }
+}
+
+/* ============================================================
+   CinemaWorld · 玩法区 & 农田 & 商店 & 规则库
+   ============================================================ */
+
+/* ---------- 划地提示条 ---------- */
+.cw-plot-hint {
+    position: fixed;
+    top: 12%; left: 50%;
+    transform: translateX(-50%);
+    z-index: 100009;
+    padding: 12px 18px;
+    background: rgba(60, 80, 160, 0.95);
+    color: #fff;
+    font-size: 13px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    animation: cw-plot-hint-in 0.3s ease;
+    display: flex; align-items: center;
+    backdrop-filter: blur(8px);
+    font-family: inherit;
+}
+@keyframes cw-plot-hint-in {
+    from { opacity: 0; transform: translate(-50%, -8px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ---------- Plot 信息卡 ---------- */
+.cw-plot-info-card {
+    position: fixed;
+    right: 24px; top: 24px;
+    z-index: 100008;
+    width: 260px;
+    background: rgba(20, 22, 34, 0.95);
+    border: 1px solid rgba(120, 150, 255, 0.35);
+    border-radius: 14px;
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    color: #fff;
+    font-family: inherit;
+    animation: cw-plot-card-in 0.3s ease;
+}
+@keyframes cw-plot-card-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.cw-plot-info-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cw-plot-info-emoji { font-size: 24px; }
+.cw-plot-info-name {
+    flex: 1; font-size: 15px; font-weight: 700;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cw-plot-info-close {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: none; background: rgba(255,255,255,0.08);
+    color: #aaa; cursor: pointer; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: inherit;
+}
+.cw-plot-info-close:hover { background: rgba(255,100,100,0.3); color: #fff; }
+.cw-plot-info-body { padding: 12px 16px; font-size: 12px; line-height: 1.8; }
+.cw-plot-info-row { display: flex; justify-content: space-between; gap: 10px; color: #ccc; }
+.cw-plot-info-row > span:first-child { color: #8898b8; }
+.cw-plot-info-notes {
+    margin-top: 8px; padding: 8px 10px;
+    background: rgba(255,255,255,0.04); border-radius: 6px;
+    font-size: 12px; color: #aaa;
+}
+.cw-plot-info-actions {
+    display: flex; gap: 8px; padding: 12px 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+.cw-plot-info-actions button {
+    flex: 1; padding: 8px 10px;
+    background: rgba(120, 150, 255, 0.15);
+    border: 1px solid rgba(120, 150, 255, 0.3);
+    border-radius: 8px; color: #9ab0ff;
+    font-size: 12px; cursor: pointer;
+    font-family: inherit;
+}
+.cw-plot-info-actions button:hover {
+    background: rgba(120, 150, 255, 0.3); color: #fff;
+}
+
+/* ---------- 列表/规则卡片 ---------- */
+.cw-plot-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.cw-plot-card:hover {
+    background: rgba(120, 150, 255, 0.1);
+    border-color: rgba(120, 150, 255, 0.4);
+}
+
+/* ---------- 类型/规则选择卡片 ---------- */
+.cw-plot-type-card {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, .04);
+    border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, .08);
+    margin-bottom: 6px;
+}
+
+/* ============================================================
+   农田 UI
+   ============================================================ */
+.cw-farm-modal {
+    width: min(960px, 96vw) !important;
+    max-width: 960px !important;
+}
+.cw-farm-root { display: flex; flex-direction: column; gap: 16px; }
+
+.cw-farm-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cw-farm-header-left { display: flex; align-items: center; gap: 12px; }
+.cw-farm-icon { font-size: 32px; }
+.cw-farm-title { font-size: 20px; font-weight: 700; color: #fff; }
+.cw-farm-subtitle { font-size: 12px; color: #888; margin-top: 2px; }
+.cw-farm-header-right { display: flex; align-items: center; gap: 10px; }
+.cw-farm-status {
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 12px;
+    background: rgba(255,255,255,0.08);
+    color: #ccc;
+}
+.cw-farm-status.growing { background: rgba(120,200,120,0.15); color: #a8e0a8; }
+.cw-farm-status.ready   { background: rgba(255,200,80,0.15);  color: #ffd76b; }
+.cw-farm-status.dead    { background: rgba(200,80,80,0.15);   color: #ffb0b0; }
+.cw-farm-close {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: none; background: rgba(255,255,255,0.08);
+    color: #ccc; cursor: pointer; font-size: 14px;
+    font-family: inherit;
+}
+.cw-farm-close:hover { background: rgba(255,100,100,0.3); color: #fff; }
+
+.cw-farm-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    min-height: 420px;
+}
+
+.cw-farm-left { display: flex; flex-direction: column; gap: 16px; }
+.cw-farm-section {
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px; padding: 14px;
+}
+.cw-farm-section-title {
+    font-size: 13px; font-weight: 600;
+    color: #9ab0ff; margin-bottom: 10px;
+}
+
+.cw-farm-env-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 40px;
+    align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.cw-farm-env-label { display: flex; gap: 6px; font-size: 12px; color: #ccc; }
+.cw-farm-env-bar {
+    height: 8px; background: rgba(255,255,255,0.08);
+    border-radius: 4px; overflow: hidden;
+}
+.cw-farm-env-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #a8c4ff);
+    transition: width 0.3s ease;
+}
+.cw-farm-env-value {
+    font-size: 12px; color: #ffd76b; font-weight: 600;
+    text-align: right; font-family: monospace;
+}
+
+.cw-farm-crop { text-align: center; padding: 16px; }
+.cw-farm-crop-icon { font-size: 48px; margin-bottom: 8px; }
+.cw-farm-crop-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 10px; }
+.cw-farm-crop-progress {
+    height: 10px; background: rgba(255,255,255,0.08);
+    border-radius: 5px; overflow: hidden; margin-bottom: 6px;
+}
+.cw-farm-crop-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #7dd87d, #a8e0a8);
+    transition: width 0.3s ease;
+}
+.cw-farm-crop-pct { font-size: 12px; color: #9ab0ff; font-family: monospace; }
+.cw-farm-crop.ready { animation: cw-farm-pulse 1.5s infinite; }
+.cw-farm-crop.ready .cw-farm-crop-ready-text {
+    margin-top: 10px; font-size: 13px;
+    color: #ffd76b; font-weight: 600;
+}
+@keyframes cw-farm-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.02); }
+}
+.cw-farm-crop.empty { color: #888; font-size: 14px; }
+.cw-farm-crop.dead { color: #ffb0b0; font-size: 14px; }
+
+.cw-farm-right {
+    display: flex; flex-direction: column;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px; overflow: hidden;
+}
+.cw-farm-tabs { display: flex; background: rgba(0,0,0,0.2); flex-wrap: wrap; }
+.cw-farm-tab {
+    flex: 1; min-width: 60px;
+    padding: 10px;
+    background: transparent; border: none;
+    color: #888; font-size: 12px;
+    cursor: pointer; font-family: inherit;
+    transition: all 0.15s;
+}
+.cw-farm-tab:hover { color: #ccc; }
+.cw-farm-tab.active {
+    color: #fff;
+    background: rgba(120,150,255,0.15);
+    box-shadow: inset 0 -2px 0 #7da8ff;
+}
+.cw-farm-tab-body {
+    flex: 1; padding: 14px;
+    overflow-y: auto; max-height: 480px;
+}
+
+.cw-farm-action-btn, .cw-farm-seed-btn, .cw-farm-shop-btn {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 12px 14px; margin-bottom: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; cursor: pointer;
+    font-family: inherit; color: #fff; text-align: left;
+    transition: all 0.15s;
+}
+.cw-farm-action-btn:hover,
+.cw-farm-seed-btn:hover,
+.cw-farm-shop-btn:hover {
+    background: rgba(120,150,255,0.12);
+    border-color: rgba(120,150,255,0.3);
+}
+.cw-farm-action-btn.primary {
+    background: rgba(120,200,120,0.15);
+    border-color: rgba(120,200,120,0.3);
+}
+.cw-farm-action-btn.primary:hover { background: rgba(120,200,120,0.25); }
+
+.cw-farm-action-icon, .cw-farm-seed-icon, .cw-farm-shop-icon {
+    font-size: 24px; flex-shrink: 0;
+}
+.cw-farm-action-info, .cw-farm-seed-info, .cw-farm-shop-info {
+    flex: 1; min-width: 0;
+}
+.cw-farm-action-name, .cw-farm-seed-name, .cw-farm-shop-name {
+    font-size: 14px; font-weight: 600;
+}
+.cw-farm-action-meta, .cw-farm-seed-meta, .cw-farm-shop-meta {
+    font-size: 11px; color: #888; margin-top: 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.cw-farm-shop-head {
+    display: flex; justify-content: space-between;
+    padding: 10px 12px; margin-bottom: 12px;
+    background: rgba(120,150,255,0.08);
+    border-radius: 8px; font-size: 13px;
+}
+.cw-farm-shop-btn {
+    position: relative;
+}
+.cw-farm-shop-btn.out { opacity: 0.4; cursor: not-allowed; }
+.cw-farm-shop-btn.poor { opacity: 0.7; }
+.cw-farm-shop-stock {
+    font-size: 10px; color: #666; margin-top: 3px;
+}
+.cw-farm-shop-price {
+    font-size: 13px; color: #ffd76b; font-weight: 600;
+    margin-left: 8px;
+}
+
+.cw-farm-log-line {
+    display: flex; gap: 8px; padding: 6px 0;
+    font-size: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.cw-farm-log-time { color: #667; flex-shrink: 0; font-family: monospace; }
+.cw-farm-log-text { color: #ccc; flex: 1; word-break: break-word; }
+
+.cw-farm-empty {
+    text-align: center; padding: 30px 20px;
+    color: #666; font-size: 13px;
+}
+
+@media (max-width: 640px) {
+    .cw-farm-body { grid-template-columns: 1fr; }
+    .cw-farm-modal { width: 96vw !important; }
+    .cw-plot-info-card { right: 12px; left: 12px; width: auto; top: auto; bottom: 12px; }
+    .cw-plot-hint { font-size: 12px; padding: 10px 14px; max-width: 92vw; }
+}
+
+/* 环境属性行：多一列显示速率 */
+.cw-farm-env-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 40px 70px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.cw-farm-env-rate {
+    font-size: 11px;
+    text-align: right;
+    font-family: monospace;
+    white-space: nowrap;
+}
+
+/* 作物面板：条件检查 */
+.cw-farm-cond-block {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    text-align: left;
+}
+
+.cw-farm-cond-title {
+    font-size: 11px;
+    color: #9ab0ff;
+    margin-bottom: 8px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.cw-farm-cond-row {
+    display: grid;
+    grid-template-columns: 1fr 60px 70px;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.cw-farm-cond-key { color: #ccc; }
+.cw-farm-cond-req { color: #888; font-family: monospace; text-align: right; }
+.cw-farm-cond-cur { font-family: monospace; text-align: right; }
+.cw-farm-cond-cur.ok { color: #7dd87d; }
+.cw-farm-cond-cur.bad { color: #ffb0b0; }
+
+.cw-farm-cond-warn {
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: rgba(216, 125, 125, .15);
+    border-radius: 6px;
+    font-size: 11px;
+    color: #ffb8b8;
+    text-align: center;
+}
+
+/* 动作效果预览 */
+.cw-farm-action-effect {
+    font-size: 11px;
+    color: #ffd76b;
+    margin-top: 4px;
+    font-family: monospace;
+}
+
+/* 种子详情面板 */
+.cw-seed-detail-section {
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cw-seed-detail-section:last-child { border-bottom: none; }
+
+.cw-seed-detail-label {
+    font-size: 12px;
+    color: #9ab0ff;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.cw-seed-detail-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+    padding: 4px 0;
+    color: #ccc;
+}
+.cw-seed-detail-row .key { color: #aaa; }
+.cw-seed-detail-row .req { color: #ffd76b; font-family: monospace; }
+.cw-seed-detail-row .cur { font-family: monospace; font-size: 12px; }
+.cw-seed-detail-row .cur.ok { color: #7dd87d; }
+.cw-seed-detail-row .cur.bad { color: #ffb0b0; }

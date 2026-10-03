@@ -475,3 +475,12 @@
     flex: 1;
     min-width: 0;
 }
+
+/* ---------- 立绘生成按钮 ---------- */
+.cw-sprite-gen-btn {
+    font-size: 13px;
+}
+
+.cw-sprite-gen-btn:hover {
+    color: #9ee89e !important;
+}

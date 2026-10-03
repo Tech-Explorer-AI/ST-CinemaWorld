@@ -50,7 +50,11 @@
     left: 0;
     width: 100%;
     height: 100%;
+    min-width: 100vw;      /* ★ 加 */
+    min-height: 100vh;     /* ★ 加 */
+    min-height: 100dvh;    /* ★ 加 */
     background: radial-gradient(ellipse at center, #1e3a5f 0%, #0a0a1a 100%);
+    overflow: hidden;      /* ★ 加，防止子层溢出 */
 }
 #cinemaworld-content {
     position: relative;
@@ -507,3 +511,66 @@
     border-color: rgba(120, 150, 255, .7);
     color: #fff;
 }
+
+/* 环境数据主区 */
+.cw-env-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,.15);
+    font-size: 14px;
+    color: #ddd;
+}
+.cw-env-time   { color: #ffd76b; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cw-env-date   { color: #9ab0ff; }
+.cw-env-season { color: #a8e6a8; }
+
+.cw-env-weather {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 6px;
+    font-size: 13px;
+    color: #ccc;
+}
+
+.cw-env-forecast {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+}
+
+.cw-env-others {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(255,255,255,.1);
+    max-height: 140px;
+    overflow-y: auto;
+}
+.cw-env-other-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.8;
+}
+.cw-env-other-key { color: #9ab0ff; flex-shrink: 0; }
+.cw-env-other-val { color: #ccc; text-align: right; }
+
+.cw-ws-btn {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.15);
+    color: #ccc;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .15s;
+    line-height: 1.4;
+}
+.cw-ws-btn:hover { background: rgba(255,255,255,.15); color: #fff; }
+.cw-ws-btn-wide { width: 100%; padding: 6px; }
+.cw-ws-btn-desc { color: #ffd76b; border-color: rgba(255,215,100,.4); }

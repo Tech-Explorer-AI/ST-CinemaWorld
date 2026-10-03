@@ -1,0 +1,109 @@
+/* ============================================================
+   CinemaWorld · TTS 面板
+   ============================================================ */
+
+   .cw-tts-section {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+}
+
+.cw-tts-label {
+    font-size: 13px;
+    color: #ccc;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.cw-tts-hint {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.7;
+    margin-top: 6px;
+}
+
+.cw-tts-hint code {
+    background: rgba(0,0,0,.3);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    color: #9ab0ff;
+}
+
+.cw-tts-hint strong {
+    color: #bbb;
+}
+
+.cw-tts-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    background: rgba(0,0,0,.3);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-family: monospace;
+}
+
+.cw-tts-input:focus {
+    outline: none;
+    border-color: rgba(120,150,255,.6);
+}
+
+.cw-tts-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #ccc;
+}
+
+/* 开关 */
+.cw-tts-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+}
+.cw-tts-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.cw-tts-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,.15);
+    border-radius: 22px;
+    transition: .3s;
+    cursor: pointer;
+}
+.cw-tts-slider::before {
+    content: '';
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: .3s;
+}
+.cw-tts-switch input:checked + .cw-tts-slider {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+.cw-tts-switch input:checked + .cw-tts-slider::before {
+    transform: translateX(18px);
+}
+
+.cw-tts-footer {
+    text-align: center;
+    font-size: 11px;
+    color: #555;
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,.05);
+}

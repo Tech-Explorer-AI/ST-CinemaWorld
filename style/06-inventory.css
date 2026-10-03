@@ -452,3 +452,15 @@
     background: linear-gradient(135deg, #e85a5a, #b84a4a);
     box-shadow: 0 4px 16px rgba(216, 74, 74, .5);
 }
+
+/* 快捷使用按钮 · 金色调 */
+.cw-inv-action-quick {
+    background: linear-gradient(135deg, rgba(255, 215, 100, 0.2), rgba(255, 184, 77, 0.15));
+    border-color: rgba(255, 215, 100, 0.5);
+    color: #ffd76b;
+}
+
+.cw-inv-action-quick:hover {
+    background: linear-gradient(135deg, rgba(255, 215, 100, 0.3), rgba(255, 184, 77, 0.25));
+    border-color: rgba(255, 215, 100, 0.8);
+}
