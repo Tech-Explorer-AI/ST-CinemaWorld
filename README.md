@@ -160,7 +160,6 @@ AI 生成的完整时间系统：
 ```
 <AUDIOCPP_DIR>\models\OmniVoice-GGUF\
 ├── omnivoice-f16.gguf
-├── tokenizer.json
 └── ...
 ```
 
