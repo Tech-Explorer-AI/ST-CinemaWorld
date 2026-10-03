@@ -1,6 +1,3 @@
-好的，我来为 README.md 添加一个功能更新栏目放在最前面，并安插图片模版。
-
-```markdown
 # CinemaWorld 🌏
 
 > 在 AI 创造的世界中游乐。
