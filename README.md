@@ -101,6 +101,178 @@ AI 生成的完整时间系统：
 
 ---
 
+🔊 CinemaWorld TTS 语音系统
+
+为对白自动配音，支持**音色自动分配**、**同名专属音色**、**背景音乐自动闪避**。
+
+- 后端：[audio.cpp](https://github.com/...)（本地推理）
+- 模型：OmniVoice-GGUF / Kokoro-82M-GGUF
+- 前端：CinemaWorld 内置
+
+---
+
+## 📖 路径变量
+
+| 变量 | 含义 |
+|---|---|
+| `<AUDIOCPP_DIR>` | audio.cpp 解压目录（如 `D:\ai\audio.cpp\`） |
+| `<ST_DIR>` | SillyTavern 安装目录 |
+| `<CW_TTS_VOICES>` | `<ST_DIR>\data\default-user\extensions\third-party\CinemaWorld\modules\TTS\voices` |
+
+> ⚠️ 文中具体路径**只是示例**，请替换成你自己的实际路径。
+
+---
+
+## 🚀 安装步骤
+
+### 1. 下载 audio.cpp
+
+下载预编译包（如 `audio-v0.9.0-bin-windows-x64-cuda12.4.zip`），
+解压到任意目录（记为 `<AUDIOCPP_DIR>`）。
+
+### 2. 创建 `server.json`
+
+在 `<AUDIOCPP_DIR>` 下建 `server.json`：
+
+```json
+{
+  "host": "127.0.0.1",
+  "port": 8080,
+  "backend": "cuda",
+  "models": [
+    {
+      "id": "omnivoice",
+      "family": "omnivoice",
+      "path": "./models/OmniVoice-GGUF",
+      "task": "tts",
+      "mode": "offline"
+    }
+  ]
+}
+```
+
+> 💡 `id` 必须和前端"TTS 模型"一致；`path` 相对 `<AUDIOCPP_DIR>`。
+
+### 3. 下载模型
+
+放 `<AUDIOCPP_DIR>\models\OmniVoice-GGUF\`，里面有 `.gguf` 文件：
+
+```
+<AUDIOCPP_DIR>\models\OmniVoice-GGUF\
+├── omnivoice-f16.gguf
+├── tokenizer.json
+└── ...
+```
+
+### 4. 建立音色库（★ 两个位置）
+
+**`.wav` 和 `.txt` 分开放，结构必须完全一致。**
+
+**① `.wav` 放后端** `audio.cpp\voices\`：
+
+```
+voices\
+├── narrator\default.wav
+├── player\default.wav
+├── other\default.wav
+├── female\
+│   ├── default.wav          ← 必须有（兜底）
+│   ├── 1.wav ... 20.wav     ← 抽签池
+│   └── 林青禾.wav           ← 可选（同名专属）
+└── male\
+    ├── default.wav
+    └── 1.wav ... 20.wav
+```
+
+**② `.txt` 放前端** `CinemaWorld\modules\TTS\voices\`（结构完全一样）：
+
+```
+voices\
+├── narrator\default.txt
+├── player\default.txt
+├── other\default.txt
+├── female\
+│   ├── default.txt
+│   ├── 1.txt ... 20.txt
+│   └── 林青禾.txt
+└── male\
+    ├── default.txt
+    └── 1.txt ... 20.txt
+```
+
+**规则**：
+
+| 文件 | 说明 |
+|---|---|
+| `.wav` + `.txt` **同名配对** | 一个 wav 必须配一个同名 txt |
+| `default.wav` | 每个文件夹必须有 |
+| `1.wav` ~ `N.wav` | 抽签池，放几个配几个 |
+| `角色名.wav` | 可选，同名角色优先 |
+| `.wav` 时长 | **3-10 秒**，太长变慢变差 |
+| `.txt` 内容 | 音频读的文字，**逐字对应** |
+
+### 5. 启动服务
+
+在 `<AUDIOCPP_DIR>` 下打开 CMD/PowerShell，运行：
+
+```powershell
+.\audiocpp_server.exe --ui --ui-management --backend cuda --device 0 --config server.json --cors-origins "*"
+```
+
+> - `--device 0` 单卡；多卡用 `1`
+> - `--backend cuda` 无 N 卡改 `cpu`
+> - `--cors-origins "*"` **不能漏**，否则前端请求被拦
+
+**验证**：浏览器打开 `http://127.0.0.1:8080` 能看到 UI。
+
+### 6. 配置 CinemaWorld
+
+打开 SillyTavern → 手机 → **🔊 语音**：
+
+| 项目 | 填什么 |
+|---|---|
+| 启用语音 | ✅ |
+| 后端地址 | `http://127.0.0.1:8080` |
+| TTS 模型 | `omnivoice` |
+| 参考音频目录 | `voices` |
+| 音色池大小 | 实际放了几个 `1-N.wav` 就填几 |
+| 背景音量 | 50% |
+| 打完字等语音播完 | ❌（推荐） |
+
+点 **🎤 测试合成** 验证。
+
+---
+
+## 🎭 音色匹配规则
+
+```
+旁白 / 玩家 / 其他 → 各自 default.wav
+
+男 / 女角色
+  ├─ 1. 同名专属：voices/female/林青禾.wav 存在？ → 用它
+  ├─ 2. 抽签：从 1~N.wav 随机抽一个（同局内稳定）
+  └─ 3. 兜底：female/default.wav → narrator/default.wav
+```
+
+- **同一局游戏** = 从新游戏到世界重置之间
+- **世界重置**后同一角色重新抽签
+- **抽签范围** = 前端"音色池大小"
+
+---
+
+## ✨ 专属音色
+
+给"林青禾"做专属音色：
+
+| 文件 | 位置 |
+|---|---|
+| `林青禾.wav` | `<AUDIOCPP_DIR>\voices\female\林青禾.wav` |
+| `林青禾.txt` | `<CW_TTS_VOICES>\female\林青禾.txt` |
+
+放好后点 **🔄 重置角色降级标记** 生效。
+
+---
+
 ## 📖 目录
 
 - [这是什么](#这是什么)
