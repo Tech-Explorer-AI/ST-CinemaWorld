@@ -262,20 +262,20 @@
 
         // ★ 角色数量配额
         ROLE_QUOTA: {
-            main:  Infinity,
+            main: Infinity,
             minor: 8,
-            npc:   5,
+            npc: 5,
         },
 
         // ★ 排序权重（常量，方便调参）
         //   分数量级：compacted(1000) > thisChapter(200) > recentWindow(120) > 累积 lines/compacted
         //   目的：保证"被压缩过的长线角色"永远优先于"本章刚出现的路人"
         WEIGHT: {
-            compacted:    1000,   // 被压缩过 → 基础分（说明有长期互动史）
-            perLine:         3,   // 每保留一条 line
-            perCompacted:    2,   // compactUntilIndex 每 1 分（相当于每条已压缩消息）
-            thisChapter:   200,   // 本章活跃
-            recentWindow:  120,   // 最近 24 小时内有互动
+            compacted: 1000,   // 被压缩过 → 基础分（说明有长期互动史）
+            perLine: 3,   // 每保留一条 line
+            perCompacted: 2,   // compactUntilIndex 每 1 分（相当于每条已压缩消息）
+            thisChapter: 200,   // 本章活跃
+            recentWindow: 120,   // 最近 24 小时内有互动
         },
 
         // ★ 取角色最后一次活跃时间（bucket 级，非 line 级）
@@ -425,7 +425,7 @@
             // 4. 被丢弃的记日志（方便调参）
             const dropped = {
                 minor: buckets.minor.slice(this.ROLE_QUOTA.minor),
-                npc:   buckets.npc.slice(this.ROLE_QUOTA.npc),
+                npc: buckets.npc.slice(this.ROLE_QUOTA.npc),
             };
             if (dropped.minor.length || dropped.npc.length) {
                 console.log('[CinemaWorld] 上下文角色截断:', {
@@ -614,9 +614,9 @@ ${newText}
             // ★ 按角色定位取参数
             const role = window.CharacterRegistry?.get(name)?.role || 'minor';
             const PARAMS = {
-                main:  { threshold: 35, keep: 15 },
+                main: { threshold: 35, keep: 15 },
                 minor: { threshold: 15, keep: 5 },
-                npc:   { threshold: 8,  keep: 2 },
+                npc: { threshold: 8, keep: 2 },
             };
             const { threshold: THRESHOLD, keep: KEEP } = PARAMS[role] || PARAMS.minor;
 
@@ -861,12 +861,12 @@ ${newText}
             if (!chapterId) return '';
 
             const opt = {
-                characters:     true,
-                sceneItems:     true,
+                characters: true,
+                sceneItems: true,
                 inventoryItems: true,
-                sceneActions:   true,
+                sceneActions: true,
                 characterFilter: 'all',
-                excludeName:     null,
+                excludeName: null,
                 ...options,
             };
 
@@ -921,7 +921,7 @@ ${newText}
             }
 
             // ==================== 按 source 分三类 ====================
-            const actionEntries    = [];
+            const actionEntries = [];
             const sceneItemEntries = [];
             const inventoryEntries = [];
 
@@ -976,10 +976,10 @@ ${newText}
         aarchiveOldChapters(keepChapterIds = []) {
             const store = this._ensureStore();
             const keep = new Set(keepChapterIds);
-        
+
             for (const name of Object.keys(store.byCharacter)) {
                 const bucket = store.byCharacter[name];
-        
+
                 if (Array.isArray(bucket)) {
                     const filtered = bucket.filter(d => keep.has(d.chapterId));
                     if (filtered.length === 0) {
@@ -989,7 +989,7 @@ ${newText}
                     }
                     continue;
                 }
-        
+
                 // ★ 关键修复：不删除 bucket，只清空"本章 lines"
                 //   summary 是跨章长期记忆，永远保留
                 if (bucket.chapterId && !keep.has(bucket.chapterId)) {
@@ -999,7 +999,7 @@ ${newText}
                     bucket.chapterId = null;   // 标记为"无归属章节"
                 }
             }
-        
+
             for (const bucketName of ['byItem']) {
                 for (const name of Object.keys(store[bucketName])) {
                     const b = this._ensureBucket(store, bucketName, name);
@@ -1009,7 +1009,7 @@ ${newText}
                     }
                 }
             }
-        
+
             if (window.SaveManager) window.SaveManager.save();
         },
     };
@@ -1077,172 +1077,203 @@ ${prevSummaries ? `【与该目标的过往交互】\n${prevSummaries}\n` : ''}
         },
     };
 
-        // ==================== 剧情管理器 ====================
-        const StoryManager = {
-            storyList: [],
-            currentStory: null,
-            chapters: [],
-            currentChapter: null,
-            volumes: [],
-            currentVolume: null,
-            _listIndex: 0,
-            _pendingSwitch: null,
-            _pendingSourceStory: null,
-            _switchResolve: null,
-    
-            init() {
-                console.log('[CinemaWorld] 剧情系统初始化');
-            },
-    
-            // StoryManager 中新增
-            getMainStoryContextForInteraction() {
-                const chapter = this.currentChapter;
-                let ctx = '';
-    
-                if (chapter) {
-                    ctx += `【本章主线】${chapter.title}\n`;
-                    if (chapter.compactSummary) {
-                        ctx += `本章前情：${chapter.compactSummary}\n`;
-                    }
-                    const stories = this.storyList
-                        .filter(s => s.chapterId === chapter.id && s.summary && s.order > (chapter.compactUntilOrder || 0))
-                        .sort((a, b) => a.order - b.order)
-                        .slice(-5);
-                    if (stories.length > 0) {
-                        ctx += `本章近期剧情：\n`;
-                        stories.forEach(s => {
-                            ctx += `  · ${s.title}：${s.summary}\n`;
-                        });
-                    }
-                }
-    
-                const pastChapters = this.chapters.filter(c => c.summary && c !== chapter);
-                if (pastChapters.length > 0) {
-                    ctx += `\n【前情提要】\n`;
-                    pastChapters.slice(-2).forEach(c => {
-                        ctx += `  · ${c.title}：${c.summary}\n`;
-                    });
-                }
-    
-                return ctx;
-            },
-    
-            getChapterInteractionSummary() {
-                const chapter = this.currentChapter;
-                if (!chapter) return '';
-    
-                const chapterInteractions = InteractionHistoryManager.getAll()
-                    .filter(r => r.chapterId === chapter.id && r.summary);
-    
-                if (chapterInteractions.length === 0) return '';
-    
-                const byType = {
-                    character: [],
-                    sceneItem: [],
-                    inventoryItem: [],
-                };
-                for (const r of chapterInteractions) {
-                    if (byType[r.type]) byType[r.type].push(r);
-                }
-    
-                let text = '【本章交互记录】\n';
-    
-                if (byType.character.length > 0) {
-                    text += '\n▸ 与角色的互动：\n';
-                    const byTarget = {};
-                    for (const r of byType.character) {
-                        if (!byTarget[r.target]) byTarget[r.target] = [];
-                        byTarget[r.target].push(r);
-                    }
-                    for (const [name, records] of Object.entries(byTarget)) {
-                        text += `  · ${name}：\n`;
-                        records
-                            .sort((a, b) => a.timestamp - b.timestamp)
-                            .slice(-3)
-                            .forEach(r => {
-                                text += `    - ${r.summary}\n`;
-                            });
-                    }
-                }
-    
-                if (byType.sceneItem.length > 0) {
-                    text += '\n▸ 使用场景实体：\n';
-                    byType.sceneItem.slice(-5).forEach(r => {
-                        text += `  · ${r.target}：${r.summary}\n`;
-                    });
-                }
-    
-                if (byType.inventoryItem.length > 0) {
-                    text += '\n▸ 使用背包物品：\n';
-                    byType.inventoryItem.slice(-5).forEach(r => {
-                        text += `  · ${r.target}：${r.summary}\n`;
-                    });
-                }
-    
-                return text;
-            },
-    
-            // ==================== 创建剧情卡 ====================
-            async createStory(userPrompt = '', parentStory = null) {
-                const scene = window.LocationModalManager.currentLocation;
-                if (!scene) {
-                    this._showNoScene();
-                    return;
-                }
-                
-                // ★ 新增：如果没显式传前驱，自动找"本章最后一段已完成剧情"
-                if (!parentStory && this.currentChapter) {
-                    const chapterStories = this.storyList
-                        .filter(s => s.chapterId === this.currentChapter.id && s.status === 'completed')
-                        .sort((a, b) => (b.order || 0) - (a.order || 0));
+    // ==================== 剧情管理器 ====================
+    const StoryManager = {
+        storyList: [],
+        currentStory: null,
+        chapters: [],
+        currentChapter: null,
+        volumes: [],
+        currentVolume: null,
+        _listIndex: 0,
+        _pendingSwitch: null,
+        _pendingSourceStory: null,
+        _switchResolve: null,
+        _pendingMainQuestOptions: null,   // ★ 新增
 
-                    if (chapterStories.length > 0) {
-                        parentStory = chapterStories[0];   // 最新的一段
-                    }
+        init() {
+            console.log('[CinemaWorld] 剧情系统初始化');
+        },
+
+        // StoryManager 中新增
+        getMainStoryContextForInteraction() {
+            const chapter = this.currentChapter;
+            let ctx = '';
+
+            if (chapter) {
+                ctx += `【本章主线】${chapter.title}\n`;
+                if (chapter.compactSummary) {
+                    ctx += `本章前情：${chapter.compactSummary}\n`;
                 }
-                if (!this.currentChapter) {
-                    ChapterManager.createChapter(`第${this.chapters.length + 1}章：${scene.name}`);
+                const stories = this.storyList
+                    .filter(s => s.chapterId === chapter.id && s.summary && s.order > (chapter.compactUntilOrder || 0))
+                    .sort((a, b) => a.order - b.order)
+                    .slice(-5);
+                if (stories.length > 0) {
+                    ctx += `本章近期剧情：\n`;
+                    stories.forEach(s => {
+                        ctx += `  · ${s.title}：${s.summary}\n`;
+                    });
                 }
-    
-                const modal = document.getElementById('cinemaworld-modal');
-                modal.innerHTML = `
-                    <div class="cinemaworld-modal-title">📖 ${parentStory ? '继续剧情' : '创建剧情'}</div>
-                    <div style="margin-bottom:15px;padding:10px;background:rgba(120,150,255,.1);border-radius:8px;font-size:13px;">
-                        📍 当前场景：<span style="color:#7da8ff;font-weight:bold;">${scene.name}</span>
-                        ${parentStory ? `<br>📚 前驱：<span style="color:#7da8ff;">${parentStory.title}</span>` : ''}
+            }
+
+            const pastChapters = this.chapters.filter(c => c.summary && c !== chapter);
+            if (pastChapters.length > 0) {
+                ctx += `\n【前情提要】\n`;
+                pastChapters.slice(-2).forEach(c => {
+                    ctx += `  · ${c.title}：${c.summary}\n`;
+                });
+            }
+
+            return ctx;
+        },
+
+        getChapterInteractionSummary() {
+            const chapter = this.currentChapter;
+            if (!chapter) return '';
+
+            const chapterInteractions = InteractionHistoryManager.getAll()
+                .filter(r => r.chapterId === chapter.id && r.summary);
+
+            if (chapterInteractions.length === 0) return '';
+
+            const byType = {
+                character: [],
+                sceneItem: [],
+                inventoryItem: [],
+            };
+            for (const r of chapterInteractions) {
+                if (byType[r.type]) byType[r.type].push(r);
+            }
+
+            let text = '【本章交互记录】\n';
+
+            if (byType.character.length > 0) {
+                text += '\n▸ 与角色的互动：\n';
+                const byTarget = {};
+                for (const r of byType.character) {
+                    if (!byTarget[r.target]) byTarget[r.target] = [];
+                    byTarget[r.target].push(r);
+                }
+                for (const [name, records] of Object.entries(byTarget)) {
+                    text += `  · ${name}：\n`;
+                    records
+                        .sort((a, b) => a.timestamp - b.timestamp)
+                        .slice(-3)
+                        .forEach(r => {
+                            text += `    - ${r.summary}\n`;
+                        });
+                }
+            }
+
+            if (byType.sceneItem.length > 0) {
+                text += '\n▸ 使用场景实体：\n';
+                byType.sceneItem.slice(-5).forEach(r => {
+                    text += `  · ${r.target}：${r.summary}\n`;
+                });
+            }
+
+            if (byType.inventoryItem.length > 0) {
+                text += '\n▸ 使用背包物品：\n';
+                byType.inventoryItem.slice(-5).forEach(r => {
+                    text += `  · ${r.target}：${r.summary}\n`;
+                });
+            }
+
+            return text;
+        },
+
+        // ==================== 创建剧情卡 ====================
+        async createStory(userPrompt = '', parentStory = null, options = {}) {
+            const scene = window.LocationModalManager.currentLocation;
+            if (!scene) {
+                this._showNoScene();
+                return;
+            }
+
+            // ★ 自动识别主线
+            const mq = window.CinemaWorld.worldState.mainQuest;
+            const isMainQuest = !!mq?.active;
+
+            // ★ 从哪触发的（用于 prompt 上下文）
+            const targetEntity = options.targetEntity || null;
+            const targetKind = options.targetKind || 'manual';
+
+            this._pendingMainQuestOptions = isMainQuest ? {
+                isMainQuest: true,
+                mainQuest: mq,
+                targetEntity,
+                targetKind,
+                playerInput: options.playerInput || userPrompt,
+            } : null;
+
+            // ★ 如果没显式传前驱，自动找"本章最后一段已完成剧情"
+            if (!parentStory && this.currentChapter) {
+                const chapterStories = this.storyList
+                    .filter(s => s.chapterId === this.currentChapter.id && s.status === 'completed')
+                    .sort((a, b) => (b.order || 0) - (a.order || 0));
+                if (chapterStories.length > 0) {
+                    parentStory = chapterStories[0];
+                }
+            }
+            if (!this.currentChapter) {
+                ChapterManager.createChapter(`第${this.chapters.length + 1}章：${scene.name}`);
+            }
+
+            // ★ 主线上下文（放进 modal 顶部，让玩家知道这是主线）
+            const mainQuestBanner = options.isMainQuest ? `
+                <div style="margin-bottom:15px;padding:12px 16px;text-align:center;
+                    background:linear-gradient(135deg,rgba(255,184,77,.18),rgba(255,138,61,.12));
+                    border:1px solid rgba(255,184,77,.4);border-radius:10px;">
+                    <div style="font-size:15px;font-weight:bold;color:#ffd76b;">
+                        ⭐ ${options.mainQuest?.title || '主线任务'}
                     </div>
-                    <div style="margin-bottom:15px;">
-                        <div style="font-size:13px;color:#aaa;margin-bottom:5px;">剧情描述（可选）：</div>
-                        <textarea class="cinemaworld-textarea" id="story-guide-input" 
-                            placeholder="例如：主角在村庄中遇到了一位神秘的老者..." 
-                            style="min-height:100px;">${userPrompt}</textarea>
+                    <div style="font-size:12px;color:#ffcf80;margin-top:4px;">
+                        ${options.mainQuest?.hint || ''}
                     </div>
-                    <div style="margin-bottom:15px;">
-                        <div style="font-size:13px;color:#aaa;margin-bottom:5px;">类型：</div>
-                        <select id="story-type-select" style="width:100%;padding:8px;border-radius:5px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);">
-                            <option value="主线">主线剧情</option>
-                            <option value="支线">支线剧情</option>
-                            <option value="角色">角色剧情</option>
-                        </select>
-                    </div>
-                    <div id="story-generation-result" style="display:none;margin-bottom:15px;">
-                        <div style="font-size:13px;color:#aaa;margin-bottom:5px;">AI生成结果（可编辑）：</div>
-                        <textarea class="cinemaworld-textarea" id="story-generated-text" style="min-height:300px;"></textarea>
-                    </div>
-                    <div style="text-align:center;margin-top:15px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
-                        <button class="cinemaworld-button primary" id="generate-story-btn" 
-                            onclick="StoryManager.generateStory(${parentStory ? `'${parentStory.id}'` : 'null'})">🤖 AI生成剧情</button>
-                        <button class="cinemaworld-button" id="confirm-story-btn" 
-                            onclick="StoryManager.confirmStory(${parentStory ? `'${parentStory.id}'` : 'null'})" 
-                            style="display:none;">✅ 确认开始</button>
-                        <button class="cinemaworld-button" onclick="UIManager.closeModal()">✖ 取消</button>
-                    </div>`;
-                modal.className = 'active';
-            },
-    
-            _showNoScene() {
-                const modal = document.getElementById('cinemaworld-modal');
-                modal.innerHTML = `
+                </div>
+            ` : '';
+
+            const modal = document.getElementById('cinemaworld-modal');
+            modal.innerHTML = `
+                ${mainQuestBanner}
+                <div class="cinemaworld-modal-title">📖 ${parentStory ? '继续剧情' : '创建剧情'}</div>
+                <div style="margin-bottom:15px;padding:10px;background:rgba(120,150,255,.1);border-radius:8px;font-size:13px;">
+                    📍 当前场景：<span style="color:#7da8ff;font-weight:bold;">${scene.name}</span>
+                    ${parentStory ? `<br>📚 前驱：<span style="color:#7da8ff;">${parentStory.title}</span>` : ''}
+                </div>
+                <div style="margin-bottom:15px;">
+                    <div style="font-size:13px;color:#aaa;margin-bottom:5px;">剧情描述（可选）：</div>
+                    <textarea class="cinemaworld-textarea" id="story-guide-input"
+                        placeholder="例如：主角在村庄中遇到了一位神秘的老者..."
+                        style="min-height:100px;">${userPrompt}</textarea>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <div style="font-size:13px;color:#aaa;margin-bottom:5px;">类型：</div>
+                    <select id="story-type-select" style="width:100%;padding:8px;border-radius:5px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);">
+                        <option value="主线">主线剧情</option>
+                        <option value="支线">支线剧情</option>
+                        <option value="角色">角色剧情</option>
+                    </select>
+                </div>
+                <div id="story-generation-result" style="display:none;margin-bottom:15px;">
+                    <div style="font-size:13px;color:#aaa;margin-bottom:5px;">AI生成结果（可编辑）：</div>
+                    <textarea class="cinemaworld-textarea" id="story-generated-text" style="min-height:300px;"></textarea>
+                </div>
+                <div style="text-align:center;margin-top:15px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+                    <button class="cinemaworld-button primary" id="generate-story-btn"
+                        onclick="StoryManager.generateStory(${parentStory ? `'${parentStory.id}'` : 'null'})">🤖 AI生成剧情</button>
+                    <button class="cinemaworld-button" id="confirm-story-btn"
+                        onclick="StoryManager.confirmStory(${parentStory ? `'${parentStory.id}'` : 'null'})"
+                        style="display:none;">✅ 确认开始</button>
+                    <button class="cinemaworld-button" onclick="UIManager.closeModal()">✖ 取消</button>
+                </div>`;
+            modal.className = 'active';
+        },
+
+        _showNoScene() {
+            const modal = document.getElementById('cinemaworld-modal');
+            modal.innerHTML = `
                     <div class="cinemaworld-modal-title">📖 剧情</div>
                     <div style="text-align:center;padding:40px 20px;color:#888;">
                         <div style="font-size:40px;margin-bottom:15px;">📍</div>
@@ -1252,25 +1283,112 @@ ${prevSummaries ? `【与该目标的过往交互】\n${prevSummaries}\n` : ''}
                         <button class="cinemaworld-button primary" onclick="LocationModalManager.openLocationBrowser()">📍 选择场景</button>
                         <button class="cinemaworld-button" onclick="UIManager.closeModal()">取消</button>
                     </div>`;
-                modal.className = 'active';
-            },
-    
-            // ==================== AI 生成剧情 ====================
-            async generateStory(parentId = null) {
-                const guide = document.getElementById('story-guide-input').value.trim();
-                const type = document.getElementById('story-type-select').value;
-                const btn = document.getElementById('generate-story-btn');
-                btn.disabled = true;
-                btn.innerHTML = '⏳ 生成中...';
-    
-                const parentStory = parentId ? this.storyList.find(s => s.id === parentId) : null;
-                const context = this.buildContext(parentStory);
-    
-                const scene = window.LocationModalManager.currentLocation;
-                const envLine = WorldManager.getEnvDataText(scene);
-                const playerBlock = PlayerStateManager.formatForPrompt();
-    
-                const prompt = `你是视觉小说剧本作家。生成一段${type}剧情。
+            modal.className = 'active';
+        },
+
+        // ==================== AI 生成剧情 ====================
+        async generateStory(parentId = null) {
+            const guide = document.getElementById('story-guide-input').value.trim();
+            const type = document.getElementById('story-type-select').value;
+            const btn = document.getElementById('generate-story-btn');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ 生成中...';
+
+            // ★ 读取主线选项
+            const mqOptions = this._pendingMainQuestOptions || {};
+            const isMainQuest = !!mqOptions.isMainQuest;
+            const mainQuest = mqOptions.mainQuest || window.CinemaWorld.worldState.mainQuest;
+
+            const parentStory = parentId ? this.storyList.find(s => s.id === parentId) : null;
+            const context = this.buildContext(parentStory);
+
+            const scene = window.LocationModalManager.currentLocation;
+            const envLine = WorldManager.getEnvDataText(scene);
+            const playerBlock = PlayerStateManager.formatForPrompt();
+
+
+            // ============================================================
+            // ★ 按 playMode 组装 prompt
+            // ============================================================
+            const playMode = window.CinemaWorld?.worldState?.playMode || 'scene';
+
+            // ---------- 区块 1：场景切换（仅 scene 模式） ----------
+            const sceneSwitchBlock = playMode === 'scene' ? `
+【场景切换】（可选，玩家移动到新地点时写）
+目标场景: 场景名
+预制人物: [人物1, 人物2]
+预制物品: [物品1, 物品2]
+原因: 切换原因
+（场景切换和场景更新可以同时存在）
+` : '';
+
+            // ---------- 区块 2：场景更新（仅 scene 模式） ----------
+            const sceneUpdateBlock = playMode === 'scene' ? `
+【场景更新】（可选，只有场景变化才写，没变化完全省略）
+场景: (场景名)
+环境数据: 
+- 已有键:新值   （只改已有键，不发明新键）
+新增人物: 
+- 【名|性别|心情|好感度|状态|主次】：描述，[标签]
+修改人物: 
+- 【名】：心情|新值   （字段限：心情/状态/描述/标签）
+移除人物: 名1、名2
+新增实体: 
+- 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
+物品: 
+- 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+装备: 
+- 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
+移除实体: 名1、名2
+修改实体: 
+- 【名】：状态→新状态
+场景状态: 
+- 键: 值
+` : '';
+
+            // ---------- 区块 3：主线上下文（仅 map 模式 + 主线任务） ----------
+            const mainQuestContextBlock = (playMode === 'map' && isMainQuest) ? `
+【当前主线任务】
+标题: ${mainQuest.title}
+提示: ${mainQuest.hint}
+触发点: ${mqOptions.targetEntity?.name || '某个地点'}
+${mqOptions.playerInput ? `玩家行动: ${mqOptions.playerInput}` : ''}
+` : '';
+            // ---------- 区块 3.5：切换地图（仅 map 模式 + 主线任务） ----------
+            const newMapBlock = (playMode === 'map' && isMainQuest) ? `
+【切换地图】（★ 可选，仅当主线推进需要一张当前不存在的新地图时输出）
+名称: (新地图的名字)
+描述: (一句话，这张地图的氛围)
+参考: (为什么需要这张地图，和当前剧情的关系)
+
+★ 如果下一步主线在已有地图里，不写这一块。
+★ 如果写了【切换地图】，【主线推进】里的"目标地图"应该引用这个名称。
+` : '';
+            // ---------- 区块 4：主线推进输出格式（仅 map 模式 + 主线任务） ----------
+            const mainQuestOutputBlock = (playMode === 'map' && isMainQuest) ? `
+【主线推进】（★ 主线任务必须输出这一块，除非主线彻底结束）
+目标: (下一步主线目标的名字)
+提示: (一句话提示玩家去哪儿)
+落点: 格子 或 实体 或 出入口
+地图: (地图名，必须用【当前地图】里的名称)
+区域: (★ 必须用【地图区域列表】里的 id，不要翻译，不要自己编)
+位置: (落点=格子时填，锚点名如 center/north/south/east/west/entrance)
+实体名: (落点=实体时填)
+实体图标: (落点=实体时填一个 emoji)
+实体描述: (落点=实体时填)
+出入口名: (落点=出入口时填)
+出入口描述: (落点=出入口时填)
+目标地图: (落点=出入口时填，不填表示指向已有出入口)
+
+★ 如果主线彻底结束，不写这一块。
+★ 如果下一步目标在当前地图之外，还是写出来，程序会记下指针。
+` : '';
+
+
+            // ============================================================
+            // ★ 组装完整 prompt
+            // ============================================================
+            const prompt = `你是视觉小说剧本作家。生成一段${type}剧情。
 
 【世界状态】
 ${context}
@@ -1278,6 +1396,8 @@ ${context}
 ★ 环境数据：${envLine}
 
 ${playerBlock}
+
+${mainQuestContextBlock}
 
 【剧情要求】
 ${guide || '根据当前世界状态，生成一段自然推进的剧情。'}
@@ -1298,47 +1418,43 @@ ${guide || '根据当前世界状态，生成一段自然推进的剧情。'}
 【玩家|显示|中|性别|状态】: 内容
 【旁白】: 环境描写或心理活动
 
-【场景更新】（可选，只有场景变化才写，没变化完全省略）
-场景: (场景名)
-环境数据: 
-- 已有键:新值   （只改已有键，不发明新键）
-新增人物: 
-- 【名|性别|心情|好感度|状态|主次】：描述，[标签]
-修改人物: 
-- 【名】：心情|新值   （字段限：心情/状态/描述/标签）
-移除人物: 名1、名2
-新增实体: 
-- 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
-物品: 
-- 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
-装备: 
-- 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
-新增遭遇(写入新增实体，类型必须写"遭遇"): 
-- 【名|图标】：描述，[类型:遭遇|HP:当前/最大|攻击:X|防御:X|敏捷:X|技能:X|掉落:X]
-移除实体: 名1、名2
-修改实体: 
-- 【名】：状态→新状态
-场景状态: 
-- 键: 值
 
 【效果】
 目标: 玩家 或 角色名
 数值变化: 键名 +N  或  键名 -N
 实体变化:
-- 获得【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 获得【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 - 失去【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
 - 获得状态 状态名（可选效果，| 分隔：攻击-20%|持续3回合）
 - 移除状态 状态名
 
 ★ 关键：获得物品时必须写完整格式（方括号内 键:值），否则玩家拿到的是空壳。
-★ 可装备物品：写明属性字段，如 [类型:武器|攻击:+5|暴击:+10%]
-★ 可消耗物品：写明功能，如 [类型:消耗品|功能:回复 50 点生命|可堆叠]
+★ 可装备物品：写明属性字段，如 [类型:武器|攻击:+X|X:+10%]
+★ 可消耗物品：写明功能，如 [类型:消耗品|功能:回复 X 点生命|可堆叠]
 ★ 普通物品：至少写 [类型:物品] 和图标
 
+说明：
+效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
+
 示例：
-- 获得【生锈的铁剑|⚔️】：锈迹斑斑的短剑，[类型:武器|攻击:+3|图标:⚔️]
-- 获得【红药水|🧪】：一瓶红色药剂，[类型:消耗品|功能:回复 30 点生命|可堆叠]
-- 获得【黑面包|🍞】：还热乎，[类型:食物|功能:回复 10 点体力|可堆叠]
+- 【生锈的铁剑|⚔️】：斜靠在墙角，[类型:武器|可拾取:是|货币种类:金钱|买价:X|卖价:X|攻击:+X]
+- 【红药水|🧪】：一瓶红色药剂，[类型:消耗品|可拾取:是|功能:回复生命|效果:回复生命 X|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【野花|🌸】：路边的小花，[类型:材料|可拾取:是|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【守卫的盾牌|🛡️】：靠在门边的圆盾，[类型:护甲|可拾取:是|货币种类:金钱|买价:X|卖价:X|防御:+X|体力:+Y]
 
 状态效果(可选，| 分隔)：攻击-20% / 防御+30% / 每回合:生命-5 / 持续:3回合 / 跳过回合
 示例：获得状态 中毒（生命-5|持续3回合）
@@ -1347,12 +1463,10 @@ ${guide || '根据当前世界状态，生成一段自然推进的剧情。'}
 A. 选项内容
 B. 选项内容
 
-【场景切换】（可选，玩家移动到新地点时写）
-目标场景: 场景名
-预制人物: [人物1, 人物2]
-预制物品: [物品1, 物品2]
-原因: 切换原因
-（场景切换和场景更新可以同时存在）
+${sceneUpdateBlock}
+${sceneSwitchBlock}
+${mainQuestOutputBlock}
+${newMapBlock}
 
 【规则】
 1. 对话行: 说话者"显示"，其他"隐藏"；玩家写【玩家|显示|中|性别】
@@ -1372,817 +1486,964 @@ B. 选项内容
 × 角色离开却不写"移除人物"
 × 实体被消耗却不写"移除实体"或"修改实体"
 × 忽略本章交互摘要（人物态度、实体状态、气氛等）
+${playMode === 'map' ? '× 输出【场景切换】或【场景更新】（当前是地图模式）' : ''}
 
 请开始生成：
 `;
-    
-                const result = await window.generateFunctionalReply(prompt, 'story-generation');
-                btn.disabled = false;
-                btn.innerHTML = '🤖 AI生成剧情';
-    
-                if (result) {
-                    document.getElementById('story-generated-text').value = result;
-                    document.getElementById('story-generation-result').style.display = 'block';
-                    document.getElementById('confirm-story-btn').style.display = 'inline-block';
-                }
-            },
-    
-            // ==================== 确认生成剧情卡 ====================
-            async confirmStory(parentId = null) {
-                const text = document.getElementById('story-generated-text').value.trim();
-                if (!text) { alert('请先生成剧情'); return; }
-    
-                const parentStory = parentId ? this.storyList.find(s => s.id === parentId) : null;
-                const story = this.parseStory(text);
-                if (!story) { alert('格式错误'); return; }
-    
-                story.id = `story_${Date.now()}`;
-                story.parentId = parentId;
-                story.chapterId = this.currentChapter?.id || null;
-                story.order = this.storyList.filter(s => s.chapterId === story.chapterId).length + 1;
-                story.createdAt = Date.now();
-                story.status = 'active';
-                story.chosenOption = null;
-                
-                // ★ 新增：确保新卡也有这些标记
-                if (story._played === undefined) story._played = false;
-                if (story._sceneSwitchHandled === undefined) story._sceneSwitchHandled = false;
-                if (story._appliedEffects === undefined) story._appliedEffects = {};
+
+            const result = await window.generateFunctionalReply(prompt, 'story-generation');
+            btn.disabled = false;
+            btn.innerHTML = '🤖 AI生成剧情';
+
+            if (result) {
+                document.getElementById('story-generated-text').value = result;
+                document.getElementById('story-generation-result').style.display = 'block';
+                document.getElementById('confirm-story-btn').style.display = 'inline-block';
+            }
+        },
+
+        // ==================== 确认生成剧情卡 ====================
+        async confirmStory(parentId = null) {
+            const text = document.getElementById('story-generated-text').value.trim();
+            if (!text) { alert('请先生成剧情'); return; }
+
+            const parentStory = parentId ? this.storyList.find(s => s.id === parentId) : null;
+            const story = this.parseStory(text);
+            if (!story) { alert('格式错误'); return; }
+
+            story.id = `story_${Date.now()}`;
+            story.parentId = parentId;
+            story.chapterId = this.currentChapter?.id || null;
+            story.order = this.storyList.filter(s => s.chapterId === story.chapterId).length + 1;
+            story.createdAt = Date.now();
+            story.status = 'active';
+            story.chosenOption = null;
+
+            // ★ 新增：确保新卡也有这些标记
+            if (story._played === undefined) story._played = false;
+            if (story._sceneSwitchHandled === undefined) story._sceneSwitchHandled = false;
+            if (story._appliedEffects === undefined) story._appliedEffects = {};
 
 
-                this.storyList.push(story);
-    
-                if (this.currentChapter) {
-                    this.currentChapter.storyIds.push(story.id);
-                    this.currentChapter.events.push({
-                        type: 'story-create',
-                        storyId: story.id,
-                        title: story.title,
-                        summary: `创建剧情: ${story.title}`,
-                        timestamp: Date.now(),
-                    });
-                }
-    
-                window.UIManager.closeModal();
-                await this.playStory(story);
-                if (window.SaveManager) window.SaveManager.save();
-            },
-    
-            // ==================== 解析剧情 ====================
-            parseStory(text) {
-                const story = {
-                    raw: text,
-                    title: '',
-                    type: '主线',
-                    scene: '',
-                    music: '',
-                    summary: '',
-                    dialogues: [],
-                    options: [],
-                    globalEffects: [],
-                    globalEffect: null,
-                    sceneSwitch: null,
-                    sceneUpdates: [],
-                    // ★ 新增：幂等/播放状态标记
-                    _played: false,
-                    _sceneSwitchHandled: false,
-                    _appliedEffects: {},
-                };
-    
-                const titleMatch = text.match(/标题[:：]\s*(.+)/);
-                if (titleMatch) story.title = titleMatch[1].trim();
-                const typeMatch = text.match(/类型[:：]\s*(.+)/);
-                if (typeMatch) story.type = typeMatch[1].trim();
-                const sceneMatch = text.match(/场景[:：]\s*(.+)/);
-                if (sceneMatch) story.scene = sceneMatch[1].trim();
-                const musicMatch = text.match(/🎵\s*音乐[:：]\s*(.+)/);
-                if (musicMatch) story.music = musicMatch[1].trim();
-    
-                // 对话
-                const dlgSection = text.match(/【对话】([\s\S]*?)(?=【选项】|【效果】|【场景切换】|$)/);
-                if (dlgSection) {
-                    story.dialogues = window.VisualNovelManager.parseScript(dlgSection[1]);
-                }
-    
-                // ★ 选项（每个选项后跟一个【效果】块）
-                const optSection = text.match(/【选项】([\s\S]*?)$/);
-                if (optSection) {
-                    story.options = this.parseOptionsWithEffects(optSection[1]);
-                }
-    
-                // ★ 摘要解析
-                const summaryMatch = text.match(/【摘要】\s*([\s\S]*?)(?=【|$)/);
-                if (summaryMatch) {
-                    story.summary = summaryMatch[1].trim();
-                }
-    
-                // ★ 解析场景更新（可能多个）
-                const updateRegex = /【场景更新】([\s\S]*?)(?=【场景更新】|【场景切换】|【选项】|【效果】|$)/g;
-                let m;
-                while ((m = updateRegex.exec(text)) !== null) {
-                    const parsed = this.parseSceneUpdate('【场景更新】' + m[1]);
-                    if (parsed) story.sceneUpdates.push(parsed);
-                }
-    
-                const beforeOptions = text.split('【选项】')[0];
-    
-                const effRegex = /【效果】([\s\S]*?)(?=【|$)/g;
-                let effM;
-                while ((effM = effRegex.exec(beforeOptions)) !== null) {
-                    story.globalEffects.push('【效果】' + effM[1]);
-                }
-    
+            this.storyList.push(story);
+
+            if (this.currentChapter) {
+                this.currentChapter.storyIds.push(story.id);
+                this.currentChapter.events.push({
+                    type: 'story-create',
+                    storyId: story.id,
+                    title: story.title,
+                    summary: `创建剧情: ${story.title}`,
+                    timestamp: Date.now(),
+                });
+            }
+
+            window.UIManager.closeModal();
+            await this.playStory(story);
+            if (window.SaveManager) window.SaveManager.save();
+        },
+
+        // ==================== 解析剧情 ====================
+        parseStory(text) {
+            const story = {
+                raw: text,
+                title: '',
+                type: '主线',
+                scene: '',
+                music: '',
+                summary: '',
+                dialogues: [],
+                options: [],
+                globalEffects: [],
+                globalEffect: null,
+                sceneSwitch: null,
+                sceneUpdates: [],
+                // ★ 新增：幂等/播放状态标记
+                _played: false,
+                _sceneSwitchHandled: false,
+                _appliedEffects: {},
+                // ★ 新增：主线相关
+                mainQuestAdvance: null,
+                newMapRequest: null,
+            };
+
+            const titleMatch = text.match(/标题[:：]\s*(.+)/);
+            if (titleMatch) story.title = titleMatch[1].trim();
+            const typeMatch = text.match(/类型[:：]\s*(.+)/);
+            if (typeMatch) story.type = typeMatch[1].trim();
+            const sceneMatch = text.match(/场景[:：]\s*(.+)/);
+            if (sceneMatch) story.scene = sceneMatch[1].trim();
+            const musicMatch = text.match(/🎵\s*音乐[:：]\s*(.+)/);
+            if (musicMatch) story.music = musicMatch[1].trim();
+
+            // 对话
+            const dlgSection = text.match(/【对话】([\s\S]*?)(?=【选项】|【效果】|【场景切换】|$)/);
+            if (dlgSection) {
+                story.dialogues = window.VisualNovelManager.parseScript(dlgSection[1]);
+            }
+
+            // ★ 选项（每个选项后跟一个【效果】块）
+            const optSection = text.match(/【选项】([\s\S]*?)$/);
+            if (optSection) {
+                story.options = this.parseOptionsWithEffects(optSection[1]);
+            }
+
+            // ★ 摘要解析
+            const summaryMatch = text.match(/【摘要】\s*([\s\S]*?)(?=【|$)/);
+            if (summaryMatch) {
+                story.summary = summaryMatch[1].trim();
+            }
+
+            // ★ 解析场景更新（可能多个）
+            const updateRegex = /【场景更新】([\s\S]*?)(?=【场景更新】|【场景切换】|【选项】|【效果】|$)/g;
+            let m;
+            while ((m = updateRegex.exec(text)) !== null) {
+                const parsed = this.parseSceneUpdate('【场景更新】' + m[1]);
+                if (parsed) story.sceneUpdates.push(parsed);
+            }
+
+            const beforeOptions = text.split('【选项】')[0];
+
+            const effRegex = /【效果】([\s\S]*?)(?=【|$)/g;
+            let effM;
+            while ((effM = effRegex.exec(beforeOptions)) !== null) {
+                story.globalEffects.push('【效果】' + effM[1]);
+            }
+
+            // ============================================================
+            // ★ 按 playMode 决定解析哪些区块
+            // ============================================================
+            const playMode = window.CinemaWorld?.worldState?.playMode || 'scene';
+
+            if (playMode === 'scene') {
+                // ---------- 只解析场景切换 ----------
                 const swMatch = text.match(/【场景切换】([\s\S]*?)(?=【选项】|【效果】|【场景更新】|$)/);
                 if (swMatch) story.sceneSwitch = this.parseSceneSwitch(swMatch[1]);
-    
+
+                story.mainQuestAdvance = null;
+                story.newMapRequest = null;
+
+                // 场景升级兜底（只在 scene 模式跑）
                 this.detectAndUpgradeSceneSwitch(story);
-    
+
+            } else {
+                // ---------- 只解析主线推进 ----------
+                story.sceneSwitch = null;
+
+                // 1. 解析【切换地图】（如果 AI 主动输出了）
+                const nmMatch = text.match(/【切换地图】([\s\S]*?)(?=【|$)/);
+                if (nmMatch) {
+                    story.newMapRequest = this._parseNewMapRequest(nmMatch[1]);
+                }
+
+                // 2. 解析【主线推进】
+                const mqMatch = text.match(/【主线推进】([\s\S]*?)(?=【|$)/);
+                if (mqMatch) {
+                    story.mainQuestAdvance = this._parseMainQuestAdvance(mqMatch[1]);
+                }
+
+                // 3. ★ 兜底：AI 输出了"目标地图"但没输出【切换地图】
+                if (story.mainQuestAdvance?.targetMap && !story.newMapRequest) {
+                    const ws = window.CinemaWorld?.worldState;
+                    const targetMap = story.mainQuestAdvance.targetMap;
+                    const exists = ws?.maps?.[targetMap];
+
+                    if (!exists) {
+                        console.log('[StoryManager] AI 未输出【切换地图】，自动生成请求:', targetMap);
+                        story.newMapRequest = {
+                            name: targetMap,
+                            description: story.mainQuestAdvance.hint || '',
+                            reference: `主线推进需要：${story.mainQuestAdvance.title || ''}`,
+                        };
+                    } else {
+                        console.log('[StoryManager] 目标地图已存在，无需生成:', targetMap);
+                    }
+                }
+            }
+
+            return story;
+        },
+        // ============================================================
+        // ★ 解析【切换地图】
+        // ============================================================
+        _parseNewMapRequest(text) {
+            const req = {
+                name: '',
+                description: '',
+                reference: '',
+            };
+
+            const kv = (key) => {
+                const re = new RegExp(`^\\s*${key}\\s*[:：]\\s*(.+)$`, 'm');
+                const m = text.match(re);
+                return m ? m[1].trim() : '';
+            };
+
+            req.name = kv('名称');
+            req.description = kv('描述');
+            req.reference = kv('参考');
+
+            if (!req.name) return null;
+            return req;
+        },
+        // ============================================================
+        // ★ 解析主线推进
+        // ============================================================
+        _parseMainQuestAdvance(text) {
+            const adv = {
+                title: '',
+                hint: '',
+                kind: null,
+                mapName: '',       // ← 改成下面兜底
+                regionId: '',
+                position: 'center',
+                entityName: '',
+                entityIcon: '📌',
+                entityDesc: '',
+                portalName: '',
+                portalDesc: '',
+                targetMap: null,
+                targetRegion: null,
+            };
+        
+            const kv = (key) => {
+                const re = new RegExp(`^\\s*${key}\\s*[:：]\\s*(.+)$`, 'm');
+                const m = text.match(re);
+                return m ? m[1].trim() : '';
+            };
+        
+            adv.title = kv('目标');
+            adv.hint = kv('提示');
+        
+            // ★ 地图/区域：为空时兜底到当前地图
+            adv.mapName = kv('地图') || kv('目标地图');
+            adv.regionId = kv('区域');
+        
+            // ★★ 关键修复：AI 没写地图名 → 用当前地图
+            if (!adv.mapName) {
+                const curMap = window.MapLauncher?.getMap?.();
+                if (curMap) {
+                    adv.mapName = curMap.name;
+                    console.log('[MainQuest] AI 未指定地图，兜底到当前地图:', curMap.name);
+                }
+            }
+        
+            // ★★ 关键修复：AI 没写区域 → 用 startRegion
+            if (!adv.regionId) {
+                const curMap = window.MapLauncher?.getMap?.();
+                if (curMap?.startRegion) {
+                    adv.regionId = curMap.startRegion;
+                    console.log('[MainQuest] AI 未指定区域，兜底到 startRegion:', curMap.startRegion);
+                }
+            }
+        
+            const kindStr = kv('落点');
+            if (/格子/.test(kindStr)) adv.kind = 'cell';
+            else if (/实体/.test(kindStr)) adv.kind = 'entity';
+            else if (/出入口/.test(kindStr)) adv.kind = 'portal';
+        
+            if (adv.kind === 'cell') {
+                adv.position = kv('位置') || 'center';
+            } else if (adv.kind === 'entity') {
+                adv.entityName = kv('实体名');
+                adv.entityIcon = kv('实体图标') || '📌';
+                adv.entityDesc = kv('实体描述');
+            } else if (adv.kind === 'portal') {
+                adv.portalName = kv('出入口名');
+                adv.portalDesc = kv('出入口描述');
+                adv.targetRegion = kv('目标区域') || null;
+                adv.targetMap = kv('目标地图') || null;
+            }
+        
+            if (!adv.title || !adv.kind) return null;
+            return adv;
+        },
+        // ★ 兜底：识别 AI 把"场景切换"误写进"场景更新"的情况
+        detectAndUpgradeSceneSwitch(story) {
+            if (!story || !story.sceneUpdates || story.sceneUpdates.length === 0) {
                 return story;
-            },
-    
-            // ★ 兜底：识别 AI 把"场景切换"误写进"场景更新"的情况
-            detectAndUpgradeSceneSwitch(story) {
-                if (!story || !story.sceneUpdates || story.sceneUpdates.length === 0) {
-                    return story;
-                }
-    
-                if (story.sceneSwitch && story.sceneSwitch.targetScene) {
-                    return story;
-                }
-    
-                const curSceneName = window.LocationModalManager.currentLocation?.name;
-                if (!curSceneName) {
-                    return story;
-                }
-    
-                const switchCandidates = story.sceneUpdates.filter(
-                    up => up.sceneName && up.sceneName !== curSceneName
-                );
-    
-                if (switchCandidates.length === 0) {
-                    return story;
-                }
-    
-                const target = switchCandidates[switchCandidates.length - 1];
-                const targetSceneName = target.sceneName;
-                const sameTarget = switchCandidates.filter(up => up.sceneName === targetSceneName);
-    
-                const presetChars = new Map();
-                const presetItems = new Map();
-                for (const up of sameTarget) {
-                    for (const c of up.addCharacters) {
-                        if (!presetChars.has(c.name)) presetChars.set(c.name, c);
-                    }
-                    for (const it of up.addItems) {
-                        if (!presetItems.has(it.name)) presetItems.set(it.name, it);
-                    }
-                }
-    
-                story.sceneSwitch = {
-                    targetScene: targetSceneName,
-                    characters: Array.from(presetChars.keys()),
-                    items: Array.from(presetItems.keys()),
-                    reason: '（系统从【场景更新】的场景名推断为场景切换）',
-                    _upgraded: true,
-                    _presetCharacters: Array.from(presetChars.values()),
-                    _presetItems: Array.from(presetItems.values()),
-                };
-    
-                const newUpdates = [];
-                for (const up of story.sceneUpdates) {
-                    if (up.sceneName !== targetSceneName) {
-                        newUpdates.push(up);
-                        continue;
-                    }
-    
-                    const stripped = {
-                        ...up,
-                        sceneName: curSceneName,
-                        addCharacters: [],
-                        addItems: [],
-                    };
-    
-                    const hasContent =
-                        stripped.removeCharacters.length > 0 ||
-                        stripped.removeItems.length > 0 ||
-                        stripped.modifyItems.length > 0 ||
-                        Object.keys(stripped.statusChanges).length > 0;
-    
-                    if (hasContent) {
-                        newUpdates.push(stripped);
-                    }
-                }
-                story.sceneUpdates = newUpdates;
-    
-                console.log('[CinemaWorld] 兜底升级场景切换:', story.sceneSwitch.targetScene,
-                    '预制人物:', story.sceneSwitch.characters,
-                    '预制物品:', story.sceneSwitch.items);
-    
+            }
+
+            if (story.sceneSwitch && story.sceneSwitch.targetScene) {
                 return story;
-            },
-    
-            // ★ 解析带效果的选项
-            parseOptionsWithEffects(optionText) {
-                const options = [];
-    
-                const blockRegex = /([A-Z])[.、]\s*([\s\S]*?)(?=(?:[A-Z][.、]\s)|$)/g;
-                let m;
-                while ((m = blockRegex.exec(optionText)) !== null) {
-                    const key = m[1];
-                    const body = m[2].trim();
-                    if (!body) continue;
-    
-                    const effectMatch = body.match(/【效果】([\s\S]*?)(?=【场景切换】|$)/);
-                    const switchMatch = body.match(/【场景切换】([\s\S]*?)$/);
-    
-                    let optText = body;
-                    if (effectMatch) {
-                        optText = optText.replace(effectMatch[0], '');
-                    }
-                    if (switchMatch) {
-                        optText = optText.replace(switchMatch[0], '');
-                    }
-                    optText = optText.replace(/\s+/g, ' ').trim();
-    
-                    options.push({
-                        key,
-                        text: optText,
-                        effectText: effectMatch ? '【效果】' + effectMatch[1] : '',
-                        sceneSwitch: switchMatch ? this.parseSceneSwitch(switchMatch[1]) : null,
-                    });
+            }
+
+            const curSceneName = window.LocationModalManager.currentLocation?.name;
+            if (!curSceneName) {
+                return story;
+            }
+
+            const switchCandidates = story.sceneUpdates.filter(
+                up => up.sceneName && up.sceneName !== curSceneName
+            );
+
+            if (switchCandidates.length === 0) {
+                return story;
+            }
+
+            const target = switchCandidates[switchCandidates.length - 1];
+            const targetSceneName = target.sceneName;
+            const sameTarget = switchCandidates.filter(up => up.sceneName === targetSceneName);
+
+            const presetChars = new Map();
+            const presetItems = new Map();
+            for (const up of sameTarget) {
+                for (const c of up.addCharacters) {
+                    if (!presetChars.has(c.name)) presetChars.set(c.name, c);
                 }
-    
-                return options;
-            },
-    
-            parseSceneSwitch(switchText) {
-                const sw = { targetScene: '', characters: [], items: [], reason: '' };
-                const ts = switchText.match(/目标场景[:：]\s*(.+)/);
-                if (ts) sw.targetScene = ts[1].trim();
-                const cs = switchText.match(/预制人物[:：]\s*\[(.+?)\]/);
-                if (cs) sw.characters = cs[1].split(/[、,，]/).map(s => s.trim()).filter(Boolean);
-                const is = switchText.match(/预制物品[:：]\s*\[(.+?)\]/);
-                if (is) sw.items = is[1].split(/[、,，]/).map(s => s.trim()).filter(Boolean);
-                const rs = switchText.match(/原因[:：]\s*(.+)/);
-                if (rs) sw.reason = rs[1].trim();
-                return sw;
-            },
-    
-            // ==================== 场景更新解析器 ====================
-            parseSceneUpdate(text) {
-                const match = text.match(/【场景更新】([\s\S]*)/);
-                if (!match) return null;
-    
-                const body = match[1];
-                const update = {
-                    sceneName: '',
+                for (const it of up.addItems) {
+                    if (!presetItems.has(it.name)) presetItems.set(it.name, it);
+                }
+            }
+
+            story.sceneSwitch = {
+                targetScene: targetSceneName,
+                characters: Array.from(presetChars.keys()),
+                items: Array.from(presetItems.keys()),
+                reason: '（系统从【场景更新】的场景名推断为场景切换）',
+                _upgraded: true,
+                _presetCharacters: Array.from(presetChars.values()),
+                _presetItems: Array.from(presetItems.values()),
+            };
+
+            const newUpdates = [];
+            for (const up of story.sceneUpdates) {
+                if (up.sceneName !== targetSceneName) {
+                    newUpdates.push(up);
+                    continue;
+                }
+
+                const stripped = {
+                    ...up,
+                    sceneName: curSceneName,
                     addCharacters: [],
-                    removeCharacters: [],
-                    modifyCharacters: [],
                     addItems: [],
-                    removeItems: [],
-                    modifyItems: [],
-                    addActions: [],
-                    removeActions: [],
-                    statusChanges: {},
-                    environmentChanges: {},
                 };
-    
-                const lines = body.split('\n');
-                let section = null;
-    
-                const splitNames = (s) => s
-                    .replace(/^[-•]\s*/, '')
-                    .replace(/[【】\[\]]/g, '')
-                    .split(/[、,，]/)
-                    .map(x => x.trim())
-                    .filter(Boolean);
-    
-                for (let raw of lines) {
-                    const line = raw.trim();
-                    if (!line) continue;
-    
-                    let m = line.match(/^场景[:：]\s*(.+)$/);
-                    if (m) { update.sceneName = m[1].trim(); continue; }
-    
-                    m = line.match(/^移除人物[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'removeChars';
-                        if (m[1]) {
-                            update.removeCharacters.push(...splitNames(m[1]));
-                        }
-                        continue;
+
+                const hasContent =
+                    stripped.removeCharacters.length > 0 ||
+                    stripped.removeItems.length > 0 ||
+                    stripped.modifyItems.length > 0 ||
+                    Object.keys(stripped.statusChanges).length > 0;
+
+                if (hasContent) {
+                    newUpdates.push(stripped);
+                }
+            }
+            story.sceneUpdates = newUpdates;
+
+            console.log('[CinemaWorld] 兜底升级场景切换:', story.sceneSwitch.targetScene,
+                '预制人物:', story.sceneSwitch.characters,
+                '预制物品:', story.sceneSwitch.items);
+
+            return story;
+        },
+
+        // ★ 解析带效果的选项
+        parseOptionsWithEffects(optionText) {
+            const options = [];
+
+            const blockRegex = /([A-Z])[.、]\s*([\s\S]*?)(?=(?:[A-Z][.、]\s)|$)/g;
+            let m;
+            while ((m = blockRegex.exec(optionText)) !== null) {
+                const key = m[1];
+                const body = m[2].trim();
+                if (!body) continue;
+
+                const effectMatch = body.match(/【效果】([\s\S]*?)(?=【场景切换】|$)/);
+                const switchMatch = body.match(/【场景切换】([\s\S]*?)$/);
+
+                let optText = body;
+                if (effectMatch) {
+                    optText = optText.replace(effectMatch[0], '');
+                }
+                if (switchMatch) {
+                    optText = optText.replace(switchMatch[0], '');
+                }
+                optText = optText.replace(/\s+/g, ' ').trim();
+
+                options.push({
+                    key,
+                    text: optText,
+                    effectText: effectMatch ? '【效果】' + effectMatch[1] : '',
+                    sceneSwitch: switchMatch ? this.parseSceneSwitch(switchMatch[1]) : null,
+                });
+            }
+
+            return options;
+        },
+
+        parseSceneSwitch(switchText) {
+            const sw = { targetScene: '', characters: [], items: [], reason: '' };
+            const ts = switchText.match(/目标场景[:：]\s*(.+)/);
+            if (ts) sw.targetScene = ts[1].trim();
+            const cs = switchText.match(/预制人物[:：]\s*\[(.+?)\]/);
+            if (cs) sw.characters = cs[1].split(/[、,，]/).map(s => s.trim()).filter(Boolean);
+            const is = switchText.match(/预制物品[:：]\s*\[(.+?)\]/);
+            if (is) sw.items = is[1].split(/[、,，]/).map(s => s.trim()).filter(Boolean);
+            const rs = switchText.match(/原因[:：]\s*(.+)/);
+            if (rs) sw.reason = rs[1].trim();
+            return sw;
+        },
+
+        // ==================== 场景更新解析器 ====================
+        parseSceneUpdate(text) {
+            const match = text.match(/【场景更新】([\s\S]*)/);
+            if (!match) return null;
+
+            const body = match[1];
+            const update = {
+                sceneName: '',
+                addCharacters: [],
+                removeCharacters: [],
+                modifyCharacters: [],
+                addItems: [],
+                removeItems: [],
+                modifyItems: [],
+                addActions: [],
+                removeActions: [],
+                statusChanges: {},
+                environmentChanges: {},
+            };
+
+            const lines = body.split('\n');
+            let section = null;
+
+            const splitNames = (s) => s
+                .replace(/^[-•]\s*/, '')
+                .replace(/[【】\[\]]/g, '')
+                .split(/[、,，]/)
+                .map(x => x.trim())
+                .filter(Boolean);
+
+            for (let raw of lines) {
+                const line = raw.trim();
+                if (!line) continue;
+
+                let m = line.match(/^场景[:：]\s*(.+)$/);
+                if (m) { update.sceneName = m[1].trim(); continue; }
+
+                m = line.match(/^移除人物[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'removeChars';
+                    if (m[1]) {
+                        update.removeCharacters.push(...splitNames(m[1]));
                     }
-    
-                    m = line.match(/^修改人物[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'modifyChars';
-                        if (m[1]) {
-                            this._parseModifyCharLine(m[1], update);
-                        }
-                        continue;
+                    continue;
+                }
+
+                m = line.match(/^修改人物[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'modifyChars';
+                    if (m[1]) {
+                        this._parseModifyCharLine(m[1], update);
                     }
-    
-                    m = line.match(/^新增人物[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'addChars';
-                        if (m[1]) {
-                            const ch = WorldManager.parseCharacterLine(m[1].replace(/^[-•]\s*/, ''));
-                            if (ch && ch.name) update.addCharacters.push(ch);
-                        }
-                        continue;
-                    }
-    
-                    m = line.match(/^移除(?:实体|物品)[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'removeItems';
-                        if (m[1]) {
-                            update.removeItems.push(...splitNames(m[1]));
-                        }
-                        continue;
-                    }
-    
-                    // ★ 兼容"新增遭遇实体"、"新增敌人"、"新增NPC"等
-                    m = line.match(/^新增(?:遭遇)?(?:实体|物品|敌人|NPC)[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'addItems';
-                        if (m[1]) {
-                            const it = WorldManager.parseItemLine(m[1].replace(/^[-•]\s*/, ''));
-                            if (it && it.name) update.addItems.push(it);
-                        }
-                        continue;
-                    }
-    
-                    m = line.match(/^修改(?:实体|物品)[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'modifyItems';
-                        if (m[1]) {
-                            this._parseModifyItemLine(m[1], update);
-                        }
-                        continue;
-                    }
-    
-                    m = line.match(/^场景状态[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'status';
-                        if (m[1]) {
-                            const kv = m[1].match(/^(.+?)[:：]\s*(.+)$/);
-                            if (kv) update.statusChanges[kv[1].trim()] = kv[2].trim();
-                        }
-                        continue;
-                    }
-    
-                    m = line.match(/^环境数据[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'env';
-                        update.environmentChanges = update.environmentChanges || {};
-                        if (m[1]) {
-                            this._parseEnvLine(m[1], update);
-                        }
-                        continue;
-                    }
-    
-                    m = line.match(/^移除行动[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'removeActions';
-                        if (m[1]) update.removeActions.push(...splitNames(m[1]));
-                        continue;
-                    }
-                    m = line.match(/^新增行动[:：]?\s*(.*)$/);
-                    if (m) {
-                        section = 'addActions';
-                        if (m[1]) {
-                            const act = WorldManager.parseActionLine(m[1].replace(/^[-•]\s*/, ''));
-                            if (act && act.name) update.addActions.push(act);
-                        }
-                        continue;
-                    }
-    
-                    if (section === 'addChars') {
-                        const line2 = line.replace(/^[-•]\s*/, '');
-                        const ch = WorldManager.parseCharacterLine(line2);
+                    continue;
+                }
+
+                m = line.match(/^新增人物[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'addChars';
+                    if (m[1]) {
+                        const ch = WorldManager.parseCharacterLine(m[1].replace(/^[-•]\s*/, ''));
                         if (ch && ch.name) update.addCharacters.push(ch);
-    
-                    } else if (section === 'removeChars') {
-                        update.removeCharacters.push(...splitNames(line));
-    
-                    } else if (section === 'modifyChars') {
-                        this._parseModifyCharLine(line.replace(/^[-•]\s*/, ''), update);
-    
-                    } else if (section === 'addItems') {
-                        const line2 = line.replace(/^[-•]\s*/, '');
-                        const it = WorldManager.parseItemLine(line2);
+                    }
+                    continue;
+                }
+
+                m = line.match(/^移除(?:实体|物品)[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'removeItems';
+                    if (m[1]) {
+                        update.removeItems.push(...splitNames(m[1]));
+                    }
+                    continue;
+                }
+
+                // ★ 兼容"新增遭遇实体"、"新增敌人"、"新增NPC"等
+                m = line.match(/^新增(?:遭遇)?(?:实体|物品|敌人|NPC)[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'addItems';
+                    if (m[1]) {
+                        const it = WorldManager.parseItemLine(m[1].replace(/^[-•]\s*/, ''));
                         if (it && it.name) update.addItems.push(it);
-    
-                    } else if (section === 'removeItems') {
-                        update.removeItems.push(...splitNames(line));
-    
-                    } else if (section === 'modifyItems') {
-                        this._parseModifyItemLine(line.replace(/^[-•]\s*/, ''), update);
-    
-                    } else if (section === 'status') {
-                        const kv = line.replace(/^[-•]\s*/, '').match(/^(.+?)[:：]\s*(.+)$/);
+                    }
+                    continue;
+                }
+
+                m = line.match(/^修改(?:实体|物品)[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'modifyItems';
+                    if (m[1]) {
+                        this._parseModifyItemLine(m[1], update);
+                    }
+                    continue;
+                }
+
+                m = line.match(/^场景状态[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'status';
+                    if (m[1]) {
+                        const kv = m[1].match(/^(.+?)[:：]\s*(.+)$/);
                         if (kv) update.statusChanges[kv[1].trim()] = kv[2].trim();
-    
-                    } else if (section === 'env') {
-                        this._parseEnvLine(line, update);
-    
-                    } else if (section === 'removeActions') {
-                        update.removeActions.push(...splitNames(line));
-    
-                    } else if (section === 'addActions') {
-                        const line2 = line.replace(/^[-•]\s*/, '');
-                        const act = WorldManager.parseActionLine(line2);
+                    }
+                    continue;
+                }
+
+                m = line.match(/^环境数据[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'env';
+                    update.environmentChanges = update.environmentChanges || {};
+                    if (m[1]) {
+                        this._parseEnvLine(m[1], update);
+                    }
+                    continue;
+                }
+
+                m = line.match(/^移除行动[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'removeActions';
+                    if (m[1]) update.removeActions.push(...splitNames(m[1]));
+                    continue;
+                }
+                m = line.match(/^新增行动[:：]?\s*(.*)$/);
+                if (m) {
+                    section = 'addActions';
+                    if (m[1]) {
+                        const act = WorldManager.parseActionLine(m[1].replace(/^[-•]\s*/, ''));
                         if (act && act.name) update.addActions.push(act);
                     }
+                    continue;
                 }
-    
-                return update;
-            },
-    
-            _parseModifyCharLine(line, update) {
-                const m = line.match(/^[【\[]?(.+?)[】\]]?[：:]\s*(.+)$/);
-                if (!m) return;
-                const name = m[1].trim();
-                const rest = m[2].trim();
-    
-                const validFields = ['心情', '好感度', '状态', '描述', '性别', '标签'];
-    
-                const pipe = rest.match(/^(.+?)\s*\|\s*(.+)$/);
-                if (!pipe) {
-                    console.warn(`[CinemaWorld] 修改人物格式无效（缺 |）: ${line}`);
-                    return;
+
+                if (section === 'addChars') {
+                    const line2 = line.replace(/^[-•]\s*/, '');
+                    const ch = WorldManager.parseCharacterLine(line2);
+                    if (ch && ch.name) update.addCharacters.push(ch);
+
+                } else if (section === 'removeChars') {
+                    update.removeCharacters.push(...splitNames(line));
+
+                } else if (section === 'modifyChars') {
+                    this._parseModifyCharLine(line.replace(/^[-•]\s*/, ''), update);
+
+                } else if (section === 'addItems') {
+                    const line2 = line.replace(/^[-•]\s*/, '');
+                    const it = WorldManager.parseItemLine(line2);
+                    if (it && it.name) update.addItems.push(it);
+
+                } else if (section === 'removeItems') {
+                    update.removeItems.push(...splitNames(line));
+
+                } else if (section === 'modifyItems') {
+                    this._parseModifyItemLine(line.replace(/^[-•]\s*/, ''), update);
+
+                } else if (section === 'status') {
+                    const kv = line.replace(/^[-•]\s*/, '').match(/^(.+?)[:：]\s*(.+)$/);
+                    if (kv) update.statusChanges[kv[1].trim()] = kv[2].trim();
+
+                } else if (section === 'env') {
+                    this._parseEnvLine(line, update);
+
+                } else if (section === 'removeActions') {
+                    update.removeActions.push(...splitNames(line));
+
+                } else if (section === 'addActions') {
+                    const line2 = line.replace(/^[-•]\s*/, '');
+                    const act = WorldManager.parseActionLine(line2);
+                    if (act && act.name) update.addActions.push(act);
                 }
-    
-                const field = pipe[1].trim();
-                let value = pipe[2].trim();
-    
-                if (!validFields.includes(field)) {
-                    console.warn(`[CinemaWorld] 修改人物字段名无效: ${field}，跳过`);
-                    return;
-                }
-    
-                if (field === '好感度') {
-                    const delta = value.match(/^([+\-])\s*(\d+)$/);
-                    if (delta) {
-                        update.modifyCharacters.push({
-                            name,
-                            field,
-                            op: delta[1],
-                            value: parseInt(delta[2]),
-                        });
-                        return;
-                    }
-                    const abs = value.match(/^(\d+)$/);
-                    if (abs) {
-                        update.modifyCharacters.push({
-                            name,
-                            field,
-                            op: '=',
-                            value: parseInt(abs[1]),
-                        });
-                        return;
-                    }
-                    console.warn(`[CinemaWorld] 好感度格式无效: ${value}`);
-                    return;
-                }
-    
-                if (field === '标签') {
-                    const tags = value.split(/[、,，]/).map(t => t.trim()).filter(Boolean);
-                    update.modifyCharacters.push({ name, field, value: tags });
-                    return;
-                }
-    
-                update.modifyCharacters.push({ name, field, value });
-            },
-    
-            _parseEnvLine(line, update) {
-                update.environmentChanges = update.environmentChanges || {};
-                const clean = line.replace(/^[-•]\s*/, '').trim();
-                if (!clean) return;
-                const kv = clean.match(/^(.+?)[:：]\s*(.+)$/);
-                if (kv) {
-                    update.environmentChanges[kv[1].trim()] = kv[2].trim();
-                }
-            },
-    
-            _parseModifyItemLine(line, update) {
-                let m = line.match(/^[【\[]?(.+?)[】\]]?[：:]\s*(.+)$/);
-                if (!m) return;
-                const name = m[1].trim();
-                let rest = m[2].trim();
-    
-                rest = rest.replace(/^状态[:：]?\s*/, '');
-    
-                const arrow = rest.match(/^(.+?)→(.+)$/);
-                if (arrow) {
-                    update.modifyItems.push({
+            }
+
+            return update;
+        },
+
+        _parseModifyCharLine(line, update) {
+            const m = line.match(/^[【\[]?(.+?)[】\]]?[：:]\s*(.+)$/);
+            if (!m) return;
+            const name = m[1].trim();
+            const rest = m[2].trim();
+
+            const validFields = ['心情', '好感度', '状态', '描述', '性别', '标签'];
+
+            const pipe = rest.match(/^(.+?)\s*\|\s*(.+)$/);
+            if (!pipe) {
+                console.warn(`[CinemaWorld] 修改人物格式无效（缺 |）: ${line}`);
+                return;
+            }
+
+            const field = pipe[1].trim();
+            let value = pipe[2].trim();
+
+            if (!validFields.includes(field)) {
+                console.warn(`[CinemaWorld] 修改人物字段名无效: ${field}，跳过`);
+                return;
+            }
+
+            if (field === '好感度') {
+                const delta = value.match(/^([+\-])\s*(\d+)$/);
+                if (delta) {
+                    update.modifyCharacters.push({
                         name,
-                        field: '状态',
-                        value: arrow[2].trim(),
+                        field,
+                        op: delta[1],
+                        value: parseInt(delta[2]),
                     });
                     return;
                 }
-    
-                update.modifyItems.push({
-                    name,
-                    field: '描述',
-                    value: rest,
-                });
-            },
-    
-            // ==================== 应用场景更新 ====================
-            async applySceneUpdate(update) {
-                if (!update) return;
-    
-                const scene = update.sceneName
-                    ? WorldManager.findEntity(update.sceneName)
-                    : window.LocationModalManager.currentLocation;
-    
-                if (!scene) {
-                    console.warn(`[CinemaWorld] 场景更新目标不存在，暂存: ${update.sceneName}`);
-                    if (!CinemaWorld.worldState.pendingUpdates) {
-                        CinemaWorld.worldState.pendingUpdates = [];
-                    }
-                    CinemaWorld.worldState.pendingUpdates.push(update);
+                const abs = value.match(/^(\d+)$/);
+                if (abs) {
+                    update.modifyCharacters.push({
+                        name,
+                        field,
+                        op: '=',
+                        value: parseInt(abs[1]),
+                    });
                     return;
                 }
-    
-                console.log('[CinemaWorld] 应用场景更新:', update);
-    
-                scene.sceneCharacters = scene.sceneCharacters || [];
-                scene.sceneItems = scene.sceneItems || [];
-                scene.statusBar = scene.statusBar || {};
-                scene.sceneActions = scene.sceneActions || [];
-    
-                // ==================== 环境数据 ====================
-                if (update.environmentChanges && Object.keys(update.environmentChanges).length > 0) {
-                    if (!scene.environmentData || typeof scene.environmentData !== 'object') {
-                        scene.environmentData = { _order: [], _raw: '' };
-                    }
-                    if (!Array.isArray(scene.environmentData._order)) {
-                        scene.environmentData._order = [];
-                    }
-    
-                    for (const [key, value] of Object.entries(update.environmentChanges)) {
-                        if (!scene.environmentData._order.includes(key)) {
-                            scene.environmentData._order.push(key);
-                        }
-                        scene.environmentData[key] = value;
-                    }
-    
-                    scene.environmentData._raw = scene.environmentData._order
-                        .filter(k => scene.environmentData[k] !== undefined && scene.environmentData[k] !== '')
-                        .map(k => `${k}:${scene.environmentData[k]}`)
-                        .join('|');
-    
-                    console.log('[CinemaWorld] 环境数据已更新:', scene.environmentData);
-                }
-    
-                // ==================== 新增人物 ====================
-                for (const ch of update.addCharacters) {
-                    if (!scene.sceneCharacters.some(c => c.name === ch.name)) {
-                        scene.sceneCharacters.push(ch);
-                    } else {
-                        const existing = scene.sceneCharacters.find(c => c.name === ch.name);
-                        Object.assign(existing, ch);
-                    }
-                    window.CharacterRegistry.upsert(ch, scene.name, true);
+                console.warn(`[CinemaWorld] 好感度格式无效: ${value}`);
+                return;
+            }
 
-                    // ★ 新增：预热立绘
-                    if (scene.name === CinemaWorld.ui.currentLocation) {
-                        const state = window.SpriteManager.pickSpriteState(ch);
-                        window.SpriteManager.ensureSpriteWithState(ch.name, ch.gender, state)
-                            .catch(e => console.warn('[CinemaWorld] 预热立绘失败:', e));
-                    }
-                }
-    
-                // ==================== 修改人物 ====================
-                for (const mod of update.modifyCharacters) {
-                    const char = scene.sceneCharacters.find(c => c.name === mod.name);
-                    if (!char) continue;
+            if (field === '标签') {
+                const tags = value.split(/[、,，]/).map(t => t.trim()).filter(Boolean);
+                update.modifyCharacters.push({ name, field, value: tags });
+                return;
+            }
 
-                    const fieldMap = {
-                        '心情': 'mood',
-                        '好感度': 'favorability',
-                        '状态': 'status',
-                        '描述': 'description',
-                        '性别': 'gender',
-                        '标签': 'tags',
-                    };
-                    const key = fieldMap[mod.field] || mod.field;
+            update.modifyCharacters.push({ name, field, value });
+        },
 
-                    if (mod.field === '标签') {
-                        char.tags = mod.value;
-                    } else if (mod.field === '好感度') {
-                        let cur = parseInt(char.favorability);
-                        if (isNaN(cur)) cur = 0;
-                        if (mod.op === '+') cur += mod.value;
-                        else if (mod.op === '-') cur -= mod.value;
-                        else cur = mod.value;
-                        char.favorability = String(cur);
-                    } else {
-                        char[key] = mod.value;
-                    }
+        _parseEnvLine(line, update) {
+            update.environmentChanges = update.environmentChanges || {};
+            const clean = line.replace(/^[-•]\s*/, '').trim();
+            if (!clean) return;
+            const kv = clean.match(/^(.+?)[:：]\s*(.+)$/);
+            if (kv) {
+                update.environmentChanges[kv[1].trim()] = kv[2].trim();
+            }
+        },
 
-                    window.CharacterRegistry.upsert(char, scene.name, true);
+        _parseModifyItemLine(line, update) {
+            let m = line.match(/^[【\[]?(.+?)[】\]]?[：:]\s*(.+)$/);
+            if (!m) return;
+            const name = m[1].trim();
+            let rest = m[2].trim();
 
-                    // ★ 新增：状态变化时刷新立绘
-                    if (['心情', '状态', '标签'].includes(mod.field) &&
-                        scene.name === CinemaWorld.ui.currentLocation) {
-                        window.SpriteManager?.notifySceneSpriteUpdate(char.name);
-                    }
-                }
-    
-                // ==================== 移除人物 ====================
-                for (const name of update.removeCharacters) {
-                    const idx = scene.sceneCharacters.findIndex(c => c.name === name);
-                    if (idx > -1) scene.sceneCharacters.splice(idx, 1);
-                }
-    
-                // ==================== 新增物品 ====================
-                for (const it of update.addItems) {
-                    if (!scene.sceneItems.some(i => i.name === it.name)) {
-                        scene.sceneItems.push(it);
-                    }
-                }
-    
-                // ==================== 移除物品 ====================
-                for (const name of update.removeItems) {
-                    const idx = scene.sceneItems.findIndex(i => i.name === name);
-                    if (idx > -1) scene.sceneItems.splice(idx, 1);
-                }
-    
-                // ==================== 修改物品 ====================
-                for (const mod of update.modifyItems) {
-                    const item = scene.sceneItems.find(i => i.name === mod.name);
-                    if (!item) continue;
-    
-                    const fieldMap = {
-                        '状态': 'status',
-                        '描述': 'description',
-                    };
-                    const key = fieldMap[mod.field] || mod.field;
-                    item[key] = mod.value;
-                }
-    
-                // ==================== 新增行动 ====================
-                for (const act of update.addActions) {
-                    if (!scene.sceneActions.some(a => a.name === act.name)) {
-                        scene.sceneActions.push(act);
-                    }
-                }
-    
-                // ==================== 移除行动 ====================
-                for (const name of update.removeActions) {
-                    const idx = scene.sceneActions.findIndex(a => a.name === name);
-                    if (idx > -1) {
-                        scene.sceneActions.splice(idx, 1);
-                    }
-                }
-    
-                // ==================== 场景状态栏 ====================
-                for (const [key, value] of Object.entries(update.statusChanges)) {
-                    scene.statusBar[key] = value;
-                }
-    
-                console.log('[CinemaWorld] 场景更新完成');
-    
-                if (CinemaWorld.ui.currentLocation === scene.name) {
-                    await window.SpriteManager.buildMapping(scene.sceneCharacters);
-                    await window.SceneSpriteLayerManager.buildForScene(scene);
-                    window.SceneAvatarBarManager.buildForScene(scene);
-    
-                    window.UIManager.updateWorldStateDisplay();
-                    window.SceneActionManager.refresh();
-                }
-    
-                if (window.SaveManager) window.SaveManager.save();
-            },
-    
-            // ==================== 播放剧情 ====================
-            async playStory(story) {
-                const STORY_SCOPE = 'story';
-                let storyMusicSet = false;
+            rest = rest.replace(/^状态[:：]?\s*/, '');
 
-                try {
-                    // ============================================================
-                    // 1. 设置剧情音乐（在 VN 播放之前）
-                    // ============================================================
-                    if (story.music) {
-                        await window.MusicManager.setScopedMusic(STORY_SCOPE, story.music);
+            const arrow = rest.match(/^(.+?)→(.+)$/);
+            if (arrow) {
+                update.modifyItems.push({
+                    name,
+                    field: '状态',
+                    value: arrow[2].trim(),
+                });
+                return;
+            }
+
+            update.modifyItems.push({
+                name,
+                field: '描述',
+                value: rest,
+            });
+        },
+
+        // ==================== 应用场景更新 ====================
+        async applySceneUpdate(update) {
+            if (!update) return;
+
+            const scene = update.sceneName
+                ? WorldManager.findEntity(update.sceneName)
+                : window.LocationModalManager.currentLocation;
+
+            if (!scene) {
+                console.warn(`[CinemaWorld] 场景更新目标不存在，暂存: ${update.sceneName}`);
+                if (!CinemaWorld.worldState.pendingUpdates) {
+                    CinemaWorld.worldState.pendingUpdates = [];
+                }
+                CinemaWorld.worldState.pendingUpdates.push(update);
+                return;
+            }
+
+            console.log('[CinemaWorld] 应用场景更新:', update);
+
+            scene.sceneCharacters = scene.sceneCharacters || [];
+            scene.sceneItems = scene.sceneItems || [];
+            scene.statusBar = scene.statusBar || {};
+            scene.sceneActions = scene.sceneActions || [];
+
+            // ==================== 环境数据 ====================
+            if (update.environmentChanges && Object.keys(update.environmentChanges).length > 0) {
+                if (!scene.environmentData || typeof scene.environmentData !== 'object') {
+                    scene.environmentData = { _order: [], _raw: '' };
+                }
+                if (!Array.isArray(scene.environmentData._order)) {
+                    scene.environmentData._order = [];
+                }
+
+                for (const [key, value] of Object.entries(update.environmentChanges)) {
+                    if (!scene.environmentData._order.includes(key)) {
+                        scene.environmentData._order.push(key);
+                    }
+                    scene.environmentData[key] = value;
+                }
+
+                scene.environmentData._raw = scene.environmentData._order
+                    .filter(k => scene.environmentData[k] !== undefined && scene.environmentData[k] !== '')
+                    .map(k => `${k}:${scene.environmentData[k]}`)
+                    .join('|');
+
+                console.log('[CinemaWorld] 环境数据已更新:', scene.environmentData);
+            }
+
+            // ==================== 新增人物 ====================
+            for (const ch of update.addCharacters) {
+                if (!scene.sceneCharacters.some(c => c.name === ch.name)) {
+                    scene.sceneCharacters.push(ch);
+                } else {
+                    const existing = scene.sceneCharacters.find(c => c.name === ch.name);
+                    Object.assign(existing, ch);
+                }
+                window.CharacterRegistry.upsert(ch, scene.name, true);
+
+                // ★ 新增：预热立绘
+                if (scene.name === CinemaWorld.ui.currentLocation) {
+                    const state = window.SpriteManager.pickSpriteState(ch);
+                    window.SpriteManager.ensureSpriteWithState(ch.name, ch.gender, state)
+                        .catch(e => console.warn('[CinemaWorld] 预热立绘失败:', e));
+                }
+            }
+
+            // ==================== 修改人物 ====================
+            for (const mod of update.modifyCharacters) {
+                const char = scene.sceneCharacters.find(c => c.name === mod.name);
+                if (!char) continue;
+
+                const fieldMap = {
+                    '心情': 'mood',
+                    '好感度': 'favorability',
+                    '状态': 'status',
+                    '描述': 'description',
+                    '性别': 'gender',
+                    '标签': 'tags',
+                };
+                const key = fieldMap[mod.field] || mod.field;
+
+                if (mod.field === '标签') {
+                    char.tags = mod.value;
+                } else if (mod.field === '好感度') {
+                    let cur = parseInt(char.favorability);
+                    if (isNaN(cur)) cur = 0;
+                    if (mod.op === '+') cur += mod.value;
+                    else if (mod.op === '-') cur -= mod.value;
+                    else cur = mod.value;
+                    char.favorability = String(cur);
+                } else {
+                    char[key] = mod.value;
+                }
+
+                window.CharacterRegistry.upsert(char, scene.name, true);
+
+                // ★ 新增：状态变化时刷新立绘
+                if (['心情', '状态', '标签'].includes(mod.field) &&
+                    scene.name === CinemaWorld.ui.currentLocation) {
+                    window.SpriteManager?.notifySceneSpriteUpdate(char.name);
+                }
+            }
+
+            // ==================== 移除人物 ====================
+            for (const name of update.removeCharacters) {
+                const idx = scene.sceneCharacters.findIndex(c => c.name === name);
+                if (idx > -1) scene.sceneCharacters.splice(idx, 1);
+            }
+
+            // ==================== 新增物品 ====================
+            for (const it of update.addItems) {
+                if (!scene.sceneItems.some(i => i.name === it.name)) {
+                    scene.sceneItems.push(it);
+                }
+            }
+
+            // ==================== 移除物品 ====================
+            for (const name of update.removeItems) {
+                const idx = scene.sceneItems.findIndex(i => i.name === name);
+                if (idx > -1) scene.sceneItems.splice(idx, 1);
+            }
+
+            // ==================== 修改物品 ====================
+            for (const mod of update.modifyItems) {
+                const item = scene.sceneItems.find(i => i.name === mod.name);
+                if (!item) continue;
+
+                const fieldMap = {
+                    '状态': 'status',
+                    '描述': 'description',
+                };
+                const key = fieldMap[mod.field] || mod.field;
+                item[key] = mod.value;
+            }
+
+            // ==================== 新增行动 ====================
+            for (const act of update.addActions) {
+                if (!scene.sceneActions.some(a => a.name === act.name)) {
+                    scene.sceneActions.push(act);
+                }
+            }
+
+            // ==================== 移除行动 ====================
+            for (const name of update.removeActions) {
+                const idx = scene.sceneActions.findIndex(a => a.name === name);
+                if (idx > -1) {
+                    scene.sceneActions.splice(idx, 1);
+                }
+            }
+
+            // ==================== 场景状态栏 ====================
+            for (const [key, value] of Object.entries(update.statusChanges)) {
+                scene.statusBar[key] = value;
+            }
+
+            console.log('[CinemaWorld] 场景更新完成');
+
+            if (CinemaWorld.ui.currentLocation === scene.name) {
+                await window.SpriteManager.buildMapping(scene.sceneCharacters);
+                await window.SceneSpriteLayerManager.buildForScene(scene);
+                window.SceneAvatarBarManager.buildForScene(scene);
+
+                window.UIManager.updateWorldStateDisplay();
+                window.SceneActionManager.refresh();
+            }
+
+            // ★ 清理一次性选项
+            this._pendingMainQuestOptions = null;
+
+            if (window.SaveManager) window.SaveManager.save();
+        },
+
+        // ==================== 播放剧情 ====================
+        async playStory(story) {
+            const STORY_SCOPE = 'story';
+            let storyMusicSet = false;
+
+            try {
+                // ============================================================
+                // 1. 设置剧情音乐（在 VN 播放之前）
+                // ============================================================
+                if (story.music) {
+                    await window.MusicManager.setScopedMusic(STORY_SCOPE, story.music);
+                    storyMusicSet = true;
+                } else {
+                    const markers = window.MusicManager.parseMusicMarkers(story.raw || '');
+                    if (markers.length > 0) {
+                        await window.MusicManager.setScopedMusic(STORY_SCOPE, markers[0]);
                         storyMusicSet = true;
-                    } else {
-                        const markers = window.MusicManager.parseMusicMarkers(story.raw || '');
-                        if (markers.length > 0) {
-                            await window.MusicManager.setScopedMusic(STORY_SCOPE, markers[0]);
-                            storyMusicSet = true;
-                        }
                     }
-
-                    // ============================================================
-                    // 2. 播放 VN
-                    // ============================================================
-                    if (story.dialogues.length > 0) {
-                        await window.VisualNovelManager.play(story.dialogues);
-                    }
-
-                    // ★ 标记已播放过（无论是自然播完还是被跳过）
-                    story._played = true;
-
-                    // ============================================================
-                    // 3. 清掉剧情音乐
-                    // ============================================================
-                    if (storyMusicSet) {
-                        await window.MusicManager.clearScopedMusic(STORY_SCOPE);
-                        storyMusicSet = false;
-                    }
-
-                    // ============================================================
-                    // 4. 场景切换（幂等）
-                    // ============================================================
-                    if (story.sceneSwitch && !story._sceneSwitchHandled) {
-                        await this.handleSceneSwitch(story.sceneSwitch, story);
-                        story._sceneSwitchHandled = true;
-                    }
-
-                    // ============================================================
-                    // 5. 场景更新（幂等）
-                    // ============================================================
-                    if (story.sceneUpdates && story.sceneUpdates.length > 0) {
-                        for (const update of story.sceneUpdates) {
-                            if (update._movedToSwitch) continue;
-                            if (update._applied) continue;      // ★ 已应用就跳过
-                            await this.applySceneUpdate(update);
-                            update._applied = true;             // ★ 打标记
-                        }
-                    }
-
-                    // ============================================================
-                    // 6. 全局效果（幂等）
-                    // ============================================================
-                    if (story.globalEffects && story.globalEffects.length > 0) {
-                        for (let i = 0; i < story.globalEffects.length; i++) {
-                            // ★ 用下标追踪，因为 globalEffects 里存的是字符串
-                            if (!story._appliedEffects) story._appliedEffects = {};
-                            if (story._appliedEffects[i]) continue;
-
-                            const eff = story.globalEffects[i];
-                            await new Promise(r => setTimeout(r, 300));
-                            const results = window.EffectSystem.applyFromNarrative(eff);
-                            const resultText = window.EffectSystem.formatResults(results);
-                            if (resultText) await window.UIManager.showText(resultText, 3000);
-
-                            story._appliedEffects[i] = true;
-                        }
-                    }
-
-                    // ============================================================
-                    // 7. 清除 pendingEvents
-                    // ============================================================
-                    if (CinemaWorld.worldState.pendingEvents) {
-                        CinemaWorld.worldState.pendingEvents.forEach(e => {
-                            if (!e.processed) e.processed = true;
-                        });
-                    }
-
-                    // ============================================================
-                    // 8. 选项 or 完成
-                    // ============================================================
-                    if (story.options.length === 0) {
-                        await this.completeStory(story);
-                    } else {
-                        await this.showOptions(story);
-                    }
-
-                } catch (e) {
-                    console.error('[CinemaWorld] playStory 出错:', e);
-                    throw e;
-                } finally {
-                    if (storyMusicSet) {
-                        try {
-                            await window.MusicManager.clearScopedMusic(STORY_SCOPE);
-                        } catch (err) {
-                            console.warn('[CinemaWorld] 清理剧情音乐失败:', err);
-                        }
-                    }
-                    if (window.SaveManager) window.SaveManager.save();
                 }
-            },
-    
-            // ==================== 显示选项 ====================
-            async showOptions(story) {
-                const modal = document.getElementById('cinemaworld-modal');
-    
-                let optionsHTML = '';
-                story.options.forEach((o, i) => {
-                    optionsHTML += `<div class="cinemaworld-option-item" onclick="StoryManager.selectOption('${story.id}', ${i})">
+
+                // ============================================================
+                // 2. 播放 VN
+                // ============================================================
+                if (story.dialogues.length > 0) {
+                    await window.VisualNovelManager.play(story.dialogues);
+                }
+
+                // ★ 标记已播放过（无论是自然播完还是被跳过）
+                story._played = true;
+
+                // ============================================================
+                // 3. 清掉剧情音乐
+                // ============================================================
+                if (storyMusicSet) {
+                    await window.MusicManager.clearScopedMusic(STORY_SCOPE);
+                    storyMusicSet = false;
+                }
+
+                // ============================================================
+                // 4. 场景切换（幂等）
+                // ============================================================
+                if (story.sceneSwitch && !story._sceneSwitchHandled) {
+                    await this.handleSceneSwitch(story.sceneSwitch, story);
+                    story._sceneSwitchHandled = true;
+                }
+
+                // ============================================================
+                // 5. 场景更新（幂等）
+                // ============================================================
+                if (story.sceneUpdates && story.sceneUpdates.length > 0) {
+                    for (const update of story.sceneUpdates) {
+                        if (update._movedToSwitch) continue;
+                        if (update._applied) continue;      // ★ 已应用就跳过
+                        await this.applySceneUpdate(update);
+                        update._applied = true;             // ★ 打标记
+                    }
+                }
+
+                // ============================================================
+                // 6. 全局效果（幂等）
+                // ============================================================
+                if (story.globalEffects && story.globalEffects.length > 0) {
+                    for (let i = 0; i < story.globalEffects.length; i++) {
+                        // ★ 用下标追踪，因为 globalEffects 里存的是字符串
+                        if (!story._appliedEffects) story._appliedEffects = {};
+                        if (story._appliedEffects[i]) continue;
+
+                        const eff = story.globalEffects[i];
+                        await new Promise(r => setTimeout(r, 300));
+                        const results = window.EffectSystem.applyFromNarrative(eff);
+                        const resultText = window.EffectSystem.formatResults(results);
+                        if (resultText) await window.UIManager.showText(resultText, 3000);
+
+                        story._appliedEffects[i] = true;
+                    }
+                }
+
+                // ============================================================
+                // 7. 清除 pendingEvents
+                // ============================================================
+                if (CinemaWorld.worldState.pendingEvents) {
+                    CinemaWorld.worldState.pendingEvents.forEach(e => {
+                        if (!e.processed) e.processed = true;
+                    });
+                }
+
+                // ============================================================
+                // 8. 选项 or 完成
+                // ============================================================
+                if (story.options.length === 0) {
+                    await this.completeStory(story);
+                } else {
+                    await this.showOptions(story);
+                }
+
+            } catch (e) {
+                console.error('[CinemaWorld] playStory 出错:', e);
+                throw e;
+            } finally {
+                if (storyMusicSet) {
+                    try {
+                        await window.MusicManager.clearScopedMusic(STORY_SCOPE);
+                    } catch (err) {
+                        console.warn('[CinemaWorld] 清理剧情音乐失败:', err);
+                    }
+                }
+                if (window.SaveManager) window.SaveManager.save();
+            }
+        },
+
+        // ==================== 显示选项 ====================
+        async showOptions(story) {
+            const modal = document.getElementById('cinemaworld-modal');
+
+            let optionsHTML = '';
+            story.options.forEach((o, i) => {
+                optionsHTML += `<div class="cinemaworld-option-item" onclick="StoryManager.selectOption('${story.id}', ${i})">
                         <span class="cinemaworld-option-key">${o.key}</span>
                         <span class="cinemaworld-option-text">${o.text}</span>
                     </div>`;
-                });
-    
-                modal.innerHTML = `
+            });
+
+            modal.innerHTML = `
                     <div class="cinemaworld-modal-title">📖 ${story.title}</div>
                     <div style="margin-bottom:20px;color:#aaa;font-size:14px;text-align:center;">选择你的行动</div>
     
@@ -2210,363 +2471,446 @@ B. 选项内容
                         </button>
                     </div>
                 `;
-                modal.className = 'active';
-    
-                if (!document.getElementById('cinemaworld-option-styles')) {
-                    const s = document.createElement('style');
-                    s.id = 'cinemaworld-option-styles';
-                    s.textContent = `
+            modal.className = 'active';
+
+            if (!document.getElementById('cinemaworld-option-styles')) {
+                const s = document.createElement('style');
+                s.id = 'cinemaworld-option-styles';
+                s.textContent = `
                         .cinemaworld-option-item{padding:16px 20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:15px;}
                         .cinemaworld-option-item:hover{background:rgba(120,150,255,.15);border-color:rgba(120,150,255,.4);transform:translateX(5px);}
                         .cinemaworld-option-key{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;flex-shrink:0;}
                         .cinemaworld-option-text{font-size:14px;color:#e0e0e0;line-height:1.5;}
                     `;
-                    document.head.appendChild(s);
-                }
-            },
-    
-            async submitCustomOption(storyId) {
-                const story = this.storyList.find(s => s.id === storyId);
-                if (!story) return;
-    
-                const input = document.getElementById('story-custom-option-input')?.value.trim();
-                if (!input) {
-                    alert('请输入你想做的事');
-                    return;
-                }
-    
-                story.chosenOption = {
-                    key: 'CUSTOM',
-                    text: input,
-                    custom: true,
-                    applied: true,
+                document.head.appendChild(s);
+            }
+        },
+
+        async submitCustomOption(storyId) {
+            const story = this.storyList.find(s => s.id === storyId);
+            if (!story) return;
+
+            const input = document.getElementById('story-custom-option-input')?.value.trim();
+            if (!input) {
+                alert('请输入你想做的事');
+                return;
+            }
+
+            story.chosenOption = {
+                key: 'CUSTOM',
+                text: input,
+                custom: true,
+                applied: true,
+                timestamp: Date.now(),
+            };
+
+            window.UIManager.closeModal();
+
+            await window.UIManager.showText(`你的行动：${input}`, 2000);
+
+            if (this.currentChapter) {
+                this.currentChapter.events.push({
+                    type: 'custom-choice',
+                    storyId: story.id,
+                    choice: input,
+                    summary: `自定义行动: ${input}`,
                     timestamp: Date.now(),
-                };
-    
+                });
+            }
+
+            await window.MusicManager.clearOverrideMusic();
+            await this.completeStory(story);
+            if (window.SaveManager) window.SaveManager.save();
+        },
+
+        async closeOptions(storyId) {
+            const story = this.storyList.find(s => s.id === storyId);
+            if (!story) return;
+
+            window.UIManager.closeModal();
+            await window.UIManager.showText('已暂缓选择，可稍后从剧情列表继续', 2000);
+        },
+
+        // ==================== 选择选项 ====================
+        async selectOption(storyId, optionIndex) {
+            const story = this.storyList.find(s => s.id === storyId);
+            if (!story) return;
+            if (story.chosenOption) {
+                alert('这个剧情已经做选择了');
                 window.UIManager.closeModal();
-    
-                await window.UIManager.showText(`你的行动：${input}`, 2000);
-    
-                if (this.currentChapter) {
-                    this.currentChapter.events.push({
-                        type: 'custom-choice',
-                        storyId: story.id,
-                        choice: input,
-                        summary: `自定义行动: ${input}`,
-                        timestamp: Date.now(),
-                    });
-                }
-    
-                await window.MusicManager.clearOverrideMusic();
-                await this.completeStory(story);
-                if (window.SaveManager) window.SaveManager.save();
-            },
-    
-            async closeOptions(storyId) {
-                const story = this.storyList.find(s => s.id === storyId);
-                if (!story) return;
-    
-                window.UIManager.closeModal();
-                await window.UIManager.showText('已暂缓选择，可稍后从剧情列表继续', 2000);
-            },
-    
-            // ==================== 选择选项 ====================
-            async selectOption(storyId, optionIndex) {
-                const story = this.storyList.find(s => s.id === storyId);
-                if (!story) return;
-                if (story.chosenOption) {
-                    alert('这个剧情已经做选择了');
-                    window.UIManager.closeModal();
-                    return;
-                }
-                const opt = story.options[optionIndex];
-                if (!opt) return;
-    
-                story.chosenOption = {
-                    key: opt.key,
-                    text: opt.text,
-                    applied: true,
+                return;
+            }
+            const opt = story.options[optionIndex];
+            if (!opt) return;
+
+            story.chosenOption = {
+                key: opt.key,
+                text: opt.text,
+                applied: true,
+                timestamp: Date.now(),
+            };
+
+            window.UIManager.closeModal();
+
+            await window.UIManager.showText(`你选择了：${opt.key}. ${opt.text}`, 2000);
+
+            if (opt.effectText) {
+                await new Promise(r => setTimeout(r, 300));
+                const results = window.EffectSystem.applyFromNarrative(opt.effectText);
+                const resultText = window.EffectSystem.formatResults(results);
+                if (resultText) await window.UIManager.showText(resultText, 3500);
+            }
+
+            if (opt.sceneSwitch) {
+                await new Promise(r => setTimeout(r, 300));
+                await this.handleSceneSwitch(opt.sceneSwitch, story);
+            }
+
+            if (this.currentChapter) {
+                this.currentChapter.events.push({
+                    type: 'choice',
+                    storyId: story.id,
+                    choice: `${opt.key}. ${opt.text}`,
+                    summary: `选择了: ${opt.text}`,
                     timestamp: Date.now(),
-                };
-    
-                window.UIManager.closeModal();
-    
-                await window.UIManager.showText(`你选择了：${opt.key}. ${opt.text}`, 2000);
-    
-                if (opt.effectText) {
-                    await new Promise(r => setTimeout(r, 300));
-                    const results = window.EffectSystem.applyFromNarrative(opt.effectText);
-                    const resultText = window.EffectSystem.formatResults(results);
-                    if (resultText) await window.UIManager.showText(resultText, 3500);
-                }
-    
-                if (opt.sceneSwitch) {
-                    await new Promise(r => setTimeout(r, 300));
-                    await this.handleSceneSwitch(opt.sceneSwitch, story);
-                }
-    
-                if (this.currentChapter) {
-                    this.currentChapter.events.push({
-                        type: 'choice',
-                        storyId: story.id,
-                        choice: `${opt.key}. ${opt.text}`,
-                        summary: `选择了: ${opt.text}`,
-                        timestamp: Date.now(),
-                    });
-                }
-    
-                await window.MusicManager.clearOverrideMusic();
-                await this.completeStory(story);
-                if (window.SaveManager) window.SaveManager.save();
-            },
-    
-            // ==================== 完成剧情卡 ====================
-            async completeStory(story) {
-                story.status = 'completed';
-                story.completedAt = Date.now();
-    
-                if (this.currentChapter) {
-                    this.currentChapter.events.push({
-                        type: 'story-complete',
-                        storyId: story.id,
-                        title: story.title,
-                        summary: `完成剧情: ${story.title}`,
-                        timestamp: Date.now(),
-                    });
-                }
-    
-                await window.UIManager.showText(`📖 ${story.title} - 完成`, 2000);
-                await window.MusicManager.clearOverrideMusic();
-    
-                try {
-                    await ChapterManager.tryCompactChapter();
-                } catch (e) {
-                    console.error('[CinemaWorld] 章内压缩失败:', e);
-                }
-    
-                try {
-                    await this.maybeRollOverChapter();
-                } catch (e) {
-                    console.error('[CinemaWorld] 章节滚动失败:', e);
-                }
-    
-                if (window.SaveManager) window.SaveManager.save();
-            },
-    
-            async maybeRollOverChapter() {
-                const ch = StoryManager.currentChapter;
-                if (!ch) return false;
-            
-                const ROLLOVER_THRESHOLD = 8;
-            
-                const activeCount = StoryManager.storyList.filter(
-                    s => s.chapterId === ch.id
-                      && s.status === 'completed'
-                      && s.order > (ch.compactUntilOrder || 0)
-                ).length;
-            
-                if (activeCount < ROLLOVER_THRESHOLD) return false;
-            
-                console.log(`[CinemaWorld] 本章完成 ${activeCount} 段剧情，触发滚动`);
-                await window.UIManager.showText('本章告一段落，正在开启新章...', 2000);
-            
-                // 记下当前章 id，用于判断 endChapter 有没有自动建新章
-                const oldChapterId = ch.id;
-            
-                await this.endChapter();
-            
-                // ★ 如果 endChapter 内部没建新章（卷没满的情况），这里补建
-                if (StoryManager.currentChapter?.id === oldChapterId
-                    || !StoryManager.currentChapter) {
-                    await ChapterManager.createChapter(`第${StoryManager.chapters.length + 1}章`);
-                }
-            
-                await window.UIManager.showText('新的章节开始了', 1500);
-                return true;
-            },
-    
-            // ==================== 章节结束（转发到 ChapterManager） ====================
-            async endChapter() {
-                return await ChapterManager.endChapter();
-            },
-    
-            // ==================== 场景切换 ====================
-            async handleSceneSwitch(sw, sourceStory) {
-                if (!sw || !sw.targetScene) return;
-            
-                if (sw.targetScene === CinemaWorld.ui.currentLocation) {
-                    console.log('[CinemaWorld] 场景切换目标即当前场景，跳过');
-                    return;
-                }
-            
-                await window.UIManager.showText(`正在进入【${sw.targetScene}】...`, 1500);
-            
-                // ★ 关键：切场景前，清掉剧情的 override
-                //   让新场景音乐有机会接管
-                await window.MusicManager.clearScopedMusic('story');
-            
-                let scene = WorldManager.findEntity(sw.targetScene);
-            
-                if (!scene) {
-                    const generated = await this.generateSceneFromSwitch(sw, sourceStory);
-                    await this.openSceneSwitchConfirm(sw, generated, sourceStory);
-                    return;
-                }
-            
-                await this.doApplySwitch(sw, scene, sourceStory);
-            },
-    
-            async doApplySwitch(sw, scene, sourceStory) {
-                if (sw.characters?.length || sw._presetCharacters?.length) {
-                    const charObjs = sw._presetCharacters
-                        || sw.characters.map(name => ({ name, type: 'character', description: '', tags: [] }));
-                    scene.sceneCharacters = scene.sceneCharacters || [];
-                    for (const c of charObjs) {
-                        const existing = scene.sceneCharacters.find(x => x.name === c.name);
-                        if (existing) Object.assign(existing, c);
-                        else scene.sceneCharacters.push(c);
+                });
+            }
+
+            await window.MusicManager.clearOverrideMusic();
+            await this.completeStory(story);
+            if (window.SaveManager) window.SaveManager.save();
+        },
+
+        // ==================== 完成剧情卡 ====================
+        async completeStory(story) {
+            story.status = 'completed';
+            story.completedAt = Date.now();
+
+            if (this.currentChapter) {
+                this.currentChapter.events.push({
+                    type: 'story-complete',
+                    storyId: story.id,
+                    title: story.title,
+                    summary: `完成剧情: ${story.title}`,
+                    timestamp: Date.now(),
+                });
+            }
+
+            await window.UIManager.showText(`📖 ${story.title} - 完成`, 2000);
+            await window.MusicManager.clearOverrideMusic();
+
+            // ★ 战略回合推进（一段剧情 = 一回合）
+            if (window.StrategyManager?.isInitialized?.()) {
+                const store = window.StrategyManager.ensureStore();
+                if (store.autoTurnOnStory) {
+                    try {
+                        await window.StrategyManager.advanceTurn('story');
+                    } catch (e) {
+                        console.error('[CinemaWorld] 战略回合推进失败:', e);
                     }
                 }
-                if (sw.items?.length || sw._presetItems?.length) {
-                    const itemObjs = sw._presetItems
-                        || sw.items.map(name => ({ name, type: 'item', description: '', status: '' }));
-                    scene.sceneItems = scene.sceneItems || [];
-                    for (const it of itemObjs) {
-                        const existing = scene.sceneItems.find(x => x.name === it.name);
-                        if (existing) Object.assign(existing, it);
-                        else scene.sceneItems.push(it);
+            }
+
+            try {
+                await ChapterManager.tryCompactChapter();
+            } catch (e) {
+                console.error('[CinemaWorld] 章内压缩失败:', e);
+            }
+
+            try {
+                await this.maybeRollOverChapter();
+            } catch (e) {
+                console.error('[CinemaWorld] 章节滚动失败:', e);
+            }
+
+            // ============================================================
+            // ★ 主线相关处理（仅 map 模式下执行）
+            //   顺序：先"生成地图"，再"主线推进"
+            // ============================================================
+            const playMode = window.CinemaWorld?.worldState?.playMode;
+
+            if (playMode === 'map' && window.MainQuestManager) {
+
+                // ---------- 1. 生成新地图（如果 AI 输出了【生成地图】） ----------
+                if (story.newMapRequest) {
+                    try {
+                        await window.MainQuestManager.generateNewMap(story.newMapRequest);
+                    } catch (e) {
+                        console.error('[StoryManager] 生成新地图失败:', e);
                     }
                 }
-    
-                CinemaWorld.ui.currentLocation = scene.name;
-                window.LocationModalManager.currentLocation = scene;
-    
-                if (scene.background) await window.BackgroundManager.apply(scene.background);
-                else await window.BackgroundManager.apply(scene.name);
-                if (scene.music) await window.MusicManager.setSceneMusic(scene.music);
-                else window.MusicManager.setSceneMusic(null);
-    
-                await window.SceneSpriteLayerManager.buildForScene(scene);
-                window.SceneAvatarBarManager.buildForScene(scene);
-    
-                // ★ 修复：切换到新场景后刷新行动栏
-                //    先收起旧场景残留的展开状态，再重新渲染
-                if (typeof window.SceneActionManager !== 'undefined') {
-                    window.SceneActionManager.collapse();
-                    window.SceneActionManager.refresh();
-                }
-    
-                window.UIManager.createFloatingButtons();
-                window.UIManager.updateWorldStateDisplay();
-                await window.UIManager.showText(`已进入【${scene.name}】`, 1500);
-    
-                if (this.currentChapter && sourceStory) {
-                    this.currentChapter.events.push({
-                        type: 'scene-switch',
-                        storyId: sourceStory.id,
-                        from: sourceStory.scene,
-                        to: sw.targetScene,
-                        reason: sw.reason,
-                        summary: `切换到: ${sw.targetScene}`,
-                        timestamp: Date.now(),
-                    });
-                }
-    
-                if (CinemaWorld.worldState.pendingUpdates?.length) {
-                    const stillPending = [];
-                    for (const upd of CinemaWorld.worldState.pendingUpdates) {
-                        if (upd.sceneName === scene.name) {
-                            await this.applySceneUpdate(upd);
-                        } else {
-                            stillPending.push(upd);
-                        }
+
+                // ---------- 2. 应用主线推进 ----------
+                if (story.mainQuestAdvance) {
+                    try {
+                        await window.MainQuestManager.applyAdvance(story.mainQuestAdvance);
+                    } catch (e) {
+                        console.error('[StoryManager] 主线推进应用失败:', e);
                     }
-                    CinemaWorld.worldState.pendingUpdates = stillPending;
+                } else {
+                    // ★ map 模式下 AI 没输出【主线推进】= 主线结束
+                    window.CinemaWorld.worldState.mainQuest = null;
+                    console.log('[StoryManager] 主线已结束（AI 未输出新的【主线推进】）');
                 }
-            },
-    
-            async generateSceneFromSwitch(sw, sourceStory = null) {
-                const presetChars = sw._presetCharacters || (sw.characters || []).map(c => ({ name: c }));
-                const presetItems = sw._presetItems || (sw.items || []).map(i => ({ name: i }));
-    
-                const ctxParts = [];
-    
-                const wh = CinemaWorld.worldState.worldHistory;
-                if (wh?.summary) {
-                    ctxParts.push(`【世界史】${wh.summary}`);
-                }
-    
-                const fromScene = window.LocationModalManager.currentLocation;
-                if (fromScene) {
-                    let s = `【玩家离开的场景】${fromScene.name}`;
-                    if (fromScene.description) s += `\n描述：${fromScene.description}`;
-                    if (fromScene.environment) s += `\n环境：${fromScene.environment}`;
-                    ctxParts.push(s);
-                }
-    
-                if (sourceStory) {
-                    const storyParts = [];
-                    storyParts.push(`标题：${sourceStory.title}`);
-                    if (sourceStory.type) storyParts.push(`类型：${sourceStory.type}`);
-                    if (sourceStory.summary) {
-                        storyParts.push(`\n【剧情摘要】\n${sourceStory.summary}`);
+
+            } else if (playMode === 'scene') {
+                // ---------- scene 模式：清空待定选项 ----------
+                // （场景模式的场景切换/场景更新已经在 playStory 里处理）
+            }
+
+            // ★ 清空一次性选项
+            this._pendingMainQuestOptions = null;
+
+            if (window.SaveManager) window.SaveManager.save();
+
+            // ============================================================
+            // ★ 地图模式下，剧情结束后回到地图
+            // ============================================================
+            if (playMode === 'map') {
+                // 等 VN 收尾动画走完
+                await new Promise(r => setTimeout(r, 500));
+
+                const modal = document.getElementById('cinemaworld-modal');
+                const map = window.MapLauncher?._map;
+                const canvas = window.MapCanvas;
+
+                if (modal && map) {
+                    // 先保存玩家位置/相机/区域，供 _renderMapModal 恢复
+                    if (canvas?.player) {
+                        map._savedPlayerPos = {
+                            x: canvas.player.x,
+                            y: canvas.player.y,
+                        };
+                        map._savedCamera = {
+                            x: canvas.camera.x,
+                            y: canvas.camera.y,
+                            tileSize: canvas.config.tileSize,
+                        };
+                        map._savedRegionId = canvas._currentRegionId || null;
                     }
-    
-                    if (sourceStory.dialogues?.length) {
-                        const dialogueText = sourceStory.dialogues
-                            .slice(-20)
-                            .map(d => {
-                                if (['旁白', '系统'].includes(d.character)) {
-                                    return `【旁白】${d.content}`;
-                                }
-                                return `【${d.character}】${d.content}`;
-                            })
-                            .join('\n');
-                        storyParts.push(`\n【剧情对话节选】\n${dialogueText}`);
+
+                    // 重新渲染地图
+                    window.MapLauncher._renderMapModal(modal);
+                    console.log('[CinemaWorld] 剧情结束，回到地图');
+                }
+                return;
+            }
+        },
+
+        async maybeRollOverChapter() {
+            const ch = StoryManager.currentChapter;
+            if (!ch) return false;
+
+            const ROLLOVER_THRESHOLD = 8;
+
+            const activeCount = StoryManager.storyList.filter(
+                s => s.chapterId === ch.id
+                    && s.status === 'completed'
+                    && s.order > (ch.compactUntilOrder || 0)
+            ).length;
+
+            if (activeCount < ROLLOVER_THRESHOLD) return false;
+
+            console.log(`[CinemaWorld] 本章完成 ${activeCount} 段剧情，触发滚动`);
+            await window.UIManager.showText('本章告一段落，正在开启新章...', 2000);
+
+            // 记下当前章 id，用于判断 endChapter 有没有自动建新章
+            const oldChapterId = ch.id;
+
+            await this.endChapter();
+
+            // ★ 如果 endChapter 内部没建新章（卷没满的情况），这里补建
+            if (StoryManager.currentChapter?.id === oldChapterId
+                || !StoryManager.currentChapter) {
+                await ChapterManager.createChapter(`第${StoryManager.chapters.length + 1}章`);
+            }
+
+            await window.UIManager.showText('新的章节开始了', 1500);
+            return true;
+        },
+
+        // ==================== 章节结束（转发到 ChapterManager） ====================
+        async endChapter() {
+            return await ChapterManager.endChapter();
+        },
+
+        // ==================== 场景切换 ====================
+        async handleSceneSwitch(sw, sourceStory) {
+            if (!sw || !sw.targetScene) return;
+
+            if (sw.targetScene === CinemaWorld.ui.currentLocation) {
+                console.log('[CinemaWorld] 场景切换目标即当前场景，跳过');
+                return;
+            }
+
+            await window.UIManager.showText(`正在进入【${sw.targetScene}】...`, 1500);
+
+            // ★ 关键：切场景前，清掉剧情的 override
+            //   让新场景音乐有机会接管
+            await window.MusicManager.clearScopedMusic('story');
+
+            let scene = WorldManager.findEntity(sw.targetScene);
+
+            if (!scene) {
+                const generated = await this.generateSceneFromSwitch(sw, sourceStory);
+                await this.openSceneSwitchConfirm(sw, generated, sourceStory);
+                return;
+            }
+
+            await this.doApplySwitch(sw, scene, sourceStory);
+        },
+
+        async doApplySwitch(sw, scene, sourceStory) {
+            if (sw.characters?.length || sw._presetCharacters?.length) {
+                const charObjs = sw._presetCharacters
+                    || sw.characters.map(name => ({ name, type: 'character', description: '', tags: [] }));
+                scene.sceneCharacters = scene.sceneCharacters || [];
+                for (const c of charObjs) {
+                    const existing = scene.sceneCharacters.find(x => x.name === c.name);
+                    if (existing) Object.assign(existing, c);
+                    else scene.sceneCharacters.push(c);
+                }
+            }
+            if (sw.items?.length || sw._presetItems?.length) {
+                const itemObjs = sw._presetItems
+                    || sw.items.map(name => ({ name, type: 'item', description: '', status: '' }));
+                scene.sceneItems = scene.sceneItems || [];
+                for (const it of itemObjs) {
+                    const existing = scene.sceneItems.find(x => x.name === it.name);
+                    if (existing) Object.assign(existing, it);
+                    else scene.sceneItems.push(it);
+                }
+            }
+
+            CinemaWorld.ui.currentLocation = scene.name;
+            window.LocationModalManager.currentLocation = scene;
+
+            if (scene.background) await window.BackgroundManager.apply(scene.background);
+            else await window.BackgroundManager.apply(scene.name);
+            if (scene.music) await window.MusicManager.setSceneMusic(scene.music);
+            else window.MusicManager.setSceneMusic(null);
+
+            await window.SceneSpriteLayerManager.buildForScene(scene);
+            window.SceneAvatarBarManager.buildForScene(scene);
+
+            // ★ 修复：切换到新场景后刷新行动栏
+            //    先收起旧场景残留的展开状态，再重新渲染
+            if (typeof window.SceneActionManager !== 'undefined') {
+                window.SceneActionManager.collapse();
+                window.SceneActionManager.refresh();
+            }
+
+            window.UIManager.createFloatingButtons();
+            window.UIManager.updateWorldStateDisplay();
+            await window.UIManager.showText(`已进入【${scene.name}】`, 1500);
+
+            if (this.currentChapter && sourceStory) {
+                this.currentChapter.events.push({
+                    type: 'scene-switch',
+                    storyId: sourceStory.id,
+                    from: sourceStory.scene,
+                    to: sw.targetScene,
+                    reason: sw.reason,
+                    summary: `切换到: ${sw.targetScene}`,
+                    timestamp: Date.now(),
+                });
+            }
+
+            if (CinemaWorld.worldState.pendingUpdates?.length) {
+                const stillPending = [];
+                for (const upd of CinemaWorld.worldState.pendingUpdates) {
+                    if (upd.sceneName === scene.name) {
+                        await this.applySceneUpdate(upd);
+                    } else {
+                        stillPending.push(upd);
                     }
-    
-                    if (sourceStory.chosenOption) {
-                        storyParts.push(`\n【玩家选择】${sourceStory.chosenOption.text}`);
-                    }
-    
-                    ctxParts.push(`【本段剧情】\n${storyParts.join('\n')}`);
                 }
-    
-                if (sw.reason) {
-                    ctxParts.push(`【进入此场景的原因】${sw.reason}`);
+                CinemaWorld.worldState.pendingUpdates = stillPending;
+            }
+        },
+
+        async generateSceneFromSwitch(sw, sourceStory = null) {
+            const presetChars = sw._presetCharacters || (sw.characters || []).map(c => ({ name: c }));
+            const presetItems = sw._presetItems || (sw.items || []).map(i => ({ name: i }));
+
+            const ctxParts = [];
+
+            const wh = CinemaWorld.worldState.worldHistory;
+            if (wh?.summary) {
+                ctxParts.push(`【世界史】${wh.summary}`);
+            }
+
+            const fromScene = window.LocationModalManager.currentLocation;
+            if (fromScene) {
+                let s = `【玩家离开的场景】${fromScene.name}`;
+                if (fromScene.description) s += `\n描述：${fromScene.description}`;
+                if (fromScene.environment) s += `\n环境：${fromScene.environment}`;
+                ctxParts.push(s);
+            }
+
+            if (sourceStory) {
+                const storyParts = [];
+                storyParts.push(`标题：${sourceStory.title}`);
+                if (sourceStory.type) storyParts.push(`类型：${sourceStory.type}`);
+                if (sourceStory.summary) {
+                    storyParts.push(`\n【剧情摘要】\n${sourceStory.summary}`);
                 }
-    
-                const playerName = PlayerStateManager.player.name || '主人公';
-                const playerProfile = PlayerStateManager.player.profile || '';
-    
-                let playerBlock = `【玩家设定】\n名字：${playerName}\n`;
-                playerBlock += playerProfile ? playerProfile + '\n' : '（无特别设定）\n';
-    
-                const playerBlock2 = PlayerStateManager.formatForPrompt();
-    
-                if (playerBlock2) {
-                    playerBlock += `\n【玩家状态】\n${playerBlock2}\n`;
+
+                if (sourceStory.dialogues?.length) {
+                    const dialogueText = sourceStory.dialogues
+                        .slice(-20)
+                        .map(d => {
+                            if (['旁白', '系统'].includes(d.character)) {
+                                return `【旁白】${d.content}`;
+                            }
+                            return `【${d.character}】${d.content}`;
+                        })
+                        .join('\n');
+                    storyParts.push(`\n【剧情对话节选】\n${dialogueText}`);
                 }
-    
-                ctxParts.push(playerBlock2);
-    
-                const charLines = presetChars.length > 0
-                    ? presetChars.map(c => {
-                        const meta = [c.name, c.gender || '', c.mood || '', c.favorability || '', c.status || ''].join('|');
-                        const desc = c.description || '';
-                        const tags = c.tags?.length ? `，[${c.tags.join('、')}]` : '';
-                        return `- 【${meta}】：${desc}${tags}`;
-                    }).join('\n')
-                    : '（无）';
-                const worldCtx = this.buildContext(null, { mainChars: false, scene: false, pendingEvents: false, volumes: true, interactionDigests: false });
-                const itemLines = presetItems.length > 0
-                    ? presetItems.map(i => {
-                        const status = i.status ? `，(${i.status})` : '';
-                        return `- 【${i.name}】：${i.description || ''}${status}`;
-                    }).join('\n')
-                    : '（无）';
-    
-                    const prompt = `你是视觉小说剧本作家。玩家正从上一段剧情进入一个新场景，请根据剧情上下文生成这个场景的完整设定。
+
+                if (sourceStory.chosenOption) {
+                    storyParts.push(`\n【玩家选择】${sourceStory.chosenOption.text}`);
+                }
+
+                ctxParts.push(`【本段剧情】\n${storyParts.join('\n')}`);
+            }
+
+            if (sw.reason) {
+                ctxParts.push(`【进入此场景的原因】${sw.reason}`);
+            }
+
+            const playerName = PlayerStateManager.player.name || '主人公';
+            const playerProfile = PlayerStateManager.player.profile || '';
+
+            let playerBlock = `【玩家设定】\n名字：${playerName}\n`;
+            playerBlock += playerProfile ? playerProfile + '\n' : '（无特别设定）\n';
+
+            const playerBlock2 = PlayerStateManager.formatForPrompt();
+
+            if (playerBlock2) {
+                playerBlock += `\n【玩家状态】\n${playerBlock2}\n`;
+            }
+
+            ctxParts.push(playerBlock2);
+
+            const charLines = presetChars.length > 0
+                ? presetChars.map(c => {
+                    const meta = [c.name, c.gender || '', c.mood || '', c.favorability || '', c.status || ''].join('|');
+                    const desc = c.description || '';
+                    const tags = c.tags?.length ? `，[${c.tags.join('、')}]` : '';
+                    return `- 【${meta}】：${desc}${tags}`;
+                }).join('\n')
+                : '（无）';
+            const worldCtx = this.buildContext(null, { mainChars: false, scene: false, pendingEvents: false, volumes: true, interactionDigests: false });
+            const itemLines = presetItems.length > 0
+                ? presetItems.map(i => {
+                    const status = i.status ? `，(${i.status})` : '';
+                    return `- 【${i.name}】：${i.description || ''}${status}`;
+                }).join('\n')
+                : '（无）';
+
+            const prompt = `你是视觉小说剧本作家。玩家正从上一段剧情进入一个新场景，请根据剧情上下文生成这个场景的完整设定。
 
 ${worldCtx}
 
@@ -2588,7 +2932,7 @@ ${itemLines}
 【${sw.targetScene}】
 描述：(结合剧情上下文，写玩家为什么来这里、这里什么氛围)
 环境：(环境特征)
-环境数据:[时间:X|天气:X|温度:X|风力:X|湿度:X|...]
+环境数据:[时间:HH:MM|日期:YYYY年MM月DD日|季节:X|天气:X|温度:X°C|湿度:X%|风力:X级|明日:X|...AI自定义字段]
 背景：(中文图片名，简短，如"教室"、"地下通道")
 🎵 音乐：(曲名，如"神秘"、"紧张"、"温馨")
 
@@ -2598,9 +2942,9 @@ ${itemLines}
 场景实体：
 - 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
 物品: 
-- 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 装备: 
-- 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
+- 【名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y|其他]
 
 ★ 特殊实体类型（用专用字段）：
 经营:
@@ -2632,7 +2976,25 @@ ${itemLines}
     - 图标只填一个 emoji，不要文字
     - 实体可以是物品/建筑/植物/家具/机关/载具/自然物等
 
-3. 装备类实体须带属性字段：
+3. 物品说明：
+    效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+    动作：
+    - 回复：当前值+N，不超上限（如"回复生命 X"）
+    - 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+    - 设置：当前值=N（如"设置生命 X"）
+    - 减少：当前值-N（如"减少理智 Y"）
+    - 永久：永久改变属性（如"永久力量 X"）
+    - 状态：加状态（如"状态中毒 X"）
+    - 移除：移除状态（如"移除中毒"）
+    - 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+    值可以是数字或百分比：回复生命 X / 回复生命 X%
+    多效果用分号分隔：回复生命 X; 回复体力 X
+    无效果的物品写 效果:无
+    ★ "功能"是给人看的介绍，模糊、简短，不带具体数字：
+    - 恢复生命 / 回复体力 / 解除中毒 / 增加攻击 / 提供照明
+
+4. 装备类实体须带属性字段：
     - 【名|图标】：描述，[类型:武器|攻击:+3|图标:⚔️]
     - 属性值格式：数字 / ±数字 / 数字%（如 +5、-3、+10%）
     - 非属性字段（类型/状态/图标/交互方式）不会被当成加成
@@ -2643,127 +3005,214 @@ ${itemLines}
 
 请开始生成：
 `;
-    
-                const result = await window.generateFunctionalReply(prompt, 'scene-from-story');
-                return result || `【${sw.targetScene}】\n描述：(新场景)\n环境：(待探索)`;
-            },
-    
-            // ==================== 构建上下文 ====================
-            buildContext(parentStory = null, options = {}) {
-                const opt = {
-                    world:              true,
-                    worldHistory:       true,
-                    volumes:            true,
-                    chapters:           true,
-                    chapter:            true,
-                    parentStory:        true,
-                    interactionDigests: true,
-                    scene:              true,
-                    mainChars:          true,
-                    pendingEvents:      true,
-                    ...options,
-                };
-    
-                const digestFilter = opt.digestFilter || {};
-    
-                let ctx = '';
-    
-                // ========== 第 0 层：世界 + 世界史 ==========
-                if (opt.world || opt.worldHistory) {
-                    if (opt.world) ctx += `【世界】\n`;
-                    const wh = CinemaWorld.worldState.worldHistory;
-                    if (opt.worldHistory && wh.summary) {
-                        ctx += `【世界史】${wh.summary}\n`;
-                    }
-                }
-    
-                const chapter = this.currentChapter;
-                const volume = chapter ? ChapterManager.getVolume(chapter.volumeId) : this.currentVolume;
-    
-                // ========== 第 1 层：更早的卷摘要 ==========
-                if (opt.volumes) {
-                    const pastVolumes = this.volumes.filter(v => v.summary && !v.archived && v !== volume);
-                    if (pastVolumes.length > 0) {
-                        ctx += `【过往篇章】\n`;
-                        pastVolumes.slice(-2).forEach(v => {
-                            ctx += `▶ ${v.title}\n${v.summary}\n\n`;
-                        });
-                    }
-                }
-    
-                // ========== 第 2 层：前情提要 ==========
-                if (opt.chapters) {
-                    const pastChapters = this.chapters.filter(c => c.summary && c !== chapter);
-                    if (pastChapters.length > 0) {
-                        ctx += `【前情提要】\n`;
-    
-                        const currentVolumeChapters = volume
-                            ? pastChapters.filter(c => c.volumeId === volume.id)
-                            : [];
-                        const earlierChapters = pastChapters.filter(c => c.volumeId !== volume?.id);
-    
-                        currentVolumeChapters.forEach(c => {
-                            ctx += `▶ ${c.title}\n${c.summary}\n`;
-                        });
-                        earlierChapters.slice(-2).forEach(c => {
-                            ctx += `▶ ${c.title}\n${c.summary}\n`;
-                        });
-                        ctx += '\n';
-                    }
-                }
-    
-                // ========== 第 3 层：当前章节的剧情卡 ==========
-                if (opt.chapter && chapter) {
-                    ctx += `【当前章节】${chapter.title}\n`;
-    
-                    if (chapter.compactSummary) {
-                        ctx += `【本章前情】${chapter.compactSummary}\n\n`;
-                    }
-    
-                    const chapterStories = this.storyList
-                        .filter(s => s.chapterId === chapter.id && s.summary && s.order > (chapter.compactUntilOrder || 0))
-                        .sort((a, b) => a.order - b.order);
-    
-                    if (chapterStories.length > 0) {
-                        ctx += `【本章剧情明细】\n`;
-                        chapterStories.forEach(s => {
-                            ctx += `▶ ${s.title}\n${s.summary}\n`;
-                            if (s.chosenOption) {
-                                ctx += `玩家选择: ${s.chosenOption.text}\n`;
-                            }
-                            ctx += '\n';
-                        });
-                    }
-                }
-                // ========== 第 3.5 层：本章最后一段剧情（自动补充）==========
-                if (opt.chapter && chapter && !parentStory) {
-                    const lastCompleted = this.storyList
-                        .filter(s => s.chapterId === chapter.id
-                                    && s.status === 'completed'
-                                    && s.order > (chapter.compactUntilOrder || 0))
-                        .sort((a, b) => (b.order || 0) - (a.order || 0))[0];
 
-                    if (lastCompleted) {
-                        ctx += `\n【最近的剧情进展】\n`;
-                        ctx += `标题: ${lastCompleted.title}\n`;
-                        if (lastCompleted.summary) ctx += `摘要: ${lastCompleted.summary}\n`;
-                        if (lastCompleted.chosenOption) {
-                            ctx += `玩家选择: ${lastCompleted.chosenOption.text}\n`;
+            const result = await window.generateFunctionalReply(prompt, 'scene-from-story');
+            return result || `【${sw.targetScene}】\n描述：(新场景)\n环境：(待探索)`;
+        },
+        // 各层顺序（从大到小）：
+        //   0. world / worldHistory   —— 世界名 + 编年史
+        //   1. volumes                —— 更早的卷摘要
+        //   2. chapters               —— 前情提要（往章总结）
+        //   3. chapter                —— 当前章节 + 本章剧情卡
+        //   3.5 parentStory           —— 上一步剧情（前驱）
+        //   4. mainChars              —— 主要角色名册
+        //   5. scene                  —— 当前场景（名/描述/人物/实体）
+        //   6. pendingEvents          —— 待处理事件（升级、昏迷等）
+        //   7. interactionDigests     —— 本章交互历史（角色/物品/行动）
+        // ==================== 构建上下文 ====================
+        buildContext(parentStory = null, options = {}) {
+            const opt = {
+                world: true,
+                worldHistory: true,
+                volumes: true,
+                chapters: true,
+                chapter: true,
+                parentStory: true,
+                interactionDigests: true,
+                scene: true,
+                mainChars: true,
+                pendingEvents: true,
+                ...options,
+            };
+
+            const digestFilter = opt.digestFilter || {};
+
+            let ctx = '';
+
+            // ========== 第 0 层：世界 + 世界史 ==========
+            if (opt.world || opt.worldHistory) {
+                if (opt.world) ctx += `【世界】\n`;
+                const wh = CinemaWorld.worldState.worldHistory;
+                if (opt.worldHistory && wh.summary) {
+                    ctx += `【世界史】${wh.summary}\n`;
+                }
+            }
+
+            const chapter = this.currentChapter;
+            const volume = chapter ? ChapterManager.getVolume(chapter.volumeId) : this.currentVolume;
+
+            // ========== 第 1 层：更早的卷摘要 ==========
+            if (opt.volumes) {
+                const pastVolumes = this.volumes.filter(v => v.summary && !v.archived && v !== volume);
+                if (pastVolumes.length > 0) {
+                    ctx += `【过往篇章】\n`;
+                    pastVolumes.slice(-2).forEach(v => {
+                        ctx += `▶ ${v.title}\n${v.summary}\n\n`;
+                    });
+                }
+            }
+
+            // ========== 第 2 层：前情提要 ==========
+            if (opt.chapters) {
+                const pastChapters = this.chapters.filter(c => c.summary && c !== chapter);
+                if (pastChapters.length > 0) {
+                    ctx += `【前情提要】\n`;
+
+                    const currentVolumeChapters = volume
+                        ? pastChapters.filter(c => c.volumeId === volume.id)
+                        : [];
+                    const earlierChapters = pastChapters.filter(c => c.volumeId !== volume?.id);
+
+                    currentVolumeChapters.forEach(c => {
+                        ctx += `▶ ${c.title}\n${c.summary}\n`;
+                    });
+                    earlierChapters.slice(-2).forEach(c => {
+                        ctx += `▶ ${c.title}\n${c.summary}\n`;
+                    });
+                    ctx += '\n';
+                }
+            }
+
+            // ========== 第 3 层：当前章节的剧情卡 ==========
+            if (opt.chapter && chapter) {
+                ctx += `【当前章节】${chapter.title}\n`;
+
+                if (chapter.compactSummary) {
+                    ctx += `【本章前情】${chapter.compactSummary}\n\n`;
+                }
+
+                const chapterStories = this.storyList
+                    .filter(s => s.chapterId === chapter.id && s.summary && s.order > (chapter.compactUntilOrder || 0))
+                    .sort((a, b) => a.order - b.order);
+
+                if (chapterStories.length > 0) {
+                    ctx += `【本章剧情明细】\n`;
+                    chapterStories.forEach(s => {
+                        ctx += `▶ ${s.title}\n${s.summary}\n`;
+                        if (s.chosenOption) {
+                            ctx += `玩家选择: ${s.chosenOption.text}\n`;
+                        }
+                        ctx += '\n';
+                    });
+                }
+            }
+            // ========== 第 3.5 层：本章最后一段剧情（自动补充）==========
+            if (opt.chapter && chapter && !parentStory) {
+                const lastCompleted = this.storyList
+                    .filter(s => s.chapterId === chapter.id
+                        && s.status === 'completed'
+                        && s.order > (chapter.compactUntilOrder || 0))
+                    .sort((a, b) => (b.order || 0) - (a.order || 0))[0];
+
+                if (lastCompleted) {
+                    ctx += `\n【最近的剧情进展】\n`;
+                    ctx += `标题: ${lastCompleted.title}\n`;
+                    if (lastCompleted.summary) ctx += `摘要: ${lastCompleted.summary}\n`;
+                    if (lastCompleted.chosenOption) {
+                        ctx += `玩家选择: ${lastCompleted.chosenOption.text}\n`;
+                    }
+                }
+            }
+            // ========== 第 4 层：前驱剧情 ==========
+            if (opt.parentStory && parentStory) {
+                ctx += `\n【本剧情的上一步】\n`;
+                ctx += `标题: ${parentStory.title}\n`;
+                if (parentStory.summary) ctx += `摘要: ${parentStory.summary}\n`;
+                if (parentStory.chosenOption) {
+                    ctx += `玩家选择: ${parentStory.chosenOption.text}\n`;
+                }
+            }
+
+            // ========== 第 5 层：当前场景 / 当前地图（按 playMode 二选一） ==========
+            if (opt.scene) {
+                const playMode = window.CinemaWorld?.worldState?.playMode || 'scene';
+
+                if (playMode === 'map') {
+                    // ---------- 地图模式：只注入地图上下文 ----------
+                    const map = window.MapLauncher?.getMap?.();
+                    if (map) {
+                        ctx += `\n【当前地图】\n名称: ${map.name}\n`;
+                        if (map.description) ctx += `描述: ${map.description}\n`;
+
+                        // 玩家所在区域
+                        const canvas = window.MapCanvas;
+                        const player = canvas?.player;
+                        if (player && map._generated?.grid) {
+                            const cell = map._generated.grid[player.y]?.[player.x];
+                            const regionId = cell?.regionId;
+                            const region = map.regions?.find(r => r.id === regionId);
+                            if (region) {
+                                ctx += `玩家当前区域: ${region.name}（id: ${region.id}）\n`;
+                            }
+                        }
+
+                        // 区域列表
+                        if (map.regions?.length) {
+                            ctx += `\n地图区域列表（★ 输出【主线推进】时必须使用这些 id）:\n`;
+                            map.regions.forEach(r => {
+                                ctx += `  - ${r.id}（${r.name}）\n`;
+                            });
+                        }
+                        // ★ 区域连接关系
+                        if (map.connections?.length) {
+                            ctx += `\n区域连接关系（这些区域之间已经可以直接走过去）:\n`;
+                            map.connections.forEach(c => {
+                                const fromRegion = map.regions?.find(r => r.id === c.from);
+                                const toRegion = map.regions?.find(r => r.id === c.to);
+                                if (fromRegion && toRegion) {
+                                    ctx += `  - ${fromRegion.name}(${c.from}) ↔ ${toRegion.name}(${c.to})`;
+                                    if (c.direction && c.direction !== 'any') ctx += ` [${c.direction}]`;
+                                    if (c.kind && c.kind !== 'road') ctx += ` (${c.kind})`;
+                                    ctx += `\n`;
+                                }
+                            });
+                        }
+                        // 地图上的实体（可选，帮 AI 了解地图上有什么）
+                        const visibleEntities = (map.entities || []).filter(e =>
+                            e._placed && !e.isPlayer && e.kind !== 'portal'
+                        );
+                        if (visibleEntities.length > 0) {
+                            ctx += `\n地图实体:\n`;
+                            visibleEntities.slice(0, 20).forEach(e => {
+                                ctx += `  - ${e.emoji || '📦'} ${e.name}（${e.kind}）`;
+                                if (e.region) ctx += ` @${e.region}`;
+                                ctx += '\n';
+                            });
+                        }
+                        // ★ 已有出入口
+                        const portals = (map.entities || []).filter(e =>
+                            e._placed && e.kind === 'portal' && !e.tags?.includes('主线')
+                        );
+                        if (portals.length) {
+                            ctx += `\n已有出入口（玩家走上去可以传送）:\n`;
+                            portals.forEach(p => {
+                                const fromRegion = map.regions?.find(r => r.id === p.region);
+                                ctx += `  - ${p.emoji || '🚪'} ${p.name}`;
+                                if (fromRegion) ctx += ` @${fromRegion.name}(${p.region})`;
+
+                                const f = p.fields || {};
+                                if (f['目标类型'] === 'map') {
+                                    ctx += ` → 地图「${f['目标']}」`;
+                                } else if (f['目标类型'] === 'region') {
+                                    const targetRegion = map.regions?.find(r => r.id === f['目标']);
+                                    ctx += ` → ${targetRegion?.name || f['目标']}(${f['目标']})`;
+                                }
+                                ctx += `\n`;
+                            });
                         }
                     }
-                }
-                // ========== 第 4 层：前驱剧情 ==========
-                if (opt.parentStory && parentStory) {
-                    ctx += `\n【本剧情的上一步】\n`;
-                    ctx += `标题: ${parentStory.title}\n`;
-                    if (parentStory.summary) ctx += `摘要: ${parentStory.summary}\n`;
-                    if (parentStory.chosenOption) {
-                        ctx += `玩家选择: ${parentStory.chosenOption.text}\n`;
-                    }
-                }
-    
-                // ========== 第 5 层：当前场景 ==========
-                if (opt.scene) {
+                } else {
+                    // ---------- 场景模式：只注入场景上下文（原逻辑） ----------
                     const scene = window.LocationModalManager.currentLocation;
                     if (scene) {
                         ctx += `\n【当前场景】\n名称: ${scene.name}\n`;
@@ -2777,60 +3226,80 @@ ${itemLines}
                         }
                     }
                 }
-    
-                // ========== 第 6.5 层：主要角色名册 ==========
-                if (opt.mainChars) {
-                    const mainCharacters = window.CharacterRegistry.getMainCharacters();
-                    if (mainCharacters.length > 0) {
-                        ctx += `\n【主要角色名册】\n`;
-                        ctx += `（这些是贯穿主线的核心角色。他们可以不在当前场景中，但主线剧情可以通过通讯、回忆、提及、突然出现等方式让他们参与。）\n`;
-                        mainCharacters.forEach(c => {
-                            const parts = [];
-                            if (c.gender) parts.push(c.gender);
-                            if (c.favorability) parts.push(`好感度:${c.favorability}`);
-                            if (c.mood) parts.push(`心情:${c.mood}`);
-                            if (c.lastScene) parts.push(`最近位置:${c.lastScene}`);
-                            ctx += `  · ${c.name}（${parts.join('，')}）`;
-                            if (c.description) ctx += `：${c.description}`;
-                            ctx += '\n';
-                        });
-                        ctx += '\n★ 主线剧情可以让这些角色远程登场（如发来通讯、被提及、突然出现），不限于当前场景。\n';
+            }
+
+
+
+            // ========== 第 6.5 层：主要角色名册 ==========
+            if (opt.mainChars) {
+                const mainCharacters = window.CharacterRegistry.getMainCharacters();
+                if (mainCharacters.length > 0) {
+                    ctx += `\n【主要角色名册】\n`;
+                    ctx += `（这些是贯穿主线的核心角色。他们可以不在当前场景中，但主线剧情可以通过通讯、回忆、提及、突然出现等方式让他们参与。）\n`;
+                    mainCharacters.forEach(c => {
+                        const parts = [];
+                        if (c.gender) parts.push(c.gender);
+                        if (c.favorability) parts.push(`好感度:${c.favorability}`);
+                        if (c.mood) parts.push(`心情:${c.mood}`);
+                        if (c.lastScene) parts.push(`最近位置:${c.lastScene}`);
+                        ctx += `  · ${c.name}（${parts.join('，')}）`;
+                        if (c.description) ctx += `：${c.description}`;
+                        ctx += '\n';
+                    });
+                    ctx += '\n★ 主线剧情可以让这些角色远程登场（如发来通讯、被提及、突然出现），不限于当前场景。\n';
+                }
+            }
+            // ★ 进行中的任务
+            if (window.MapQuestManager) {
+                const questsText = window.MapQuestManager.getActiveQuestsText();
+                if (questsText) ctx += '\n\n' + questsText;
+            }
+            // ========== 待处理事件 ==========
+            if (opt.pendingEvents) {
+                const pendingEvents = CinemaWorld.worldState.pendingEvents?.filter(e => !e.processed) || [];
+                if (pendingEvents.length > 0) {
+                    ctx += `\n【待处理事件】（这些事件刚发生，剧情需要自然衔接）\n`;
+                    pendingEvents.forEach(e => {
+                        ctx += `  · ${e.name}：${e.detail || ''}\n`;
+                    });
+                    ctx += '\n★ 请在剧情中自然地反映这些事件，处理完后标记为已处理。\n';
+                }
+            }
+
+            // ========== 第 7 层：本章交互摘要 ==========
+            if (opt.interactionDigests) {
+                const chapterId = this.currentChapter?.id;
+                if (chapterId) {
+                    const digestText = InteractionDigestManager.formatChapterDigests(chapterId, digestFilter);
+                    if (digestText) {
+                        ctx += `\n【本章交互历史】\n${digestText}\n`;
                     }
                 }
-    
-                // ========== 待处理事件 ==========
-                if (opt.pendingEvents) {
-                    const pendingEvents = CinemaWorld.worldState.pendingEvents?.filter(e => !e.processed) || [];
-                    if (pendingEvents.length > 0) {
-                        ctx += `\n【待处理事件】（这些事件刚发生，剧情需要自然衔接）\n`;
-                        pendingEvents.forEach(e => {
-                            ctx += `  · ${e.name}：${e.detail || ''}\n`;
-                        });
-                        ctx += '\n★ 请在剧情中自然地反映这些事件，处理完后标记为已处理。\n';
+            }
+
+            // ========== 第 8 层：战略层（可选）==========
+            if (opt.strategy !== false && window.StrategyManager?.isInitialized?.()) {
+                const store = window.StrategyManager.ensureStore();
+                // ★ 只有开关打开才注入
+                if (store.contextEnabled) {
+                    const strat = window.StrategyManager.formatForPrompt();
+                    if (strat) {
+                        ctx += `\n【战略局势】\n${strat}\n`;
+                        ctx += `（如果剧情涉及势力、地区、政治、战争，请参考以上数据。没有涉及则忽略。）\n`;
                     }
                 }
-    
-                // ========== 第 7 层：本章交互摘要 ==========
-                if (opt.interactionDigests) {
-                    const chapterId = this.currentChapter?.id;
-                    if (chapterId) {
-                        const digestText = InteractionDigestManager.formatChapterDigests(chapterId, digestFilter);
-                        if (digestText) {
-                            ctx += `\n【本章交互历史】\n${digestText}\n`;
-                        }
-                    }
-                }
-    
-                return ctx;
-            },
-    
-            // ==================== 剧情列表 ====================
-            openStoryList() {
-                const scene = window.LocationModalManager.currentLocation;
-                const modal = document.getElementById('cinemaworld-modal');
-    
-                if (!scene) {
-                    modal.innerHTML = `<div class="cinemaworld-modal-title">📚 剧情列表</div>
+            }
+
+            return ctx;
+        },
+
+        // ==================== 剧情列表 ====================
+        openStoryList() {
+            const scene = window.LocationModalManager.currentLocation;
+            const modal = document.getElementById('cinemaworld-modal');
+
+            if (!scene) {
+                modal.innerHTML = `<div class="cinemaworld-modal-title">📚 剧情列表</div>
                         <div style="text-align:center;padding:40px 20px;color:#888;">
                             <div style="font-size:40px;margin-bottom:15px;">📍</div>
                             <div>请先进入一个场景</div>
@@ -2839,30 +3308,30 @@ ${itemLines}
                             <button class="cinemaworld-button primary" onclick="LocationModalManager.openLocationBrowser()">📍 选择场景</button>
                             <button class="cinemaworld-button" onclick="UIManager.closeModal()">取消</button>
                         </div>`;
-                    modal.className = 'active';
-                    return;
-                }
-    
-                const chapter = this.currentChapter;
-                if (!chapter) {
-                    modal.innerHTML = `<div class="cinemaworld-modal-title">📚 剧情列表</div>
+                modal.className = 'active';
+                return;
+            }
+
+            const chapter = this.currentChapter;
+            if (!chapter) {
+                modal.innerHTML = `<div class="cinemaworld-modal-title">📚 剧情列表</div>
                         <div style="text-align:center;padding:40px;color:#888;">当前没有章节</div>
                         <div style="text-align:center;margin-top:20px;">
                             <button class="cinemaworld-button" onclick="UIManager.closeModal()">关闭</button>
                         </div>`;
-                    modal.className = 'active';
-                    return;
-                }
-    
-                const stories = this.storyList
-                    .filter(s => s.chapterId === chapter.id)
-                    .sort((a, b) => a.order - b.order);
-    
-                const completedCount = stories.filter(s => s.status === 'completed').length;
-                const ROLLOVER_THRESHOLD = 8;
-    
-                if (stories.length === 0) {
-                    modal.innerHTML = `
+                modal.className = 'active';
+                return;
+            }
+
+            const stories = this.storyList
+                .filter(s => s.chapterId === chapter.id)
+                .sort((a, b) => a.order - b.order);
+
+            const completedCount = stories.filter(s => s.status === 'completed').length;
+            const ROLLOVER_THRESHOLD = 8;
+
+            if (stories.length === 0) {
+                modal.innerHTML = `
                         <div class="cinemaworld-modal-title">📚 ${chapter.title}</div>
                         <div style="text-align:center;padding:40px;color:#888;">本章暂无剧情</div>
                         <div style="text-align:center;margin-top:20px;">
@@ -2870,22 +3339,22 @@ ${itemLines}
                             <button class="cinemaworld-button" onclick="StoryManager.openChapterList()">📚 查看所有章节</button>
                             <button class="cinemaworld-button" onclick="UIManager.closeModal()">关闭</button>
                         </div>`;
-                    modal.className = 'active';
-                    return;
-                }
-    
-                if (this._listIndex === undefined) this._listIndex = stories.length - 1;
-                if (this._listIndex >= stories.length) this._listIndex = stories.length - 1;
-                if (this._listIndex < 0) this._listIndex = 0;
-    
-                const cur = stories[this._listIndex];
-                const statusMap = {
-                    completed: { text: '✅ 已完成', color: '#7dd87d' },
-                    active: { text: '▶️ 进行中', color: '#d8c07d' },
-                };
-                const st = statusMap[cur.status] || { text: cur.status, color: '#888' };
-    
-                modal.innerHTML = `
+                modal.className = 'active';
+                return;
+            }
+
+            if (this._listIndex === undefined) this._listIndex = stories.length - 1;
+            if (this._listIndex >= stories.length) this._listIndex = stories.length - 1;
+            if (this._listIndex < 0) this._listIndex = 0;
+
+            const cur = stories[this._listIndex];
+            const statusMap = {
+                completed: { text: '✅ 已完成', color: '#7dd87d' },
+                active: { text: '▶️ 进行中', color: '#d8c07d' },
+            };
+            const st = statusMap[cur.status] || { text: cur.status, color: '#888' };
+
+            modal.innerHTML = `
                     <div class="cinemaworld-modal-title">📚 ${chapter.title}</div>
                     <div style="text-align:center;margin-bottom:15px;">
                         <div style="font-size:12px;color:#888;margin-bottom:6px;">
@@ -2943,13 +3412,13 @@ ${itemLines}
                         <button class="cinemaworld-button" onclick="StoryManager.openChapterList()">📚 所有章节</button>
                     </div>
                     `;
-                modal.className = 'active';
-            },
-    
-            openSceneSwitchConfirm(sw, generatedText, sourceStory) {
-                return new Promise((resolve) => {
-                    const modal = document.getElementById('cinemaworld-modal');
-                    modal.innerHTML = `
+            modal.className = 'active';
+        },
+
+        openSceneSwitchConfirm(sw, generatedText, sourceStory) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('cinemaworld-modal');
+                modal.innerHTML = `
                         <div class="cinemaworld-modal-title">🚪 即将进入新场景</div>
                         <div style="margin-bottom:12px;padding:10px;background:rgba(120,150,255,.1);border-radius:8px;font-size:13px;">
                             <div>📍 目标场景：<span style="color:#7da8ff;font-weight:bold;">${sw.targetScene}</span></div>
@@ -2978,105 +3447,105 @@ ${itemLines}
                                 ✖ 取消切换
                             </button>
                         </div>`;
-                    modal.className = 'active';
-    
-                    this._pendingSwitch = sw;
-                    this._pendingSourceStory = sourceStory;
-                    this._switchResolve = resolve;
-                });
-            },
-    
-            async confirmSceneSwitch(targetName, sourceStoryId) {
-                const text = document.getElementById('scene-switch-edit-input').value.trim();
-                if (!text) { alert('场景内容不能为空'); return; }
-    
-                const sw = this._pendingSwitch;
-                const sourceStory = this._pendingSourceStory;
-                this._pendingSwitch = null;
-                this._pendingSourceStory = null;
-    
-                window.UIManager.closeModal();
-    
-                let scene = WorldManager.addScene(text);
-                if (!scene) {
-                    alert('场景创建失败');
-                    if (this._switchResolve) { this._switchResolve(); this._switchResolve = null; }
-                    return;
-                }
-    
-                if (scene.name !== targetName) {
-                    console.log(`[CinemaWorld] 场景名对齐: ${scene.name} → ${targetName}`);
-                    scene.name = targetName;
-                }
-    
-                if (sw) {
-                    const charObjs = sw._presetCharacters || [];
-                    const itemObjs = sw._presetItems || [];
-                    scene.sceneCharacters = scene.sceneCharacters || [];
-                    scene.sceneItems = scene.sceneItems || [];
-                    for (const c of charObjs) {
-                        if (!scene.sceneCharacters.some(x => x.name === c.name)) {
-                            scene.sceneCharacters.push(c);
-                        }
-                    }
-                    for (const it of itemObjs) {
-                        if (!scene.sceneItems.some(x => x.name === it.name)) {
-                            scene.sceneItems.push(it);
-                        }
+                modal.className = 'active';
+
+                this._pendingSwitch = sw;
+                this._pendingSourceStory = sourceStory;
+                this._switchResolve = resolve;
+            });
+        },
+
+        async confirmSceneSwitch(targetName, sourceStoryId) {
+            const text = document.getElementById('scene-switch-edit-input').value.trim();
+            if (!text) { alert('场景内容不能为空'); return; }
+
+            const sw = this._pendingSwitch;
+            const sourceStory = this._pendingSourceStory;
+            this._pendingSwitch = null;
+            this._pendingSourceStory = null;
+
+            window.UIManager.closeModal();
+
+            let scene = WorldManager.addScene(text);
+            if (!scene) {
+                alert('场景创建失败');
+                if (this._switchResolve) { this._switchResolve(); this._switchResolve = null; }
+                return;
+            }
+
+            if (scene.name !== targetName) {
+                console.log(`[CinemaWorld] 场景名对齐: ${scene.name} → ${targetName}`);
+                scene.name = targetName;
+            }
+
+            if (sw) {
+                const charObjs = sw._presetCharacters || [];
+                const itemObjs = sw._presetItems || [];
+                scene.sceneCharacters = scene.sceneCharacters || [];
+                scene.sceneItems = scene.sceneItems || [];
+                for (const c of charObjs) {
+                    if (!scene.sceneCharacters.some(x => x.name === c.name)) {
+                        scene.sceneCharacters.push(c);
                     }
                 }
-    
-                await this.doApplySwitch(sw || {}, scene, sourceStory);
-                if (window.SaveManager) window.SaveManager.save();
-    
-                if (this._switchResolve) {
-                    this._switchResolve();
-                    this._switchResolve = null;
+                for (const it of itemObjs) {
+                    if (!scene.sceneItems.some(x => x.name === it.name)) {
+                        scene.sceneItems.push(it);
+                    }
                 }
-            },
-    
-            async regenerateSceneSwitch() {
-                if (!this._pendingSwitch) return;
-                await window.UIManager.showText('重新生成中...', 1000);
-                const generated = await this.generateSceneFromSwitch(this._pendingSwitch);
-                document.getElementById('scene-switch-edit-input').value = generated;
-            },
-    
-            async cancelSceneSwitch(targetName) {
-                this._pendingSwitch = null;
-                this._pendingSourceStory = null;
-                window.UIManager.closeModal();
-                await window.UIManager.showText(`取消了前往【${targetName}】`, 1500);
-    
-                if (this._switchResolve) {
-                    this._switchResolve();
-                    this._switchResolve = null;
-                }
-            },
-    
-            navStory(delta) {
-                if (this._listIndex === undefined) this._listIndex = 0;
-                this._listIndex = Math.max(0, Math.min(this.storyList.length - 1, this._listIndex + delta));
-                this.openStoryList();
-            },
-    
-            async continueFromCard(storyId) {
-                const story = this.storyList.find(s => s.id === storyId);
-                if (!story) return;
-                window.UIManager.closeModal();
-    
-                if (story.status === 'active') {
-                    await this.playStory(story);
-                } else {
-                    await this.createStory('', story);
-                }
-            },
-    
-            viewStoryDetail(storyId) {
-                const s = this.storyList.find(x => x.id === storyId);
-                if (!s) return;
-                const modal = document.getElementById('cinemaworld-modal');
-                modal.innerHTML = `
+            }
+
+            await this.doApplySwitch(sw || {}, scene, sourceStory);
+            if (window.SaveManager) window.SaveManager.save();
+
+            if (this._switchResolve) {
+                this._switchResolve();
+                this._switchResolve = null;
+            }
+        },
+
+        async regenerateSceneSwitch() {
+            if (!this._pendingSwitch) return;
+            await window.UIManager.showText('重新生成中...', 1000);
+            const generated = await this.generateSceneFromSwitch(this._pendingSwitch);
+            document.getElementById('scene-switch-edit-input').value = generated;
+        },
+
+        async cancelSceneSwitch(targetName) {
+            this._pendingSwitch = null;
+            this._pendingSourceStory = null;
+            window.UIManager.closeModal();
+            await window.UIManager.showText(`取消了前往【${targetName}】`, 1500);
+
+            if (this._switchResolve) {
+                this._switchResolve();
+                this._switchResolve = null;
+            }
+        },
+
+        navStory(delta) {
+            if (this._listIndex === undefined) this._listIndex = 0;
+            this._listIndex = Math.max(0, Math.min(this.storyList.length - 1, this._listIndex + delta));
+            this.openStoryList();
+        },
+
+        async continueFromCard(storyId) {
+            const story = this.storyList.find(s => s.id === storyId);
+            if (!story) return;
+            window.UIManager.closeModal();
+
+            if (story.status === 'active') {
+                await this.playStory(story);
+            } else {
+                await this.createStory('', story);
+            }
+        },
+
+        viewStoryDetail(storyId) {
+            const s = this.storyList.find(x => x.id === storyId);
+            if (!s) return;
+            const modal = document.getElementById('cinemaworld-modal');
+            modal.innerHTML = `
                     <div class="cinemaworld-modal-title">📖 ${s.title}</div>
                     <div style="margin-bottom:20px;">
                         <div style="font-size:13px;color:#aaa;margin-bottom:10px;">
@@ -3091,45 +3560,45 @@ ${itemLines}
                         <button class="cinemaworld-button" onclick="StoryManager.openStoryList()">返回列表</button>
                         <button class="cinemaworld-button" onclick="UIManager.closeModal()">关闭</button>
                     </div>`;
-            },
-    
-            deleteStory(storyId) {
-                if (!confirm('确定删除？')) return;
-                const i = this.storyList.findIndex(s => s.id === storyId);
-                if (i > -1) this.storyList.splice(i, 1);
-                if (this._listIndex >= this.storyList.length) {
-                    this._listIndex = Math.max(0, this.storyList.length - 1);
-                }
-                if (window.SaveManager) window.SaveManager.save();
-                this.openStoryList();
-            },
-    
-            openChapterList() {
-                const modal = document.getElementById('cinemaworld-modal');
-                let html = `<div class="cinemaworld-modal-title">📚 章节列表</div>`;
-    
-                const wh = CinemaWorld.worldState.worldHistory;
-                if (wh.summary) {
-                    html += `
+        },
+
+        deleteStory(storyId) {
+            if (!confirm('确定删除？')) return;
+            const i = this.storyList.findIndex(s => s.id === storyId);
+            if (i > -1) this.storyList.splice(i, 1);
+            if (this._listIndex >= this.storyList.length) {
+                this._listIndex = Math.max(0, this.storyList.length - 1);
+            }
+            if (window.SaveManager) window.SaveManager.save();
+            this.openStoryList();
+        },
+
+        openChapterList() {
+            const modal = document.getElementById('cinemaworld-modal');
+            let html = `<div class="cinemaworld-modal-title">📚 章节列表</div>`;
+
+            const wh = CinemaWorld.worldState.worldHistory;
+            if (wh.summary) {
+                html += `
                         <div style="margin-bottom:15px;padding:12px;background:rgba(120,80,180,.15);
                              border:1px solid rgba(120,80,180,.3);border-radius:10px;">
                             <div style="font-size:13px;color:#b890ff;margin-bottom:6px;">📜 世界史</div>
                             <div style="font-size:12px;color:#ccc;line-height:1.6;">${wh.summary}</div>
                         </div>`;
-                }
-    
-                if (this.volumes.length === 0) {
-                    html += `<div style="text-align:center;padding:40px;color:#888;">暂无章节</div>`;
-                } else {
-                    html += `<div style="display:grid;gap:15px;max-height:500px;overflow-y:auto;">`;
-    
-                    this.volumes.forEach(volume => {
-                        const isCurrentVolume = volume === this.currentVolume;
-                        const chapters = this.chapters.filter(c => c.volumeId === volume.id);
-                        const summarizedCount = chapters.filter(c => c.summary).length;
-                        const VOLUME_SIZE = ChapterManager.VOLUME_SIZE;
-    
-                        html += `
+            }
+
+            if (this.volumes.length === 0) {
+                html += `<div style="text-align:center;padding:40px;color:#888;">暂无章节</div>`;
+            } else {
+                html += `<div style="display:grid;gap:15px;max-height:500px;overflow-y:auto;">`;
+
+                this.volumes.forEach(volume => {
+                    const isCurrentVolume = volume === this.currentVolume;
+                    const chapters = this.chapters.filter(c => c.volumeId === volume.id);
+                    const summarizedCount = chapters.filter(c => c.summary).length;
+                    const VOLUME_SIZE = ChapterManager.VOLUME_SIZE;
+
+                    html += `
                             <div style="background:${isCurrentVolume ? 'rgba(120,150,255,.1)' : 'rgba(255,255,255,.03)'};
                                  border:1px solid ${isCurrentVolume ? 'rgba(120,150,255,.35)' : 'rgba(255,255,255,.08)'};
                                  border-radius:12px;padding:14px;">
@@ -3151,11 +3620,11 @@ ${itemLines}
                                     </div>
                                 ` : ''}
                                 <div style="display:grid;gap:6px;">`;
-    
-                        chapters.forEach(c => {
-                            const isCurrent = c === this.currentChapter;
-                            const storyCount = StoryManager.storyList.filter(s => s.chapterId === c.id).length;
-                            html += `
+
+                    chapters.forEach(c => {
+                        const isCurrent = c === this.currentChapter;
+                        const storyCount = StoryManager.storyList.filter(s => s.chapterId === c.id).length;
+                        html += `
                                 <div style="padding:10px;background:${isCurrent ? 'rgba(120,150,255,.15)' : 'rgba(255,255,255,.03)'};
                                      border-radius:6px;font-size:12px;
                                      cursor:pointer;transition:all .2s;"
@@ -3168,15 +3637,15 @@ ${itemLines}
                                     </div>
                                     ${c.summary ? `<div style="color:#888;margin-top:4px;">${c.summary.substring(0, 60)}...</div>` : ''}
                                 </div>`;
-                        });
-    
-                        html += `</div></div>`;
                     });
-    
-                    html += `</div>`;
-                }
-    
-                html += `<div style="text-align:center;margin-top:20px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+
+                    html += `</div></div>`;
+                });
+
+                html += `</div>`;
+            }
+
+            html += `<div style="text-align:center;margin-top:20px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
                     <button class="cinemaworld-button primary" 
                         onclick="ChapterManager.createChapter('新章节'); StoryManager.openChapterList();">
                         ➕ 新章节
@@ -3194,68 +3663,68 @@ ${itemLines}
                     </button>
                     <button class="cinemaworld-button" onclick="UIManager.closeModal()">关闭</button>
                 </div>`;
-    
-                modal.innerHTML = html;
-                modal.className = 'active';
-            },
-        };
-    
-        // ==================== 章节/卷管理器 ====================
-        const ChapterManager = {
-            VOLUME_SIZE: 8,
-            COMPACT_THRESHOLD: 12,
-            COMPACT_KEEP: 8,
-    
-            // ---------- 章节 ----------
-            createChapter(title, summary = '') {
-                if (!StoryManager.currentVolume) {
-                    this.startNewVolume();
-                }
-    
-                const ch = {
-                    id: `chapter_${Date.now()}`,
-                    title,
-                    summary,
-                    volumeId: StoryManager.currentVolume.id,
-                    order: StoryManager.chapters.filter(c => c.volumeId === StoryManager.currentVolume.id).length + 1,
-                    startTime: Date.now(),
-                    endTime: null,
-                    storyIds: [],
-                    events: [],
-                    compactSummary: '',
-                    compactUntilOrder: 0,
-                    previousSummary: '',
-                };
-    
-                StoryManager.chapters.push(ch);
-                StoryManager.currentChapter = ch;
-                StoryManager.currentVolume.chapterIds.push(ch.id);
-    
-                console.log(`[CinemaWorld] 新章节: ${title} (卷:${StoryManager.currentVolume.title})`);
-    
-                try {
-                    const keepChapterIds = StoryManager.chapters
-                        .filter(c => c.volumeId === StoryManager.currentVolume.id)
-                        .map(c => c.id);
-                    InteractionDigestManager.archiveOldChapters(keepChapterIds);
-                } catch (e) {
-                    console.error('[CinemaWorld] 新章归档失败:', e);
-                }
-    
-                return ch;
-            },
-    
-            viewChapterStories(chapterId) {
-                const chapter = StoryManager.chapters.find(c => c.id === chapterId);
-                if (!chapter) return;
-    
-                const stories = StoryManager.storyList
-                    .filter(s => s.chapterId === chapterId)
-                    .sort((a, b) => a.order - b.order);
-    
-                const modal = document.getElementById('cinemaworld-modal');
-    
-                let html = `
+
+            modal.innerHTML = html;
+            modal.className = 'active';
+        },
+    };
+
+    // ==================== 章节/卷管理器 ====================
+    const ChapterManager = {
+        VOLUME_SIZE: 8,
+        COMPACT_THRESHOLD: 12,
+        COMPACT_KEEP: 8,
+
+        // ---------- 章节 ----------
+        createChapter(title, summary = '') {
+            if (!StoryManager.currentVolume) {
+                this.startNewVolume();
+            }
+
+            const ch = {
+                id: `chapter_${Date.now()}`,
+                title,
+                summary,
+                volumeId: StoryManager.currentVolume.id,
+                order: StoryManager.chapters.filter(c => c.volumeId === StoryManager.currentVolume.id).length + 1,
+                startTime: Date.now(),
+                endTime: null,
+                storyIds: [],
+                events: [],
+                compactSummary: '',
+                compactUntilOrder: 0,
+                previousSummary: '',
+            };
+
+            StoryManager.chapters.push(ch);
+            StoryManager.currentChapter = ch;
+            StoryManager.currentVolume.chapterIds.push(ch.id);
+
+            console.log(`[CinemaWorld] 新章节: ${title} (卷:${StoryManager.currentVolume.title})`);
+
+            try {
+                const keepChapterIds = StoryManager.chapters
+                    .filter(c => c.volumeId === StoryManager.currentVolume.id)
+                    .map(c => c.id);
+                InteractionDigestManager.archiveOldChapters(keepChapterIds);
+            } catch (e) {
+                console.error('[CinemaWorld] 新章归档失败:', e);
+            }
+
+            return ch;
+        },
+
+        viewChapterStories(chapterId) {
+            const chapter = StoryManager.chapters.find(c => c.id === chapterId);
+            if (!chapter) return;
+
+            const stories = StoryManager.storyList
+                .filter(s => s.chapterId === chapterId)
+                .sort((a, b) => a.order - b.order);
+
+            const modal = document.getElementById('cinemaworld-modal');
+
+            let html = `
                     <div class="cinemaworld-modal-title">📖 ${chapter.title}</div>
                     <div style="text-align:center;margin-bottom:15px;font-size:12px;color:#888;">
                         共 ${stories.length} 段剧情${chapter.summary ? ' · 已完成总结' : ''}
@@ -3268,26 +3737,26 @@ ${itemLines}
                         </div>
                     ` : ''}
                 `;
-    
-                if (stories.length === 0) {
-                    html += `<div style="text-align:center;padding:40px;color:#888;">本章暂无剧情</div>`;
-                } else {
-                    html += `<div style="display:grid;gap:8px;max-height:400px;overflow-y:auto;">`;
-                    stories.forEach((s, i) => {
-                        const statusMap = {
-                            completed: { text: '✅', color: '#7dd87d' },
-                            active: { text: '▶️', color: '#d8c07d' },
-                        };
-                        const st = statusMap[s.status] || { text: '?', color: '#888' };
-    
-                        html += `
+
+            if (stories.length === 0) {
+                html += `<div style="text-align:center;padding:40px;color:#888;">本章暂无剧情</div>`;
+            } else {
+                html += `<div style="display:grid;gap:8px;max-height:400px;overflow-y:auto;">`;
+                stories.forEach((s, i) => {
+                    const statusMap = {
+                        completed: { text: '✅', color: '#7dd87d' },
+                        active: { text: '▶️', color: '#d8c07d' },
+                    };
+                    const st = statusMap[s.status] || { text: '?', color: '#888' };
+
+                    html += `
                             <div style="padding:12px;background:rgba(255,255,255,.05);border-radius:8px;
                                 cursor:pointer;transition:all .2s;"
                                 onclick="ChapterManager.viewStoryCard('${s.id}')"
                                 onmouseover="this.style.background='rgba(120,150,255,.15)'"
                                 onmouseout="this.style.background='rgba(255,255,255,.05)'">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                                    <span style="color:#fff;font-weight:bold;">${i+1}. ${s.title}</span>
+                                    <span style="color:#fff;font-weight:bold;">${i + 1}. ${s.title}</span>
                                     <span style="color:${st.color};font-size:12px;">${st.text}</span>
                                 </div>
                                 ${s.summary ? `
@@ -3301,27 +3770,27 @@ ${itemLines}
                                     </div>
                                 ` : ''}
                             </div>`;
-                    });
-                    html += `</div>`;
-                }
-    
-                html += `
+                });
+                html += `</div>`;
+            }
+
+            html += `
                     <div style="text-align:center;margin-top:20px;display:flex;justify-content:center;gap:10px;">
                         <button class="cinemaworld-button" onclick="StoryManager.openChapterList()">← 返回章节列表</button>
                         <button class="cinemaworld-button" onclick="UIManager.closeModal()">关闭</button>
                     </div>
                 `;
-    
-                modal.innerHTML = html;
-                modal.className = 'active';
-            },
-    
-            viewStoryCard(storyId) {
-                const s = StoryManager.storyList.find(x => x.id === storyId);
-                if (!s) return;
-    
-                const modal = document.getElementById('cinemaworld-modal');
-                modal.innerHTML = `
+
+            modal.innerHTML = html;
+            modal.className = 'active';
+        },
+
+        viewStoryCard(storyId) {
+            const s = StoryManager.storyList.find(x => x.id === storyId);
+            if (!s) return;
+
+            const modal = document.getElementById('cinemaworld-modal');
+            modal.innerHTML = `
                     <div class="cinemaworld-modal-title">📖 ${s.title}</div>
                     <div style="margin-bottom:15px;font-size:12px;color:#888;text-align:center;">
                         类型: ${s.type} · 状态: ${s.status}
@@ -3362,127 +3831,127 @@ ${itemLines}
                         <button class="cinemaworld-button" onclick="UIManager.closeModal()">关闭</button>
                     </div>
                 `;
-                modal.className = 'active';
-            },
-    
-            async replayStory(storyId) {
-                const s = StoryManager.storyList.find(x => x.id === storyId);
-                if (!s) return;
-    
-                if (!s.dialogues || s.dialogues.length === 0) {
-                    alert('这段剧情没有可重放的对话');
-                    return;
-                }
-    
-                window.UIManager.closeModal();
-                await window.VisualNovelManager.play(s.dialogues);
-                await window.UIManager.showText('（重放完毕，未应用效果）', 2000);
-            },
-    
-            async endChapter() {
-                let ch = StoryManager.currentChapter;
-                if (!ch) return;
-            
-                // ★ 关键：同步到 chapters 数组里的同一对象
-                const inArray = StoryManager.chapters.find(c => c.id === ch.id);
-                if (inArray && inArray !== ch) {
-                    // 把游离对象的内容合并回数组里的那个
-                    // 但更安全的做法是：直接用数组里的那个作为 currentChapter
-                    console.warn('[CinemaWorld] currentChapter 与 chapters 数组不同步，已修正');
-                    StoryManager.currentChapter = inArray;
-                    ch = inArray;
-                } else if (!inArray) {
-                    // 数组里找不到 → 补进去（理论上不该发生）
-                    StoryManager.chapters.push(ch);
-                }
-            
-                // 防重复
-                if (ch.endTime) {
-                    console.warn('[CinemaWorld] 该章节已结束');
-                    return;
-                }
-            
-                ch.endTime = Date.now();
-                ch.summary = await this.generateChapterSummary(ch);
-            
-                // ★ 立刻保存
-                if (window.SaveManager) window.SaveManager.save();
-            
-                try {
-                    const currentVolume = StoryManager.currentVolume;
-                    if (currentVolume) {
-                        const keepChapterIds = StoryManager.chapters
-                            .filter(c => c.volumeId === currentVolume.id)
-                            .map(c => c.id);
-                        InteractionDigestManager.archiveOldChapters(keepChapterIds);
-                    }
-                } catch (e) {
-                    console.error('[CinemaWorld] 交互摘要归档失败:', e);
-                }
-            
-                await this.tryEndVolume();
-            
-                if (window.SaveManager) window.SaveManager.save();
-            },
-            // ★ 结束当前章节并开启新章（手动按钮用）
-            async closeChapterAndStartNew() {
-                const ch = StoryManager.currentChapter;
-                if (!ch) {
-                    await window.UIManager.showText('当前没有章节', 1500);
-                    return;
-                }
+            modal.className = 'active';
+        },
 
-                if (ch.endTime) {
-                    await window.UIManager.showText('该章节已结束', 1500);
-                    return;
+        async replayStory(storyId) {
+            const s = StoryManager.storyList.find(x => x.id === storyId);
+            if (!s) return;
+
+            if (!s.dialogues || s.dialogues.length === 0) {
+                alert('这段剧情没有可重放的对话');
+                return;
+            }
+
+            window.UIManager.closeModal();
+            await window.VisualNovelManager.play(s.dialogues);
+            await window.UIManager.showText('（重放完毕，未应用效果）', 2000);
+        },
+
+        async endChapter() {
+            let ch = StoryManager.currentChapter;
+            if (!ch) return;
+
+            // ★ 关键：同步到 chapters 数组里的同一对象
+            const inArray = StoryManager.chapters.find(c => c.id === ch.id);
+            if (inArray && inArray !== ch) {
+                // 把游离对象的内容合并回数组里的那个
+                // 但更安全的做法是：直接用数组里的那个作为 currentChapter
+                console.warn('[CinemaWorld] currentChapter 与 chapters 数组不同步，已修正');
+                StoryManager.currentChapter = inArray;
+                ch = inArray;
+            } else if (!inArray) {
+                // 数组里找不到 → 补进去（理论上不该发生）
+                StoryManager.chapters.push(ch);
+            }
+
+            // 防重复
+            if (ch.endTime) {
+                console.warn('[CinemaWorld] 该章节已结束');
+                return;
+            }
+
+            ch.endTime = Date.now();
+            ch.summary = await this.generateChapterSummary(ch);
+
+            // ★ 立刻保存
+            if (window.SaveManager) window.SaveManager.save();
+
+            try {
+                const currentVolume = StoryManager.currentVolume;
+                if (currentVolume) {
+                    const keepChapterIds = StoryManager.chapters
+                        .filter(c => c.volumeId === currentVolume.id)
+                        .map(c => c.id);
+                    InteractionDigestManager.archiveOldChapters(keepChapterIds);
                 }
+            } catch (e) {
+                console.error('[CinemaWorld] 交互摘要归档失败:', e);
+            }
 
-                await window.UIManager.showText('正在总结本章...', 1500);
+            await this.tryEndVolume();
 
-                // 1. 结束当前章（会生成 summary + 保存）
-                await this.endChapter();
+            if (window.SaveManager) window.SaveManager.save();
+        },
+        // ★ 结束当前章节并开启新章（手动按钮用）
+        async closeChapterAndStartNew() {
+            const ch = StoryManager.currentChapter;
+            if (!ch) {
+                await window.UIManager.showText('当前没有章节', 1500);
+                return;
+            }
 
-                // 2. 开新章
-                const nextNum = StoryManager.chapters.length + 1;
-                const newChapter = this.createChapter(`第${nextNum}章`);
+            if (ch.endTime) {
+                await window.UIManager.showText('该章节已结束', 1500);
+                return;
+            }
 
-                // 3. 保存
-                if (window.SaveManager) window.SaveManager.save();
+            await window.UIManager.showText('正在总结本章...', 1500);
 
-                await window.UIManager.showText(`新章节已开始：${newChapter.title}`, 2000);
-                return newChapter;
-            },
-            async generateChapterSummary(chapter) {
-                const parts = [];
-    
-                const chapterStories = StoryManager.storyList
-                    .filter(s => s.chapterId === chapter.id && s.summary)
-                    .sort((a, b) => a.order - b.order);
-    
-                if (chapterStories.length > 0) {
-                    const storyText = chapterStories.map(s => {
-                        let line = `【${s.title}】\n${s.summary}`;
-                        if (s.chosenOption) line += `\n玩家选择: ${s.chosenOption.text}`;
-                        return line;
-                    }).join('\n\n');
-                    parts.push(`【主线剧情】\n${storyText}`);
-                }
-    
-                const digestText = InteractionDigestManager.formatChapterDigests(chapter.id);
-                if (digestText) {
-                    parts.push(`【本章交互】\n${digestText}`);
-                }
-    
-                if (parts.length === 0) {
-                    const events = chapter.events || [];
-                    if (events.length === 0) return '本章没有重要事件。';
-                    const eventText = events.map(e => `- ${e.summary || ''}`).join('\n');
-                    parts.push(`【事件记录】\n${eventText}`);
-                }
-    
-                const text = parts.join('\n\n');
-    
-                const prompt = `请总结以下章节，作为后续章节的"前情提要"。
+            // 1. 结束当前章（会生成 summary + 保存）
+            await this.endChapter();
+
+            // 2. 开新章
+            const nextNum = StoryManager.chapters.length + 1;
+            const newChapter = this.createChapter(`第${nextNum}章`);
+
+            // 3. 保存
+            if (window.SaveManager) window.SaveManager.save();
+
+            await window.UIManager.showText(`新章节已开始：${newChapter.title}`, 2000);
+            return newChapter;
+        },
+        async generateChapterSummary(chapter) {
+            const parts = [];
+
+            const chapterStories = StoryManager.storyList
+                .filter(s => s.chapterId === chapter.id && s.summary)
+                .sort((a, b) => a.order - b.order);
+
+            if (chapterStories.length > 0) {
+                const storyText = chapterStories.map(s => {
+                    let line = `【${s.title}】\n${s.summary}`;
+                    if (s.chosenOption) line += `\n玩家选择: ${s.chosenOption.text}`;
+                    return line;
+                }).join('\n\n');
+                parts.push(`【主线剧情】\n${storyText}`);
+            }
+
+            const digestText = InteractionDigestManager.formatChapterDigests(chapter.id);
+            if (digestText) {
+                parts.push(`【本章交互】\n${digestText}`);
+            }
+
+            if (parts.length === 0) {
+                const events = chapter.events || [];
+                if (events.length === 0) return '本章没有重要事件。';
+                const eventText = events.map(e => `- ${e.summary || ''}`).join('\n');
+                parts.push(`【事件记录】\n${eventText}`);
+            }
+
+            const text = parts.join('\n\n');
+
+            const prompt = `请总结以下章节，作为后续章节的"前情提要"。
     
     章节标题：${chapter.title}
     
@@ -3497,53 +3966,53 @@ ${itemLines}
     6. ★ 如果玩家与某角色有多次互动且态度明显变化，必须在总结里体现
     7. ★ 如果玩家反复使用某物品并产生了结果，也要体现
     `;
-    
-                const result = await window.generateFunctionalReply(prompt, 'chapter-summary');
-                return result || '本章内容未能总结。';
-            },
-    
-            // ---------- 卷 ----------
-            startNewVolume(title = null) {
-                const order = StoryManager.volumes.length + 1;
-                const volume = {
-                    id: `volume_${Date.now()}`,
-                    title: title || `第${order}卷`,
-                    summary: '',
-                    order,
-                    chapterIds: [],
-                    startTime: Date.now(),
-                    endTime: null,
-                    archived: false,
-                };
-                StoryManager.volumes.push(volume);
-                StoryManager.currentVolume = volume;
-                console.log(`[CinemaWorld] 新卷: ${volume.title}`);
-    
-                try {
-                    const keepChapterIds = StoryManager.chapters
-                        .filter(c => c.volumeId === volume.id)
-                        .map(c => c.id);
-                    InteractionDigestManager.archiveOldChapters(keepChapterIds);
-                    console.log(`[CinemaWorld] 新卷开始，旧章交互摘要已清理`);
-                } catch (e) {
-                    console.error('[CinemaWorld] 新卷归档失败:', e);
-                }
-    
-                return volume;
-            },
-    
-            async tryEndVolume() {
-                const volume = StoryManager.currentVolume;
-                if (!volume) return;
-    
-                const chapters = StoryManager.chapters.filter(
-                    c => c.volumeId === volume.id && c.summary
-                );
-    
-                if (chapters.length < this.VOLUME_SIZE) return;
-    
-                const text = chapters.map(c => `【${c.title}】${c.summary}`).join('\n\n');
-                const prompt = `请用3-5句话总结这一卷的主要内容，作为后续卷的"前情提要"。
+
+            const result = await window.generateFunctionalReply(prompt, 'chapter-summary');
+            return result || '本章内容未能总结。';
+        },
+
+        // ---------- 卷 ----------
+        startNewVolume(title = null) {
+            const order = StoryManager.volumes.length + 1;
+            const volume = {
+                id: `volume_${Date.now()}`,
+                title: title || `第${order}卷`,
+                summary: '',
+                order,
+                chapterIds: [],
+                startTime: Date.now(),
+                endTime: null,
+                archived: false,
+            };
+            StoryManager.volumes.push(volume);
+            StoryManager.currentVolume = volume;
+            console.log(`[CinemaWorld] 新卷: ${volume.title}`);
+
+            try {
+                const keepChapterIds = StoryManager.chapters
+                    .filter(c => c.volumeId === volume.id)
+                    .map(c => c.id);
+                InteractionDigestManager.archiveOldChapters(keepChapterIds);
+                console.log(`[CinemaWorld] 新卷开始，旧章交互摘要已清理`);
+            } catch (e) {
+                console.error('[CinemaWorld] 新卷归档失败:', e);
+            }
+
+            return volume;
+        },
+
+        async tryEndVolume() {
+            const volume = StoryManager.currentVolume;
+            if (!volume) return;
+
+            const chapters = StoryManager.chapters.filter(
+                c => c.volumeId === volume.id && c.summary
+            );
+
+            if (chapters.length < this.VOLUME_SIZE) return;
+
+            const text = chapters.map(c => `【${c.title}】${c.summary}`).join('\n\n');
+            const prompt = `请用3-5句话总结这一卷的主要内容，作为后续卷的"前情提要"。
     
     卷标题：${volume.title}
     
@@ -3555,34 +4024,34 @@ ${itemLines}
     2. 关键角色的变化
     3. 玩家的重大选择
     4. 一段话，简洁`;
-    
-                const result = await window.generateFunctionalReply(prompt, 'volume-summary');
-                volume.summary = result || '本卷内容未能总结。';
-                volume.endTime = Date.now();
-    
-                console.log(`[CinemaWorld] 卷结束: ${volume.title}`);
-    
-                this.startNewVolume();
-    
-                await this.tryCompactToWorldHistory();
-            },
-    
-            async forceEndVolume() {
-                const volume = StoryManager.currentVolume;
-                if (!volume) {
-                    await window.UIManager.showText('当前没有卷', 1500);
-                    return;
-                }
-    
-                const chapters = StoryManager.chapters.filter(
-                    c => c.volumeId === volume.id && c.summary
-                );
-    
-                if (chapters.length === 0) {
-                    volume.summary = '（本卷无已完成的章节）';
-                } else {
-                    const text = chapters.map(c => `【${c.title}】${c.summary}`).join('\n\n');
-                    const prompt = `请用3-5句话总结这一卷的主要内容。
+
+            const result = await window.generateFunctionalReply(prompt, 'volume-summary');
+            volume.summary = result || '本卷内容未能总结。';
+            volume.endTime = Date.now();
+
+            console.log(`[CinemaWorld] 卷结束: ${volume.title}`);
+
+            this.startNewVolume();
+
+            await this.tryCompactToWorldHistory();
+        },
+
+        async forceEndVolume() {
+            const volume = StoryManager.currentVolume;
+            if (!volume) {
+                await window.UIManager.showText('当前没有卷', 1500);
+                return;
+            }
+
+            const chapters = StoryManager.chapters.filter(
+                c => c.volumeId === volume.id && c.summary
+            );
+
+            if (chapters.length === 0) {
+                volume.summary = '（本卷无已完成的章节）';
+            } else {
+                const text = chapters.map(c => `【${c.title}】${c.summary}`).join('\n\n');
+                const prompt = `请用3-5句话总结这一卷的主要内容。
     
 卷标题：${volume.title}
 
@@ -3595,43 +4064,43 @@ ${text}
 3. 玩家的重大选择
 4. 一段话，简洁
 `;
-    
-                    const result = await window.generateFunctionalReply(prompt, 'volume-summary');
-                    volume.summary = result || '本卷内容未能总结。';
-                }
-    
-                volume.endTime = Date.now();
-                console.log(`[CinemaWorld] 强制结束卷: ${volume.title}`);
-    
-                this.startNewVolume();
 
-                // ★ 把当前章节清空
-                StoryManager.currentChapter = null;
+                const result = await window.generateFunctionalReply(prompt, 'volume-summary');
+                volume.summary = result || '本卷内容未能总结。';
+            }
 
-                // ★ 立刻建新章
-                this.createChapter(`第${StoryManager.chapters.length + 1}章`);
+            volume.endTime = Date.now();
+            console.log(`[CinemaWorld] 强制结束卷: ${volume.title}`);
 
-                await this.tryCompactToWorldHistory();
-                if (window.SaveManager) window.SaveManager.save();
-    
-                await window.UIManager.showText(`本卷已结束，开启新卷`, 2000);
-            },
-    
-            // ---------- 世界史压缩 ----------
-            async tryCompactToWorldHistory() {
-                const ARCHIVE_THRESHOLD = 5;
-                const KEEP_RECENT = 2;
-    
-                const activeVolumes = StoryManager.volumes.filter(v => v.summary && !v.archived);
-                if (activeVolumes.length < ARCHIVE_THRESHOLD) return;
-    
-                const toArchive = activeVolumes.slice(0, activeVolumes.length - KEEP_RECENT);
-                if (toArchive.length === 0) return;
-    
-                const text = toArchive.map(v => `【${v.title}】${v.summary}`).join('\n\n');
-                const existing = CinemaWorld.worldState.worldHistory.summary || '';
-    
-                const prompt = `请把以下篇章整合进世界史，形成一段连贯的、100-200字的编年史摘要。
+            this.startNewVolume();
+
+            // ★ 把当前章节清空
+            StoryManager.currentChapter = null;
+
+            // ★ 立刻建新章
+            this.createChapter(`第${StoryManager.chapters.length + 1}章`);
+
+            await this.tryCompactToWorldHistory();
+            if (window.SaveManager) window.SaveManager.save();
+
+            await window.UIManager.showText(`本卷已结束，开启新卷`, 2000);
+        },
+
+        // ---------- 世界史压缩 ----------
+        async tryCompactToWorldHistory() {
+            const ARCHIVE_THRESHOLD = 5;
+            const KEEP_RECENT = 2;
+
+            const activeVolumes = StoryManager.volumes.filter(v => v.summary && !v.archived);
+            if (activeVolumes.length < ARCHIVE_THRESHOLD) return;
+
+            const toArchive = activeVolumes.slice(0, activeVolumes.length - KEEP_RECENT);
+            if (toArchive.length === 0) return;
+
+            const text = toArchive.map(v => `【${v.title}】${v.summary}`).join('\n\n');
+            const existing = CinemaWorld.worldState.worldHistory.summary || '';
+
+            const prompt = `请把以下篇章整合进世界史，形成一段连贯的、100-200字的编年史摘要。
     
     ${existing ? `【已有世界史】\n${existing}\n\n` : ''}【新增篇章】
     ${text}
@@ -3641,47 +4110,47 @@ ${text}
     2. 保留关键事件、重要人物、世界格局变化
     3. 语言像史书，简洁有力
     `;
-    
-                const result = await window.generateFunctionalReply(prompt, 'world-history');
-                if (result) {
-                    CinemaWorld.worldState.worldHistory.summary = result;
-                    CinemaWorld.worldState.worldHistory.updatedAt = Date.now();
-                    CinemaWorld.worldState.worldHistory.eraCount++;
-    
-                    toArchive.forEach(v => v.archived = true);
-                    console.log(`[CinemaWorld] 已归档 ${toArchive.length} 卷进入世界史`);
-                    if (window.SaveManager) window.SaveManager.save();
-                }
-            },
-    
-            // ---------- 章内压缩 ----------
-            async tryCompactChapter() {
-                const ch = StoryManager.currentChapter;
-                if (!ch) return;
-    
-                const stories = StoryManager.storyList
-                    .filter(s => s.chapterId === ch.id && s.summary)
-                    .sort((a, b) => a.order - b.order);
-    
-                const uncompactCount = stories.filter(s => s.order > ch.compactUntilOrder).length;
-                if (uncompactCount < this.COMPACT_THRESHOLD) return;
-    
-                const needCompact = uncompactCount - this.COMPACT_KEEP;
-                const toCompact = stories
-                    .filter(s => s.order > ch.compactUntilOrder)
-                    .slice(0, needCompact);
-    
-                if (toCompact.length === 0) return;
-    
-                const text = toCompact.map(s => {
-                    let line = `【${s.title}】${s.summary}`;
-                    if (s.chosenOption) line += `\n玩家选择: ${s.chosenOption.text}`;
-                    return line;
-                }).join('\n\n');
-    
-                const prev = ch.compactSummary ? `【之前的前情】\n${ch.compactSummary}\n\n` : '';
-    
-                const prompt = `请用5-8句话总结以下剧情段落，作为本后续剧情的"前情提要"。
+
+            const result = await window.generateFunctionalReply(prompt, 'world-history');
+            if (result) {
+                CinemaWorld.worldState.worldHistory.summary = result;
+                CinemaWorld.worldState.worldHistory.updatedAt = Date.now();
+                CinemaWorld.worldState.worldHistory.eraCount++;
+
+                toArchive.forEach(v => v.archived = true);
+                console.log(`[CinemaWorld] 已归档 ${toArchive.length} 卷进入世界史`);
+                if (window.SaveManager) window.SaveManager.save();
+            }
+        },
+
+        // ---------- 章内压缩 ----------
+        async tryCompactChapter() {
+            const ch = StoryManager.currentChapter;
+            if (!ch) return;
+
+            const stories = StoryManager.storyList
+                .filter(s => s.chapterId === ch.id && s.summary)
+                .sort((a, b) => a.order - b.order);
+
+            const uncompactCount = stories.filter(s => s.order > ch.compactUntilOrder).length;
+            if (uncompactCount < this.COMPACT_THRESHOLD) return;
+
+            const needCompact = uncompactCount - this.COMPACT_KEEP;
+            const toCompact = stories
+                .filter(s => s.order > ch.compactUntilOrder)
+                .slice(0, needCompact);
+
+            if (toCompact.length === 0) return;
+
+            const text = toCompact.map(s => {
+                let line = `【${s.title}】${s.summary}`;
+                if (s.chosenOption) line += `\n玩家选择: ${s.chosenOption.text}`;
+                return line;
+            }).join('\n\n');
+
+            const prev = ch.compactSummary ? `【之前的前情】\n${ch.compactSummary}\n\n` : '';
+
+            const prompt = `请用5-8句话总结以下剧情段落，作为本后续剧情的"前情提要"。
     
     ${prev}【本段剧情】
     ${text}
@@ -3690,35 +4159,35 @@ ${text}
     1. 保留关键事件、玩家关键选择、人物关系变化
     2. 简洁连贯，一段话
     `;
-    
-                const result = await window.generateFunctionalReply(prompt, 'chapter-compact');
-                if (result) {
-                    ch.compactSummary = result;
-                    ch.compactUntilOrder = toCompact[toCompact.length - 1].order;
-                    console.log(`[CinemaWorld] 章内压缩至 order ${ch.compactUntilOrder}`);
-                    if (window.SaveManager) window.SaveManager.save();
-                }
-            },
-    
-            // ---------- 查询 ----------
-            getVolume(id) {
-                return StoryManager.volumes.find(v => v.id === id);
-            },
-    
-            getAllSummaries() {
-                return StoryManager.chapters
-                    .filter(c => c.summary)
-                    .map(c => `【${c.title}】${c.summary}`)
-                    .join('\n\n');
-            },
-        };
-    
-        // ==================== 挂载到 window ====================
-        window.InteractionHistoryManager = InteractionHistoryManager;
-        window.InteractionDigestManager = InteractionDigestManager;
-        window.InteractionSummaryManager = InteractionSummaryManager;
-        window.StoryManager = StoryManager;
-        window.ChapterManager = ChapterManager;
-    
-        console.log('[CinemaWorld] story.js 已加载');
-    })();
+
+            const result = await window.generateFunctionalReply(prompt, 'chapter-compact');
+            if (result) {
+                ch.compactSummary = result;
+                ch.compactUntilOrder = toCompact[toCompact.length - 1].order;
+                console.log(`[CinemaWorld] 章内压缩至 order ${ch.compactUntilOrder}`);
+                if (window.SaveManager) window.SaveManager.save();
+            }
+        },
+
+        // ---------- 查询 ----------
+        getVolume(id) {
+            return StoryManager.volumes.find(v => v.id === id);
+        },
+
+        getAllSummaries() {
+            return StoryManager.chapters
+                .filter(c => c.summary)
+                .map(c => `【${c.title}】${c.summary}`)
+                .join('\n\n');
+        },
+    };
+
+    // ==================== 挂载到 window ====================
+    window.InteractionHistoryManager = InteractionHistoryManager;
+    window.InteractionDigestManager = InteractionDigestManager;
+    window.InteractionSummaryManager = InteractionSummaryManager;
+    window.StoryManager = StoryManager;
+    window.ChapterManager = ChapterManager;
+
+    console.log('[CinemaWorld] story.js 已加载');
+})();

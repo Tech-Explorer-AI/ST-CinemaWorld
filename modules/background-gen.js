@@ -164,13 +164,24 @@
 
             // 负面提示词（仍保留，因为 ComfyUI 的 negative 节点需要）
             negativePrompt: '3DCG, @ai-generated, @nano banana, ' +
-            'worst quality, low quality, score_1, score_2, score_3, ' +
-            'blurry, jpeg artifacts, ' +
-            'censored, censorship, pixelated, bar censor, mosaic, ' +
-            'signature, grayscale, monochrome, simple background, ' +
-            'high-heeled shoes, hair_grab, sash, girl, ' +
-            'humans, characters, people, 1girl, 1boy, person, face, ' +
-            'watermark, text',
+                'worst quality, low quality, score_1, score_2, score_3, ' +
+                'blurry, jpeg artifacts, ' +
+                'censored, censorship, pixelated, bar censor, mosaic, ' +
+                'signature, grayscale, monochrome, simple background, ' +
+                'high-heeled shoes, hair_grab, sash, girl, ' +
+                'humans, characters, people, 1girl, 1boy, person, face, ' +
+                'watermark, text',
+            spriteWorkflowId: 'builtin_sprite_sdxl',   // 默认用 SDXL
+            spriteWidth: 832,
+            spriteHeight: 1216,
+            spriteStylePrefix: '',
+            spriteNegativePrompt: '3DCG, @ai-generated, @nano banana, ' +
+                'worst quality, low quality, score_1, score_2, score_3, ' +
+                'blurry, jpeg artifacts, ' +
+                'censored, censorship, pixelated, bar censor, mosaic, ' +
+                'signature, grayscale, monochrome, ' +
+                'multiple girls, multiple boys, ' +
+                'extra limbs, bad anatomy, extra fingers, watermark, text',
         },
 
         load() {
@@ -215,8 +226,8 @@
         heightNode: '28',
         seedNode: '19',
         workflow: {
-            "1":  { "inputs": { "images": ["8", 0] }, "class_type": "PreviewImage" },
-            "8":  { "inputs": { "samples": ["19", 0], "vae": ["15", 0] }, "class_type": "VAEDecode" },
+            "1": { "inputs": { "images": ["8", 0] }, "class_type": "PreviewImage" },
+            "8": { "inputs": { "samples": ["19", 0], "vae": ["15", 0] }, "class_type": "VAEDecode" },
             "11": { "inputs": { "text": "", "clip": ["54", 0] }, "class_type": "CLIPTextEncode" },
             "12": { "inputs": { "text": "", "clip": ["54", 0] }, "class_type": "CLIPTextEncode" },
             "15": { "inputs": { "vae_name": "qwen_image_vae.safetensors" }, "class_type": "VAELoader" },
@@ -501,7 +512,99 @@ Now write the prompt for the scene above:`;
             const result = await window.generateFunctionalReply(prompt, 'bg-prompt-natural');
             return result ? this._cleanNatural(result) : null;
         },
+        async generateFromMap(map) {
+            if (!map) return null;
 
+            const regionList = (map.regions || [])
+                .map(r => `- ${r.name}（${r.type}，${r.description || ''}）`)
+                .slice(0, 10)
+                .join('\n');
+
+            const style = BackgroundGenState.config.promptStyle || 'natural';
+
+            if (style === 'clip') {
+                return this._generateMapClip(map, regionList);
+            }
+            return this._generateMapNatural(map, regionList);
+        },
+
+        async _generateMapNatural(map, regionList) {
+            const prompt = `You are an AI art prompt engineer for a visual novel game.
+        Write a natural-language English prompt to generate a WIDE PANORAMIC VIEW of the following map/region.
+        
+        【Map】
+        Name: ${map.name}
+        Description: ${map.description || '(none)'}
+        
+        【Regions】
+        ${regionList || '(none)'}
+        
+        【STRICT RULES】
+        1. The image must be a WIDE SCENERY / LANDSCAPE view — like a bird's-eye or establishing shot of the whole area.
+        2. ★ ABSOLUTELY NO characters, no people, no humans.
+        3. Write in flowing, descriptive sentences (2-4 sentences).
+        4. Include: art style, composition (wide shot), lighting, atmosphere, weather, time of day, mood.
+        5. Blend the visual elements of all regions into one cohesive landscape.
+        6. End with "no people, no characters in the scene".
+        
+        【Example】
+        An anime-style wide panoramic illustration of a misty island harbor at dawn. Wooden piers stretch into a pale gray sea, while cherry and plum trees line a stone path leading inland toward a white-walled temple. Fog drifts low over the water, and the atmosphere feels quiet and mysterious. Detailed background art, soft painterly style, no people, no characters in the scene.
+        
+        Now write the prompt:`;
+
+            const cfg = BackgroundGenState.config;
+
+            if (cfg.promptSource === 'cinemaworld') {
+                const result = await window.generateFunctionalReply(prompt, 'bg-prompt-map-natural');
+                return result ? this._cleanNatural(result) : null;
+            }
+            if (cfg.promptSource === 'kobold') {
+                return this._cleanNatural(await this._koboldGenerate(prompt, cfg));
+            }
+            if (cfg.promptSource === 'remote') {
+                return this._cleanNatural(await this._remoteGenerate(prompt, cfg));
+            }
+
+            const result = await window.generateFunctionalReply(prompt, 'bg-prompt-map-natural');
+            return result ? this._cleanNatural(result) : null;
+        },
+
+        async _generateMapClip(map, regionList) {
+            const prompt = `You are an AI art prompt engineer. Generate English CLIP tags for a WIDE PANORAMIC LANDSCAPE of this map.
+        
+        【Map】
+        Name: ${map.name}
+        Description: ${map.description || '(none)'}
+        
+        【Regions】
+        ${regionList || '(none)'}
+        
+        【STRICT RULES】
+        1. Wide scenery / landscape view.
+        2. NO characters, no people, no humans.
+        3. Comma-separated English tags only.
+        4. Include: art style, wide shot, composition, lighting, atmosphere, weather, time of day, key elements.
+        5. Blend visual elements of all regions.
+        6. End with "no humans, masterpiece, best quality".
+        
+        Output ONLY the tags:`;
+
+            const cfg = BackgroundGenState.config;
+
+            if (cfg.promptSource === 'cinemaworld') {
+                const result = await window.generateFunctionalReply(prompt, 'bg-prompt-map-clip');
+                return result ? this._cleanClip(result) : null;
+            }
+            if (cfg.promptSource === 'kobold') {
+                return this._cleanClip(await this._koboldGenerate(prompt, cfg));
+            }
+            if (cfg.promptSource === 'remote') {
+                return this._cleanClip(await this._remoteGenerate(prompt, cfg));
+            }
+
+            const result = await window.generateFunctionalReply(prompt, 'bg-prompt-map-clip');
+            return result ? this._cleanClip(result) : null;
+        },
         // ---------- 统一入口 ----------
         async generate(scene) {
             const style = BackgroundGenState.config.promptStyle || 'natural';
@@ -558,10 +661,14 @@ Now write the prompt for the scene above:`;
             }
 
             const body = isClaude
-                ? { model: cfg.remoteModel, max_tokens: 400,
-                    messages: [{ role: 'user', content: prompt }] }
-                : { model: cfg.remoteModel, max_tokens: 400, temperature: 0.8,
-                    messages: [{ role: 'user', content: prompt }] };
+                ? {
+                    model: cfg.remoteModel, max_tokens: 400,
+                    messages: [{ role: 'user', content: prompt }]
+                }
+                : {
+                    model: cfg.remoteModel, max_tokens: 400, temperature: 0.8,
+                    messages: [{ role: 'user', content: prompt }]
+                };
 
             const resp = await fetch(cfg.remoteApiUrl, {
                 method: 'POST', headers, body: JSON.stringify(body),
@@ -616,7 +723,7 @@ Now write the prompt for the scene above:`;
                 const ws = new WebSocket(wsUrl);
 
                 const timeout = setTimeout(() => {
-                    try { ws.close(); } catch (e) {}
+                    try { ws.close(); } catch (e) { }
                     reject(new Error('生成超时（120s）'));
                 }, 120000);
 
@@ -634,7 +741,7 @@ Now write the prompt for the scene above:`;
                         }
                     } catch (e) {
                         clearTimeout(timeout);
-                        try { ws.close(); } catch (e2) {}
+                        try { ws.close(); } catch (e2) { }
                         reject(e);
                     }
                 };
@@ -766,7 +873,142 @@ Now write the prompt for the scene above:`;
                 BackgroundGenState.isGenerating = false;
             }
         },
+        async generateForCurrentMap() {
+            if (BackgroundGenState.isGenerating) {
+                window.UIManager.showText('正在生成背景图，请稍候...', 1500);
+                return null;
+            }
 
+            const map = window.MapLauncher?.getMap?.();
+            if (!map) {
+                window.UIManager.showText('请先打开一张地图', 2000);
+                return null;
+            }
+
+            BackgroundGenState.isGenerating = true;
+
+            try {
+                await window.UIManager.showText('🎨 正在生成地图背景提示词...', 1500);
+
+                // ★ 用地图数据生成提示词
+                const promptText = await BackgroundPromptGenerator.generateFromMap(map);
+                if (!promptText) throw new Error('提示词生成失败');
+
+                console.log('[BgGen] 地图提示词:', promptText);
+
+                await window.UIManager.showText('🖼️ 正在绘制地图背景图...', 1500);
+                const dataUrl = await BackgroundComfyClient.generate(promptText);
+                if (!dataUrl) throw new Error('未返回图片');
+
+                await this._applyToMap(map, dataUrl, promptText);
+
+                await window.UIManager.showText(
+                    `✅ 地图背景图已生成\n（提示词：${promptText.slice(0, 50)}...）`,
+                    3000
+                );
+
+                return { dataUrl, prompt: promptText };
+
+            } catch (e) {
+                console.error('[BgGen] 地图背景生成失败:', e);
+                BackgroundGenState.lastError = e.message;
+                await window.UIManager.showText(`❌ 生成失败：${e.message}`, 3500);
+                return null;
+            } finally {
+                BackgroundGenState.isGenerating = false;
+            }
+        },
+        async _applyToMap(map, dataUrl, promptText) {
+            if (!map) return;
+        
+            const imageId = `bgmap_${map.name.replace(/[^\w\u4e00-\u9fa5]/g, '_')}_${Date.now()}`;
+        
+            try {
+                await BackgroundImageStore.put(imageId, {
+                    dataUrl,
+                    prompt: promptText,
+                    sceneName: `[地图] ${map.name}`,     // 复用 sceneName 字段
+                    createdAt: Date.now(),
+                });
+                console.log('[BgGen] 地图原图已存入 IndexedDB:', imageId);
+            } catch (e) {
+                console.error('[BgGen] IndexedDB 写入失败:', e);
+                map.generatedBackground = dataUrl;
+                map.generatedBackgroundPrompt = promptText;
+                map.generatedBackgroundAt = Date.now();
+                this._applyLayer(dataUrl);
+                // ★ 兜底也要写回
+                window.MapLauncher?._saveMapToWorld?.(map);
+                if (window.SaveManager) window.SaveManager.save();
+                return;
+            }
+        
+            // 删旧
+            const oldId = map.generatedBackgroundId;
+            if (oldId && oldId !== imageId) {
+                BackgroundImageStore.delete(oldId).catch(() => { });
+            }
+        
+            delete map.generatedBackground;
+            map.generatedBackgroundId = imageId;
+            map.generatedBackgroundPrompt = promptText;
+            map.generatedBackgroundAt = Date.now();
+        
+            this._applyLayer(dataUrl);
+        
+            // ★★★ 关键修复：写回世界仓库 + 存档
+            window.MapLauncher?._saveMapToWorld?.(map);
+            if (window.SaveManager) window.SaveManager.save();
+        },
+        async restoreMapBackground(map) {
+            if (!map || !map.generatedBackgroundId) return false;
+
+            try {
+                const rec = await BackgroundImageStore.get(map.generatedBackgroundId);
+                if (rec?.dataUrl) {
+                    this._applyLayer(rec.dataUrl);
+                    return true;
+                }
+                console.warn('[BgGen] 地图背景图记录丢失:', map.generatedBackgroundId);
+                delete map.generatedBackgroundId;
+                delete map.generatedBackgroundPrompt;
+                delete map.generatedBackgroundAt;
+                return false;
+            } catch (e) {
+                console.error('[BgGen] 恢复地图背景图失败:', e);
+                return false;
+            }
+        },
+        async clearForCurrentMap() {
+            const map = window.MapLauncher?.getMap?.();
+            if (!map) return;
+        
+            if (map.generatedBackgroundId) {
+                try {
+                    await BackgroundImageStore.delete(map.generatedBackgroundId);
+                } catch (e) { }
+            }
+        
+            delete map.generatedBackgroundId;
+            delete map.generatedBackgroundPrompt;
+            delete map.generatedBackgroundAt;
+            delete map.generatedBackground;
+        
+            // 恢复默认背景（如果有）
+            if (window.BackgroundManager) {
+                if (map.background) {
+                    await window.BackgroundManager.apply(map.background);
+                } else {
+                    await window.BackgroundManager.clear();
+                }
+            }
+        
+            // ★ 写回世界仓库 + 存档
+            window.MapLauncher?._saveMapToWorld?.(map);
+            if (window.SaveManager) window.SaveManager.save();
+        
+            window.UIManager.showText('已清除地图背景图', 1500);
+        },
         async _applyToScene(scene, dataUrl, promptText) {
             if (!scene) return;
 
@@ -792,7 +1034,7 @@ Now write the prompt for the scene above:`;
 
             const oldId = scene.generatedBackgroundId;
             if (oldId && oldId !== imageId) {
-                BackgroundImageStore.delete(oldId).catch(() => {});
+                BackgroundImageStore.delete(oldId).catch(() => { });
             }
 
             delete scene.generatedBackground;

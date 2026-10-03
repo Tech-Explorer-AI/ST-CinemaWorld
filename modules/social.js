@@ -63,7 +63,7 @@
             this.save();
             return true;
         },
-        
+
         clearMoments() {
             const store = this.ensureStore();
             store.moments = [];
@@ -273,7 +273,7 @@
             store.moments.forEach(m => { m.seenByPlayer = true; });
             this.save();
         },
-            // ★ HTML 转义，防止名字里的特殊字符破坏 DOM
+        // ★ HTML 转义，防止名字里的特殊字符破坏 DOM
         _escape(str) {
             if (str === undefined || str === null) return '';
             return String(str)
@@ -286,20 +286,20 @@
         // ---------- 工具 ----------
         _pickAvatar(record) {
             if (!record) return '👤';
-        
+
             const name = record.name;
             if (!name) return '👤';
-        
+
             // 1. 同步拿缓存
             let url = null;
             if (typeof SpriteManager !== 'undefined') {
                 url = SpriteManager.getCachedSprite(name);
             }
-        
+
             if (url) {
                 return `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="${this._escape(name)}">`;
             }
-        
+
             // 2. 没有 → 异步预热，拿到后替换这个元素
             if (typeof SpriteManager !== 'undefined' && record.gender !== undefined) {
                 SpriteManager.ensureSprite(name, record.gender).then((loadedUrl) => {
@@ -311,7 +311,7 @@
                     });
                 });
             }
-        
+
             // 3. 兜底：emoji
             return record.gender === '女' ? '👩' : record.gender === '男' ? '👨' : '👤';
         },
@@ -367,7 +367,7 @@
             if (diff < 60 * 60 * 1000) return '刚刚';
             if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}小时前`;
             if (diff < 7 * 24 * 60 * 60 * 1000) return `${Math.floor(diff / 86400000)}天前`;
-            return `${d.getMonth()+1}/${d.getDate()}`;
+            return `${d.getMonth() + 1}/${d.getDate()}`;
         },
         // ---------- 构建上下文 ----------
         _buildCharacterBlock(characterName) {
@@ -405,9 +405,9 @@
                     targetName: authorName,
                 },
             }) || '';
-        
+
             if (!ctx.trim()) return '';
-        
+
             // ★ 剥掉前两行标题（【本章交互历史】和【本章与角色的交互】）
             const lines = ctx.split('\n');
             const contentLines = [];
@@ -423,10 +423,10 @@
                 }
                 contentLines.push(line);
             }
-        
+
             const body = contentLines.join('\n').trim();
             if (!body) return '';
-        
+
             return `【${authorName} 与玩家的近期互动】\n${body}`;
         },
         _buildHistoryBlock(conv) {
@@ -462,7 +462,7 @@
 
                 const worldCtx = window.StoryManager?.buildContext(null, {
                     parentStory: false,
-                    worldHistory:true,
+                    worldHistory: true,
                     mainChars: false,
                     scene: true,
                     interactionDigests: false,
@@ -473,7 +473,7 @@
                 }) || '';
 
                 const now = new Date();
-                const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
                 const prompt = `你正在为视觉小说游戏生成一段"手机聊天"内容。这是角色在剧情之外的生活片段，是主线的补充。
 
@@ -550,7 +550,7 @@ ${playerMessage || '（玩家没有主动说话，只是打开了聊天窗口，
                 }) || '';
 
                 const now = new Date();
-                const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
                 const prompt = `你正在为视觉小说游戏生成一段"群聊"内容。这是角色们在剧情之外的生活片段，是主线的补充。
 
@@ -650,7 +650,7 @@ ${playerMessage || '（玩家没有主动说话，只是打开了群聊，请你
                 const characters = CharacterRegistry.getAll()
                     .filter(c => c.role !== 'npc' || Math.random() < 0.3);
                 if (characters.length === 0) return null;
-        
+
                 let author;
                 if (authorName) {
                     author = CharacterRegistry.get(authorName);
@@ -658,15 +658,15 @@ ${playerMessage || '（玩家没有主动说话，只是打开了群聊，请你
                     author = characters[Math.floor(Math.random() * characters.length)];
                 }
                 if (!author) return null;
-        
+
                 const otherNames = characters
                     .filter(c => c.name !== author.name)
                     .slice(0, 6)
                     .map(c => c.name);
-        
+
                 const worldCtx = window.StoryManager?.buildContext(null, {
                     parentStory: false,
-                    worldHistory:true,
+                    worldHistory: true,
                     mainChars: false,
                     scene: false,
                     interactionDigests: true,
@@ -675,10 +675,10 @@ ${playerMessage || '（玩家没有主动说话，只是打开了群聊，请你
                     chapters: true,
                     pendingEvents: false,
                 }) || '';
-        
+
                 const charBlock = this._buildCharacterBlock(author.name);
                 const playerBlock = PlayerStateManager.formatForPrompt();
-        
+
                 // ★ 新增：注入历史
                 const authorHistoryBlock = this._buildAuthorHistoryBlock(author.name);
                 const globalHistoryBlock = this._buildGlobalHistoryBlock(author.name);
@@ -735,7 +735,7 @@ COMMENT: 李四|哈哈哈活该，谁让你摸鱼
 COMMENT: 王五|注意身体啊，别太拼了
 
 请开始生成：`;
-        
+
                 const result = await window.generateFunctionalReply(prompt, 'social-moment');
                 if (!result) return null;
 
@@ -776,14 +776,14 @@ COMMENT: 王五|注意身体啊，别太拼了
                     .filter(c => c.name !== moment.author)
                     .slice(0, 5)
                     .map(c => c.name);
-        
+
                 const charBlock = this._buildCharacterBlock(moment.author);
-        
+
                 const prevComments = (moment.comments || [])
                     .slice(-5)
                     .map(c => `${c.author}：${c.content}`)
                     .join('\n');
-        
+
                 // ★ 新增：全局最近评论（用来避免重复）
                 const store = SocialDataManager.ensureStore();
                 const recentComments = [];
@@ -799,7 +799,7 @@ COMMENT: 王五|注意身体啊，别太拼了
                     ? `【最近大家发过的评论】（避免重复说类似的）
         ${recentComments.map(c => `· ${c}`).join('\n')}`
                     : '';
-        
+
                 const prompt = `你正在为视觉小说游戏的"朋友圈"生成评论互动。
         
 【动态作者】
@@ -836,7 +836,7 @@ COMMENT: ${moment.author.name}|哈哈谢谢
 COMMENT: 李四|哇这个我也想去
 
 请开始生成：`;
-        
+
                 const result = await window.generateFunctionalReply(prompt, 'social-comment-reply');
                 if (!result) return null;
 
@@ -1007,7 +1007,7 @@ COMMENT: 李四|哇这个我也想去
             const count = store.moments.length;
             if (count === 0) return;
             if (!confirm(`确定清空全部 ${count} 条动态吗？\n\n此操作不可撤销。`)) return;
-        
+
             SocialDataManager.clearMoments();
             PhoneUIManager.render();
             window.UIManager.showText(`已清空 ${count} 条动态`, 1500);
@@ -1019,7 +1019,7 @@ COMMENT: 李四|哇这个我也想去
             const store = SocialDataManager.ensureStore();
             const m = store.moments.find(x => x.id === momentId);
             if (!m) return;
-        
+
             const modal = document.getElementById('cinemaworld-modal');
             modal.innerHTML = `
                 <div class="cinemaworld-modal-title">⚙️ 操作</div>
@@ -1034,13 +1034,13 @@ COMMENT: 李四|哇这个我也想去
                 </div>`;
             modal.className = 'active';
         },
-        
+
         deleteMoment(momentId) {
             const store = SocialDataManager.ensureStore();
             const m = store.moments.find(x => x.id === momentId);
             if (!m) return;
             if (!confirm(`确定删除「${m.author}」的这条动态吗？`)) return;
-        
+
             SocialDataManager.removeMoment(momentId);
             window.UIManager.closeModal();
             PhoneUIManager.render();
@@ -1055,17 +1055,17 @@ COMMENT: 李四|哇这个我也想去
         },
         _renderMomentCard(m) {
             const ch = CharacterRegistry.get(m.author);
-            const avatar = this._pickAvatar(ch, m.author); 
+            const avatar = this._pickAvatar(ch, m.author);
             const timeStr = this._formatTime(m.createdAt);
             const liked = m.likes.includes('玩家');
-        
+
             const commentsHTML = (m.comments || []).slice(0, 5).map(c => `
                 <div class="cw-social-comment">
                     <span class="cw-social-comment-author">${this._escape(this._displayAuthor(c.author))}${c.replyTo ? ` 回复 ${this._escape(this._displayAuthor(c.replyTo))}` : ''}：</span>
                     <span class="cw-social-comment-content">${this._escape(c.content)}</span>
                 </div>
             `).join('');
-        
+
             return `
                 <div class="cw-social-moment" data-moment-id="${this._attr(m.id)}">
                     <div class="cw-social-moment-head">
@@ -1108,30 +1108,30 @@ COMMENT: 李四|哇这个我也想去
         openChat(conversationId) {
             const conv = SocialDataManager.getConversation(conversationId);
             if (!conv) return;
-        
+
             this.currentConversationId = conversationId;
             this.currentView = 'chat';
             SocialDataManager.markRead(conversationId);
             PhoneUIManager.render();
             setTimeout(() => this._scrollChatToBottom(), 50);
-        
+
             if (conv.messages.length < 2 && !conv._proactiveDone) {
                 this._triggerProactive(conv);
             }
         },
-        
+
         async _triggerProactive(conv) {
             conv._proactiveDone = true;
             SocialDataManager.save();
-        
+
             this._showTypingIndicator();
-        
+
             const replies = await SocialAIManager.generateProactiveMessage(conv);
-        
+
             this._hideTypingIndicator();
-        
+
             if (!replies || replies.length === 0) return;
-        
+
             for (const r of replies) {
                 SocialDataManager.addMessage(conv.id, r);
                 await new Promise(res => setTimeout(res, 500));
@@ -1146,9 +1146,9 @@ COMMENT: 李四|哇这个我也想去
             if (!conv) {
                 return `<div class="cw-social-empty"><div>会话不存在</div></div>`;
             }
-        
+
             const messagesHTML = conv.messages.map(m => this._renderMessage(m, conv)).join('');
-        
+
             // ★ 单聊：显示对方的状态；群聊：显示人数
             let headerSub = '';
             if (conv.type === 'group') {
@@ -1162,7 +1162,7 @@ COMMENT: 李四|哇这个我也想去
                     headerSub = parts.join(' · ');
                 }
             }
-        
+
             return `
                 <div class="cw-social-chat-page">
                     <div class="cw-phone-app-header cw-social-chat-header">
@@ -1199,7 +1199,7 @@ COMMENT: 李四|哇这个我也想去
             const isSystem = m.sender === '系统';
             const displayName = SocialDataManager.displaySender(m.sender);
             const timeStr = this._formatTime(m.timestamp);
-        
+
             // ---- 系统消息：居中灰色小字 ----
             if (isSystem) {
                 return `
@@ -1207,7 +1207,7 @@ COMMENT: 李四|哇这个我也想去
                         <span>${this._escape(m.content)}</span>
                     </div>`;
             }
-        
+
             // ---- 头像 ----
             let avatarHTML = '';
             if (isPlayer) {
@@ -1230,13 +1230,13 @@ COMMENT: 李四|哇这个我也想去
                 const ch = CharacterRegistry.get(m.sender);
                 // 角色侧
                 avatarHTML = ch
-                ? `<span data-social-avatar="${ch.name}">${this._pickAvatar(ch)}</span>`
-                : '👤';
+                    ? `<span data-social-avatar="${ch.name}">${this._pickAvatar(ch)}</span>`
+                    : '👤';
             }
-        
+
             // ---- 单聊里"角色"侧不显示名字；群聊里角色侧显示名字 ----
             const showNameOnOther = conv.type === 'group';
-        
+
             // ---- 玩家侧 ----
             if (isPlayer) {
                 return `
@@ -1247,7 +1247,7 @@ COMMENT: 李四|哇这个我也想去
                         <div class="cw-social-msg-avatar cw-social-msg-avatar-player">${avatarHTML}</div>
                     </div>`;
             }
-        
+
             // ---- 角色侧 ----
             return `
                 <div class="cw-social-msg is-other">
@@ -1265,26 +1265,26 @@ COMMENT: 李四|哇这个我也想去
             if (!input) return;
             const text = input.value.trim();
             if (!text) return;
-        
+
             const conv = SocialDataManager.getConversation(this.currentConversationId);
             if (!conv) return;
-        
+
             input.value = '';
             input.disabled = true;
-        
+
             // 添加玩家消息
             SocialDataManager.addMessage(conv.id, {
                 sender: '玩家',
                 content: text,
                 type: 'text',
             });
-        
+
             // ★ 只刷新消息区
             this._refreshChatBody();
-        
+
             // 显示"正在输入"
             this._showTypingIndicator();
-        
+
             try {
                 let replies;
                 if (conv.type === 'group') {
@@ -1292,14 +1292,14 @@ COMMENT: 李四|哇这个我也想去
                 } else {
                     replies = await SocialAIManager.generateSingleReply(conv, text);
                 }
-        
+
                 this._hideTypingIndicator();
-        
+
                 if (!replies || replies.length === 0) {
                     input.disabled = false;
                     return;
                 }
-        
+
                 for (const r of replies) {
                     SocialDataManager.addMessage(conv.id, r);
                     await new Promise(res => setTimeout(res, 400 + Math.random() * 600));
@@ -1307,7 +1307,7 @@ COMMENT: 李四|哇这个我也想去
                         this._refreshChatBody();
                     }
                 }
-        
+
                 input.disabled = false;
                 input.focus();
             } catch (e) {
@@ -1334,7 +1334,7 @@ COMMENT: 李四|哇这个我也想去
             this._scrollChatToBottom();
         },
 
-// sendMessage 里改：把 PhoneUIManager.render() 换成 this._refreshChatBody()
+        // sendMessage 里改：把 PhoneUIManager.render() 换成 this._refreshChatBody()
         _showTypingIndicator() {
             const body = document.getElementById('cw-social-chat-body');
             if (!body) return;
@@ -1690,11 +1690,11 @@ COMMENT: 李四|哇这个我也想去
         // ---------- 朋友圈交互 ----------
         async refreshMoments() {
             if (SocialAIManager.isGenerating) return;
-        
+
             // ★ 弹选人框
             this._openMomentAuthorPicker();
         },
-        
+
         _openMomentAuthorPicker() {
             const chars = CharacterRegistry.getAll()
                 .filter(c => c.role !== 'npc')
@@ -1702,15 +1702,15 @@ COMMENT: 李四|哇这个我也想去
                     const order = { main: 0, minor: 1, npc: 2 };
                     return (order[a.role] || 1) - (order[b.role] || 1);
                 });
-        
+
             if (chars.length === 0) {
                 window.UIManager.showText('还没有认识的角色', 1500);
                 return;
             }
-        
+
             // 记住上次的选择
             this._momentAuthors = this._momentAuthors || new Set();
-        
+
             const modal = document.getElementById('cinemaworld-modal');
             modal.innerHTML = `
                 <div class="cinemaworld-modal-title">📝 发动态</div>
@@ -1726,12 +1726,12 @@ COMMENT: 李四|哇这个我也想去
         
                 <div class="cw-social-char-list cw-social-moment-picker-list">
                     ${chars.map(c => {
-                        const avatar = this._pickAvatar(c, c.name);
-                        const roleTag = { main: '⭐', minor: '', npc: '🏷️' }[c.role] || '';
-                        const selected = this._momentAuthors.has(c.name);
-                        const safeName = this._escape(c.name);
-                        const attrName = this._attr(c.name);
-                        return `
+                const avatar = this._pickAvatar(c, c.name);
+                const roleTag = { main: '⭐', minor: '', npc: '🏷️' }[c.role] || '';
+                const selected = this._momentAuthors.has(c.name);
+                const safeName = this._escape(c.name);
+                const attrName = this._attr(c.name);
+                return `
                             <div class="cw-social-char-item ${selected ? 'selected' : ''}"
                                 data-char-name="${safeName}"
                                 onclick="SocialAppUI._toggleMomentAuthor('${attrName}')">
@@ -1744,7 +1744,7 @@ COMMENT: 李四|哇这个我也想去
                                 </div>
                                 <div class="cw-social-char-check">${selected ? '✓' : ''}</div>
                             </div>`;
-                    }).join('')}
+            }).join('')}
                 </div>
         
                 <div style="text-align:center;margin-top:16px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
@@ -1765,37 +1765,37 @@ COMMENT: 李四|哇这个我也想去
                         取消
                     </button>
                 </div>`;
-        
+
             modal.className = 'active';
             this._updateMomentPickerSelected();
         },
         _randomizeMomentAuthors() {
             const chars = CharacterRegistry.getAll()
                 .filter(c => c.role !== 'npc');
-        
+
             if (chars.length === 0) return;
-        
+
             const current = this._momentAuthors || new Set();
-        
+
             // 如果有剩余可换的，就在"未选中"的里抽
             const available = chars.filter(c => !current.has(c.name));
-        
+
             // 全都选过了，或者本来就没选 → 从全池抽
             const pool = available.length >= 2 ? available : chars;
-        
+
             const max = Math.min(3, pool.length);
             const count = 1 + Math.floor(Math.random() * max);
-        
+
             // Fisher-Yates
             const shuffled = [...pool];
             for (let i = shuffled.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
             }
-        
+
             // ★ 替换（不是追加）——随机是"换一批"
             this._momentAuthors = new Set(shuffled.slice(0, count).map(c => c.name));
-        
+
             this._openMomentAuthorPicker();
         },
         _toggleMomentAuthor(name) {
@@ -1805,7 +1805,7 @@ COMMENT: 李四|哇这个我也想去
             } else {
                 this._momentAuthors.add(name);
             }
-        
+
             // 局部更新
             document.querySelectorAll('.cw-social-moment-picker-list .cw-social-char-item').forEach(el => {
                 const n = el.dataset.charName;
@@ -1814,31 +1814,31 @@ COMMENT: 李四|哇这个我也想去
                 const check = el.querySelector('.cw-social-char-check');
                 if (check) check.textContent = selected ? '✓' : '';
             });
-        
+
             this._updateMomentPickerSelected();
         },
-        
+
         _updateMomentPickerSelected() {
             const el = document.getElementById('cw-moment-picker-selected');
             if (!el) return;
             const arr = Array.from(this._momentAuthors || []);
             el.textContent = arr.length > 0 ? arr.join('、') : '（未选）';
         },
-        
+
         _resetMomentAuthors() {
             this._momentAuthors = new Set();
             this._openMomentAuthorPicker();   // 重新渲染
         },
-        
+
         async _confirmMomentAuthors() {
             const authors = Array.from(this._momentAuthors || []);
             if (authors.length === 0) {
                 window.UIManager.showText('请至少选择 1 个角色', 1500);
                 return;
             }
-        
+
             window.UIManager.closeModal();
-        
+
             // ★ 逐个生成
             let successCount = 0;
             for (const name of authors) {
@@ -1848,15 +1848,15 @@ COMMENT: 李四|哇这个我也想去
                         await new Promise(r => setTimeout(r, 200));
                     }
                 }
-        
+
                 window.UIManager.showText(`正在生成 ${name} 的动态...`, 800);
-        
+
                 const moment = await SocialAIManager.generateMoment(name);
                 if (!moment) {
                     console.warn(`[CinemaWorld] ${name} 的动态生成失败`);
                     continue;
                 }
-        
+
                 SocialDataManager.addMoment({
                     author: moment.author,
                     content: moment.content,
@@ -1867,18 +1867,18 @@ COMMENT: 李四|哇这个我也想去
                         timestamp: Date.now(),
                     })),
                 });
-        
+
                 successCount++;
-        
+
                 // 刷新 UI（每生成一条就更新）
                 if (SocialAppUI._tab === 'moments') {
                     PhoneUIManager.render();
                 }
             }
-        
+
             // 清空选择
             this._momentAuthors = new Set();
-        
+
             if (successCount === 0) {
                 window.UIManager.showText('生成失败', 1500);
             } else {
@@ -1960,21 +1960,27 @@ COMMENT: 李四|哇这个我也想去
                 }
                 return fallbackName.charAt(0);
             }
-        
+
             if (!record) return '👤';
-        
+
             const name = record.name;
-        
-            // ★ 2. 同步拿缓存
+            const normName = record._normalizedName
+                || (window.CharacterRegistry?.normalizeName?.(name))
+                || name;
+
+
             let url = null;
             if (typeof SpriteManager !== 'undefined') {
+                // 先按原始名查
                 url = SpriteManager.getCachedSprite(name);
+                // 再按归一化名查
+                if (!url) url = SpriteManager.getCachedSprite(normName);
             }
-        
+
             if (url) {
                 return `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="${this._escape(name)}">`;
             }
-        
+
             // ★ 3. 异步预热
             if (typeof SpriteManager !== 'undefined') {
                 SpriteManager.ensureSprite(name, record.gender).then((loadedUrl) => {
@@ -1985,7 +1991,7 @@ COMMENT: 李四|哇这个我也想去
                     });
                 });
             }
-        
+
             // ★ 4. 兜底 emoji
             return record.gender === '女' ? '👩' : record.gender === '男' ? '👨' : '👤';
         },
@@ -2006,12 +2012,12 @@ COMMENT: 李四|哇这个我也想去
 
             if (diff < 60 * 1000) return '刚刚';
             if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}分钟前`;
-            if (diff < 24 * 60 * 60 * 1000) return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            if (diff < 24 * 60 * 60 * 1000) return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
             if (diff < 7 * 24 * 60 * 60 * 1000) {
-                const days = ['日','一','二','三','四','五','六'];
+                const days = ['日', '一', '二', '三', '四', '五', '六'];
                 return `周${days[d.getDay()]}`;
             }
-            return `${d.getMonth()+1}/${d.getDate()}`;
+            return `${d.getMonth() + 1}/${d.getDate()}`;
         },
 
         _escape(str) {

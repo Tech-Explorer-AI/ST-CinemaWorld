@@ -22,16 +22,19 @@
         // ★ 统一的"进入场景"核心逻辑
         async doEnterScene(scene, options = {}) {
             if (!scene) return;
-
+        
+            // ★ 切回场景模式
+            if (window.CinemaWorld?.worldState) {
+                window.CinemaWorld.worldState.playMode = 'scene';
+            }
+        
             CinemaWorld.ui.currentLocation = scene.name;
             LocationModalManager.currentLocation = scene;
-
+        
             // 背景
             if (scene.generatedBackgroundId) {
-                // ★ 异步从 IndexedDB 恢复 AI 生成的背景
                 const ok = await window.BackgroundGenerator?.restoreGeneratedBackground(scene);
                 if (!ok) {
-                    // 记录丢失 → 走普通背景
                     if (scene.background) {
                         await BackgroundManager.apply(scene.background);
                     } else {
@@ -39,7 +42,6 @@
                     }
                 }
             } else if (scene.generatedBackground) {
-                // ★ 兼容旧存档（升级前生成的图还挂在 scene 上）
                 const bgLayer = document.getElementById('cinemaworld-background');
                 if (bgLayer) {
                     bgLayer.innerHTML = `<div style="position:absolute;inset:0;
@@ -47,8 +49,7 @@
                         background-size:cover;background-position:center;z-index:0;"></div>`;
                 }
                 BackgroundManager.current = `__generated__${scene.name}`;
-
-                // 顺手迁移到 IndexedDB
+        
                 if (window.BackgroundGenerator && window.BackgroundImageStore) {
                     const dataUrl = scene.generatedBackground;
                     const promptText = scene.generatedBackgroundPrompt || '';
@@ -61,19 +62,19 @@
             } else {
                 await BackgroundManager.apply(scene.name);
             }
-
+        
             // 音乐
             if (scene.music) {
                 await MusicManager.setSceneMusic(scene.music);
             } else {
                 MusicManager.setSceneMusic(null);
             }
-
+        
             // 立绘 + 头像栏
             await SceneSpriteLayerManager.buildForScene(scene);
-            SceneAvatarBarManager.buildForScene(scene);
+            SceneAvatarBarManager.build();          // ★ 改成 build()
             SceneActionManager.refresh();
-
+        
             if (options.showText !== false) {
                 await window.UIManager.showText(`进入了【${scene.name}】`, options.textDuration || 1500);
             }
@@ -82,9 +83,15 @@
         // ★ 刷新时恢复场景（不显示提示文本）
         async restoreScene(scene) {
             if (!scene) return;
+        
+            // ★ 切回场景模式
+            if (window.CinemaWorld?.worldState) {
+                window.CinemaWorld.worldState.playMode = 'scene';
+            }
+        
             CinemaWorld.ui.currentLocation = scene.name;
             LocationModalManager.currentLocation = scene;
-
+        
             if (scene.generatedBackgroundId) {
                 const ok = await window.BackgroundGenerator?.restoreGeneratedBackground(scene);
                 if (!ok) {
@@ -102,7 +109,7 @@
                         background-size:cover;background-position:center;z-index:0;"></div>`;
                 }
                 BackgroundManager.current = `__generated__${scene.name}`;
-
+        
                 if (window.BackgroundGenerator && window.BackgroundImageStore) {
                     const dataUrl = scene.generatedBackground;
                     const promptText = scene.generatedBackgroundPrompt || '';
@@ -115,15 +122,15 @@
             } else {
                 await BackgroundManager.apply(scene.name);
             }
-
+        
             if (scene.music) {
                 await MusicManager.setSceneMusic(scene.music);
             } else {
                 MusicManager.setSceneMusic(null);
             }
-
+        
             await SceneSpriteLayerManager.buildForScene(scene);
-            SceneAvatarBarManager.buildForScene(scene);
+            SceneAvatarBarManager.build();          // ★ 改成 build()
             SceneActionManager.refresh();
         },
 
@@ -247,53 +254,50 @@
         async deleteScene(name) {
             const scene = WorldManager.findEntity(name);
             if (!scene) return;
-
+        
             if (!confirm(`确定删除场景【${name}】吗？\n\n该场景内的人物、物品也会一并删除，且无法恢复。`)) {
                 return;
             }
-
+        
             const isCurrent = CinemaWorld.ui.currentLocation === name;
-
+        
             // 1. 从世界实体移除
             const idx = CinemaWorld.worldState.entities.findIndex(e => e.name === name);
             if (idx > -1) CinemaWorld.worldState.entities.splice(idx, 1);
-
+        
             // 2. 如果是当前场景 → 清空位置和视觉层
             if (isCurrent) {
                 CinemaWorld.ui.currentLocation = null;
                 LocationModalManager.currentLocation = null;
-
+        
                 BackgroundManager.clear();
                 MusicManager.setSceneMusic(null);
                 MusicManager.clearOverrideMusic();
                 SceneSpriteLayerManager.clear();
                 SceneAvatarBarManager.clear();
-
+                SceneActionManager.refresh();
+        
                 window.UIManager.createFloatingButtons();
                 window.UIManager.updateWorldStateDisplay();
-                SceneActionManager.refresh();
                 await window.UIManager.showText(`已删除当前场景【${name}】，已退出该场景`, 2000);
             } else {
                 await window.UIManager.showText(`已删除场景【${name}】`, 1500);
             }
-
-            // 3. 保存
+        
             if (window.SaveManager) window.SaveManager.save();
-
-            // 4. 回到列表（刷新）
             this.openLocationBrowser();
         },
 
         async enterScene(name) {
             const scene = WorldManager.findEntity(name);
             if (!scene) return;
-
+        
             if (CinemaWorld.ui.currentLocation === name) {
                 // 离开
                 CinemaWorld.ui.currentLocation = null;
                 LocationModalManager.currentLocation = null;
                 await window.UIManager.showText(`离开了【${name}】`, 1500);
-
+        
                 BackgroundManager.clear();
                 MusicManager.setSceneMusic(null);
                 MusicManager.clearOverrideMusic();
@@ -303,7 +307,7 @@
             } else {
                 await this.doEnterScene(scene);
             }
-
+        
             window.UIManager.createFloatingButtons();
             window.UIManager.updateWorldStateDisplay();
             window.UIManager.closeModal();
@@ -1173,20 +1177,38 @@ ${repeatNote}
 目标: 玩家
 数值变化: 体力 +5
 实体变化:
-- 获得【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 获得【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 - 失去【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
 - 获得状态 状态名（可选效果，| 分隔：攻击-20%|持续3回合）
 - 移除状态 状态名
 
-★ 关键：获得物品时必须写完整格式（方括号内 键:值），否则玩家拿到的是空壳。
-★ 可装备物品：写明属性字段，如 [类型:武器|攻击:+5|暴击:+10%]
-★ 可消耗物品：写明功能，如 [类型:消耗品|功能:回复 50 点生命|可堆叠]
-★ 普通物品：至少写 [类型:物品] 和图标
+说明：
+物品：用于消耗、食用、携带、交互的普通物品。
+装备：能给玩家提供属性加成的物品（武器、护甲、饰品、工具等）。
+在物品字段基础上，额外写属性字段，格式为 键:值，根据玩家有的属性来写。
+例如 攻击:+X|防御:+Y|暴击:+X%|幸运:+X。
+玩家装备后属性会生效，脱下后失效
+
+效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
 
 示例：
-- 获得【生锈的铁剑|⚔️】：锈迹斑斑的短剑，[类型:武器|攻击:+3|图标:⚔️]
-- 获得【红药水|🧪】：一瓶红色药剂，[类型:消耗品|功能:回复 30 点生命|可堆叠]
-- 获得【黑面包|🍞】：还热乎，[类型:食物|功能:回复 10 点体力|可堆叠]
+- 【生锈的铁剑|⚔️】：斜靠在墙角，[类型:武器|可拾取:是|货币种类:金钱|买价:X|卖价:X|攻击:+X]
+- 【红药水|🧪】：一瓶红色药剂，[类型:消耗品|可拾取:是|功能:回复生命|效果:回复生命 X|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【野花|🌸】：路边的小花，[类型:材料|可拾取:是|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【守卫的盾牌|🛡️】：靠在门边的圆盾，[类型:护甲|可拾取:是|货币种类:金钱|买价:X|卖价:X|防御:+X|体力:+Y]
 
 【场景更新】
 (可选。如果行动改变了场景，才写这一块)
@@ -1216,8 +1238,8 @@ ${repeatNote}
 新增实体：
 - 【实体名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
 如果是物品(物品也是一种实体）：
-- 【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
-- 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
+- 【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y|其他]
 新增遭遇实体：
 - 【敌人名|图标】：描述，[类型:遭遇|HP:当前/最大|攻击:X|防御:X|敏捷:X|技能:X|掉落:X]
 （★ 当行动引发了战斗时使用。
@@ -1227,11 +1249,7 @@ ${repeatNote}
 ★ 遭遇实体数量控制：
 可以多个，例如普通和精英怪以及BOSS同时登场的情况。
 
-★ 实体如果是可装备物品（武器/护甲/饰品/背包等），必须写上属性字段，
-格式同场景创建时的规范：
-- 【生锈的铁剑|⚔️】：[类型:武器|攻击:+3|图标:⚔️]
-- 【幸运护符|🍀】：[类型:饰品|幸运:+5|图标:🍀]
-- 【行军背包|🎒】：[类型:背包|背包格:+6|图标:🎒]
+★ 实体如果是可装备物品（武器/护甲/饰品/背包等），必须写上属性字段.
 
 移除实体: 名字1、名字2
 
@@ -1741,7 +1759,7 @@ ${repeatNote}
             this.createContainer();
             this.addStyles();
         },
-
+    
         createContainer() {
             if (document.getElementById('cinemaworld-scene-avatars')) return;
             const container = document.getElementById('cinemaworld-container');
@@ -1749,43 +1767,97 @@ ${repeatNote}
             bar.id = 'cinemaworld-scene-avatars';
             container.appendChild(bar);
         },
-
+    
         addStyles() {
-            // ★ CSS 已移至 style.css
             if (window.CinemaWorldCSS) window.CinemaWorldCSS.ensure();
         },
-
-        // 为场景构建头像栏
-        buildForScene(scene) {
+    
+        // ============================================================
+        // ★ 新增：根据 playMode 拿当前角色列表
+        // ============================================================
+        _getCurrentCharacters() {
+            const playMode = window.CinemaWorld?.worldState?.playMode;
+        
+            // 地图模式：只显示"当前地图上"的 NPC
+            if (playMode === 'map') {
+                const map = window.MapLauncher?.getMap?.();
+                if (!map?.entities) return [];
+        
+                // ★ 用归一化名字匹配档案，拿到完整的 role/favorability 等字段
+                const normSet = new Set(
+                    map.entities
+                        .filter(e => e.kind === 'npc' && !e.isPlayer && e._placed)
+                        .map(e => window.CharacterRegistry.normalizeName(e.name))
+                );
+        
+                return window.CharacterRegistry.getAll()
+                    .filter(c => normSet.has(c._normalizedName || c.name))
+                    .map(c => ({ ...c, _source: 'map' }));
+            }
+        
+            // 场景模式：只显示当前场景的
+            const scene = window.LocationModalManager?.currentLocation;
+            if (!scene?.sceneCharacters) return [];
+        
+            const normSet = new Set(
+                scene.sceneCharacters.map(c =>
+                    window.CharacterRegistry.normalizeName(c.name)
+                )
+            );
+        
+            return window.CharacterRegistry.getAll()
+                .filter(c => normSet.has(c._normalizedName || c.name))
+                .map(c => ({ ...c, _source: 'scene' }));
+        },
+    
+        // ============================================================
+        // ★ 按 playMode 构建（原 buildForScene 改成通用）
+        // ============================================================
+        build() {
             const bar = document.getElementById('cinemaworld-scene-avatars');
             if (!bar) return;
             bar.innerHTML = '';
-
-            const chars = scene?.sceneCharacters || [];
+    
+            const chars = this._getCurrentCharacters();
             if (chars.length === 0) return;
-
+    
             chars.slice(0, 5).forEach((ch, index) => {
                 const item = this.createAvatarItem(ch, index);
                 bar.appendChild(item);
             });
-
-            // 层开关（仅当有人物时显示）
-            const toggle = document.createElement('div');
-            toggle.className = 'cinemaworld-scene-avatar-layer-toggle';
-            toggle.id = 'cinemaworld-scene-layer-toggle';
-            toggle.textContent = '👁 隐藏立绘';
-            toggle.onclick = () => {
-                SceneSpriteLayerManager.toggleLayer();
-                this.updateLayerToggleText();
-            };
-            bar.appendChild(toggle);
+    
+            // 层开关（仅场景模式下有意义；地图模式可隐藏立绘层）
+            const playMode = window.CinemaWorld?.worldState?.playMode;
+            if (playMode === 'scene') {
+                const toggle = document.createElement('div');
+                toggle.className = 'cinemaworld-scene-avatar-layer-toggle';
+                toggle.id = 'cinemaworld-scene-layer-toggle';
+                toggle.textContent = '👁 隐藏立绘';
+                toggle.onclick = () => {
+                    SceneSpriteLayerManager.toggleLayer();
+                    this.updateLayerToggleText();
+                };
+                bar.appendChild(toggle);
+            }
         },
-
+    
+        // 兼容旧调用
+        buildForScene(scene) {
+            // 场景模式才用传入的 scene
+            const playMode = window.CinemaWorld?.worldState?.playMode;
+            if (playMode === 'scene' && scene) {
+                // 确保 currentLocation 同步
+                window.LocationModalManager.currentLocation = scene;
+            }
+            this.build();
+        },
+    
         createAvatarItem(char, characterIndex) {
             const item = document.createElement('div');
             item.className = 'cinemaworld-scene-avatar-item';
             item.dataset.characterName = char.name;
-
+            item.dataset.source = char._source || 'scene';
+    
             // ★ 用状态立绘
             const state = SpriteManager.pickSpriteState(char);
             const spriteUrl = SpriteManager.getCachedSpriteWithState(char.name, state)
@@ -1793,7 +1865,7 @@ ${repeatNote}
             const faceInner = spriteUrl
                 ? `<img src="${spriteUrl}" alt="${char.name}">`
                 : char.name.charAt(0);
-
+    
             item.innerHTML = `
                 <div class="cinemaworld-scene-avatar-face">${faceInner}</div>
                 <span class="cinemaworld-scene-avatar-name">${char.name}</span>
@@ -1804,7 +1876,7 @@ ${repeatNote}
                     data-action="interact" 
                     title="交互">💬</button>
             `;
-
+    
             if (!spriteUrl) {
                 SpriteManager.ensureSpriteWithState(char.name, char.gender, state).then(url => {
                     if (!url) return;
@@ -1814,27 +1886,69 @@ ${repeatNote}
                     }
                 });
             }
-
+    
+            // ★ 点名字 → 按来源分流
             item.querySelector('.cinemaworld-scene-avatar-name').onclick = (e) => {
                 e.stopPropagation();
-                window.SceneCharacterBrowserManager.openBrowser();
+                this._openCharDetail(char);
             };
-
+    
+            // ★ 立绘显隐：只有场景模式才有立绘层
             item.querySelector('[data-action="toggle"]').onclick = (e) => {
                 e.stopPropagation();
+                const playMode = window.CinemaWorld?.worldState?.playMode;
+                if (playMode === 'map') {
+                    window.UIManager?.showText?.('地图模式下不显示立绘', 1200);
+                    return;
+                }
                 SceneSpriteLayerManager.toggleVisibility(char.name);
             };
-
+    
+            // ★ 交互：按来源分流
             item.querySelector('[data-action="interact"]').onclick = (e) => {
                 e.stopPropagation();
-                window.CharacterInteractionManager.open(characterIndex);
+                this._interactWith(char, characterIndex);
             };
-
+    
             return item;
         },
-
+    
+        // ============================================================
+        // ★ 按来源打开详情 / 交互
+        // ============================================================
+        _openCharDetail(char) {
+            if (char._source === 'map') {
+                // 地图实体 → 打开地图实体详情面板
+                if (char._entityId && window.MapEntityPanel?.openDetail) {
+                    window.MapEntityPanel.openDetail(char._entityId);
+                    return;
+                }
+                window.UIManager?.showText?.(`地图角色：${char.name}`, 1500);
+                return;
+            }
+            // 场景角色 → 原有的场景人物浏览器
+            window.SceneCharacterBrowserManager?.openBrowser?.();
+        },
+    
+        _interactWith(char, characterIndex) {
+            if (char._source === 'map') {
+                // 地图 NPC → 走 MapInteract.talkTo
+                if (char._entityId && window.MapInteract?.talkTo) {
+                    window.MapInteract.talkTo(char._entityId);
+                    return;
+                }
+                window.UIManager?.showText?.(`无法与 ${char.name} 交互`, 1500);
+                return;
+            }
+            // 场景角色 → CharacterInteractionManager
+            window.CharacterInteractionManager?.open?.(characterIndex);
+        },
+    
         // 同步立绘层的显示状态到头像栏
         syncFromSprites() {
+            const playMode = window.CinemaWorld?.worldState?.playMode;
+            if (playMode === 'map') return;   // 地图模式没有立绘层
+    
             const layerHidden = SceneSpriteLayerManager.isLayerHidden();
             for (const slot of SceneSpriteLayerManager.slots) {
                 const item = document.querySelector(`.cinemaworld-scene-avatar-item[data-character-name="${slot.name}"]`);
@@ -1844,14 +1958,14 @@ ${repeatNote}
             }
             this.updateLayerToggleText();
         },
-
+    
         updateLayerToggleText() {
             const toggle = document.getElementById('cinemaworld-scene-layer-toggle');
             if (!toggle) return;
             const hidden = SceneSpriteLayerManager.isLayerHidden();
             toggle.textContent = hidden ? '👁 显示立绘' : '👁 隐藏立绘';
         },
-
+    
         clear() {
             const bar = document.getElementById('cinemaworld-scene-avatars');
             if (bar) bar.innerHTML = '';
@@ -1905,7 +2019,7 @@ ${repeatNote}
 *【场景名】*
 描述：(场景的详细描述)
 环境：(场景的环境特征)
-环境数据:[时间:具体时间|天气:具体天气|温度:具体温度|风力:具体风力|湿度:具体湿度|...]
+环境数据:[时间:HH:MM|日期:YYYY年MM月DD日|季节:X|天气:X|温度:X°C|湿度:X%|风力:X级|明日:X|...AI自定义字段]
 背景：(背景图片名)
 🎵 音乐：音乐名
 
@@ -1915,11 +2029,26 @@ ${repeatNote}
 场景实体：
 - 【实体名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
 如果是物品(物品也是一种实体）：
-- 【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【物品名|图标】：描述，[类型|状态|功能|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 - 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
 
 ★ 特殊场景实体类型：
 以下类型有专用系统，必须严格使用对应字段：
+
+效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
 
 【经营实体】（农田、牧场、商店、工厂、矿场等符合剧情背景设定的可持续运营的场所）
 - 【名称|图标】：描述，[类型:经营|经营类型:农田|其他字段...]
@@ -1951,7 +2080,7 @@ ${repeatNote}
 
 字段说明：
 0. ★ 环境数据必须用"键:值"格式，用 | 分隔。键名必须写出来，例如：
-环境数据:[时间:具体时间|天气:具体天气|温度:具体温度|风力:具体风力|湿度:具体湿度|...]
+环境数据:[时间:HH:MM|日期:YYYY年MM月DD日|季节:X|天气:X|温度:X°C|湿度:X%|风力:X级|明日:X|...AI自定义字段]
 你可以根据剧情和背景自由添加任何键：时间、天气、温度、风力、湿度、能见度、
 季节、月相、潮汐、日期、声望……系统都能存能显。
 1. 描述：实体的外观、位置、给人的感觉（实体可以是物品、建筑、植物、家具、机关、载具、自然景观等任何东西）

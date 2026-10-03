@@ -59,21 +59,153 @@
                 return;
             }
 
-            // 长按/右键 = 菜单（清除 / 重新生成 / 预览）
+            const playMode = window.CinemaWorld?.worldState?.playMode;
+
+            // ★ 地图模式 → 走地图路径
+            if (playMode === 'map') {
+                const map = window.MapLauncher?.getMap?.();
+                if (!map) {
+                    window.UIManager.showText('请先打开一张地图', 1500);
+                    return;
+                }
+
+                if (map.generatedBackgroundId) {
+                    this._showMapMenu(map);
+                } else {
+                    await window.BackgroundGenerator.generateForCurrentMap();
+                }
+                return;
+            }
+
+            // ★ 场景模式 → 走原有路径
             const scene = window.LocationModalManager?.currentLocation;
             if (!scene) {
                 window.UIManager.showText('请先进入场景', 1500);
                 return;
             }
 
-            // 简单方案：点击 = 生成，如果已有生成的图，弹菜单
-            if (scene.generatedBackground) {
-                this._showMenu(scene);
+            if (scene.generatedBackgroundId) {
+                this._showSceneMenu(scene);
             } else {
                 await window.BackgroundGenerator.generateForCurrentScene();
             }
         },
+        async _showSceneMenu(scene) {
+            const modal = document.getElementById('cinemaworld-modal');
 
+            let previewUrl = '';
+            if (scene.generatedBackgroundId && window.BackgroundImageStore) {
+                try {
+                    const rec = await window.BackgroundImageStore.get(scene.generatedBackgroundId);
+                    previewUrl = rec?.dataUrl || '';
+                } catch (e) { /* 忽略 */ }
+            }
+
+            modal.className = 'active';
+            modal.innerHTML = `
+                <div class="cinemaworld-modal-title">🎨 背景图</div>
+                <div style="font-size:12px;color:#888;margin-bottom:14px;text-align:center;">
+                    场景【${scene.name}】已有 AI 生成的背景图
+                </div>
+        
+                ${previewUrl ? `
+                    <div style="margin-bottom:14px;padding:10px;background:rgba(0,0,0,.3);border-radius:8px;">
+                        <img src="${previewUrl}"
+                             style="width:100%;border-radius:6px;display:block;"
+                             alt="scene background">
+                        <div style="font-size:11px;color:#666;margin-top:8px;line-height:1.5;">
+                            ${(scene.generatedBackgroundPrompt || '').slice(0, 160)}...
+                        </div>
+                    </div>
+                ` : ''}
+        
+                <div style="display:grid;gap:8px;">
+                    <button class="cinemaworld-button primary"
+                        onclick="BackgroundGenFloatingButton._regenScene()">
+                        🔄 重新生成
+                    </button>
+                    <button class="cinemaworld-button"
+                        onclick="BackgroundGenFloatingButton._clearScene()">
+                        🗑️ 清除（恢复原背景）
+                    </button>
+                    <button class="cinemaworld-button"
+                        onclick="UIManager.closeModal()">
+                        取消
+                    </button>
+                </div>
+            `;
+        },
+
+        async _regenScene() {
+            window.UIManager.closeModal();
+            const scene = window.LocationModalManager?.currentLocation;
+            if (!scene) return;
+            await window.BackgroundGenerator.generateForCurrentScene();
+        },
+
+        async _clearScene() {
+            window.UIManager.closeModal();
+            await window.BackgroundGenerator.clearForCurrentScene();
+        },
+        // ★ 地图菜单
+        async _showMapMenu(map) {
+            const modal = document.getElementById('cinemaworld-modal');
+
+            // 从 IndexedDB 拿图预览
+            let previewUrl = '';
+            if (map.generatedBackgroundId && window.BackgroundImageStore) {
+                try {
+                    const rec = await window.BackgroundImageStore.get(map.generatedBackgroundId);
+                    previewUrl = rec?.dataUrl || '';
+                } catch (e) { /* 忽略 */ }
+            }
+
+            modal.className = 'active';
+            modal.innerHTML = `
+        <div class="cinemaworld-modal-title">🎨 地图背景图</div>
+        <div style="font-size:12px;color:#888;margin-bottom:14px;text-align:center;">
+            地图【${map.name}】已有 AI 生成的背景图
+        </div>
+
+        ${previewUrl ? `
+            <div style="margin-bottom:14px;padding:10px;background:rgba(0,0,0,.3);border-radius:8px;">
+                <img src="${previewUrl}"
+                     style="width:100%;border-radius:6px;display:block;"
+                     alt="map background">
+                <div style="font-size:11px;color:#666;margin-top:8px;line-height:1.5;">
+                    ${(map.generatedBackgroundPrompt || '').slice(0, 160)}...
+                </div>
+            </div>
+        ` : ''}
+
+        <div style="display:grid;gap:8px;">
+            <button class="cinemaworld-button primary"
+                onclick="BackgroundGenFloatingButton._regenMap()">
+                🔄 重新生成
+            </button>
+            <button class="cinemaworld-button"
+                onclick="BackgroundGenFloatingButton._clearMap()">
+                🗑️ 清除（恢复原背景）
+            </button>
+            <button class="cinemaworld-button"
+                onclick="UIManager.closeModal()">
+                取消
+            </button>
+        </div>
+    `;
+        },
+
+        async _regenMap() {
+            window.UIManager.closeModal();
+            const map = window.MapLauncher?.getMap?.();
+            if (!map) return;
+            await window.BackgroundGenerator.generateForCurrentMap();
+        },
+
+        async _clearMap() {
+            window.UIManager.closeModal();
+            await window.BackgroundGenerator.clearForCurrentMap();
+        },
         _showMenu(scene) {
             const modal = document.getElementById('cinemaworld-modal');
             modal.className = 'active';
@@ -150,8 +282,8 @@
                         </label>
                         <div class="cw-bggen-hint">
                             ${enabled
-                                ? '按钮已显示在场景行动栏上方'
-                                : '关闭后主界面不显示生图按钮（不影响已生成的背景图）'}
+                    ? '按钮已显示在场景行动栏上方'
+                    : '关闭后主界面不显示生图按钮（不影响已生成的背景图）'}
                         </div>
                     </div>
 
@@ -290,7 +422,6 @@
                     </div>
 
                     <!-- 工作流 -->
-                                        <!-- 工作流 -->
                     <div class="cw-bggen-card">
                         <div class="cw-bggen-card-title">
                             🧩 工作流
@@ -332,6 +463,50 @@
                             点右上 🔄 自动加载
                         </div>
                     </div>
+                                        <!-- 立绘工作流 -->
+                    <div class="cw-bggen-card">
+                        <div class="cw-bggen-card-title">👤 立绘工作流</div>
+                        <div class="cw-bggen-hint" style="margin-bottom:8px;">
+                            生成角色立绘时使用的工作流（与背景分开）
+                        </div>
+
+                        <div class="cw-bggen-workflow-list">
+                            ${(window.SpriteGenerator?.getAllWorkflows() || []).map(w => {
+                        const active = w.id === cfg.spriteWorkflowId;
+                        return `
+                                    <div class="cw-bggen-workflow-item ${active ? 'active' : ''}">
+                                        <div class="cw-bggen-workflow-name"
+                                            onclick="BackgroundGenAppUI.selectSpriteWorkflow('${w.id}')">
+                                            ${w.name}
+                                            <span class="cw-bggen-tag">${w.style === 'clip' ? 'CLIP' : '自然语言'}</span>
+                                        </div>
+                                    </div>
+                                `;
+                    }).join('')}
+                        </div>
+
+                        <div class="cw-bggen-row" style="margin-top:10px;">
+                            <label class="cw-bggen-field half">
+                                <span>宽</span>
+                                <input type="number" id="bggen-sprite-width"
+                                    value="${cfg.spriteWidth}" step="64">
+                            </label>
+                            <label class="cw-bggen-field half">
+                                <span>高</span>
+                                <input type="number" id="bggen-sprite-height"
+                                    value="${cfg.spriteHeight}" step="64">
+                            </label>
+                        </div>
+
+                        <label class="cw-bggen-field" style="margin-top:8px;">
+                            <span>立绘负面提示词</span>
+                            <textarea id="bggen-sprite-negative" rows="3">${cfg.spriteNegativePrompt || ''}</textarea>
+                        </label>
+
+                        <div class="cw-bggen-hint" style="margin-top:8px;font-size:10px;">
+                            💡 在场景立绘栏点 🎨 即可为单个角色生成立绘
+                        </div>
+                    </div>
                     <div class="cw-bggen-card">
                         <div class="cw-bggen-card-title">💾 存储管理</div>
                         <div class="cw-bggen-hint" id="bggen-storage-info">
@@ -362,7 +537,7 @@
                 </div>
             `;
         },
-                async refreshStorageInfo() {
+        async refreshStorageInfo() {
             const el = document.getElementById('bggen-storage-info');
             if (!el) return;
             try {
@@ -522,7 +697,7 @@
 
             const isTextNode = (node) => node.classType === 'CLIPTextEncode';
             const isLatentNode = (node) => node.classType === 'EmptyLatentImage';
-            const isSamplerNode = (node) => 
+            const isSamplerNode = (node) =>
                 node.classType === 'KSampler' || node.classType === 'KSamplerAdvanced';
 
             // 文本节点选择器（正面/负面）
@@ -566,7 +741,7 @@
 
             // 种子节点选择器
             const buildSeedNodeSelect = (selectedId, inputId) => {
-                const candidates = allNodes.filter(n => 
+                const candidates = allNodes.filter(n =>
                     isSamplerNode(n) && n.inputs.seed !== undefined
                 );
                 if (candidates.length === 0) {
@@ -702,7 +877,10 @@
                 negativePrompt: document.getElementById('bggen-negative')?.value || '',
                 width: parseInt(document.getElementById('bggen-width')?.value) || 1200,
                 height: parseInt(document.getElementById('bggen-height')?.value) || 800,
-
+                spriteWorkflowId: window.BackgroundGenerator.getConfig().spriteWorkflowId,
+                spriteWidth: parseInt(document.getElementById('bggen-sprite-width')?.value) || 832,
+                spriteHeight: parseInt(document.getElementById('bggen-sprite-height')?.value) || 1216,
+                spriteNegativePrompt: document.getElementById('bggen-sprite-negative')?.value || '',
                 // ★ 新增：从 radio 里读当前选中的风格
                 promptStyle: document.querySelector('input[name="bggen-prompt-style"]:checked')?.value || 'natural',
             };
@@ -867,26 +1045,26 @@
             return r;
         };
     }
-        // ==================== 数据一致性维护 ====================
-// 在 background-ui.js 里，给 PhoneUIManager.render 包一层
-const _origPhoneRender = window.PhoneUIManager?.render;
-if (_origPhoneRender) {
-    window.PhoneUIManager.render = function () {
-        const r = _origPhoneRender.apply(this);
-        // 如果当前是生图 App，刷新存储信息
-        if (this.currentApp === 'bggen') {
-            setTimeout(() => BackgroundGenAppUI.refreshStorageInfo(), 50);
-        }
-        return r;
-    };
-}
+    // ==================== 数据一致性维护 ====================
+    // 在 background-ui.js 里，给 PhoneUIManager.render 包一层
+    const _origPhoneRender = window.PhoneUIManager?.render;
+    if (_origPhoneRender) {
+        window.PhoneUIManager.render = function () {
+            const r = _origPhoneRender.apply(this);
+            // 如果当前是生图 App，刷新存储信息
+            if (this.currentApp === 'bggen') {
+                setTimeout(() => BackgroundGenAppUI.refreshStorageInfo(), 50);
+            }
+            return r;
+        };
+    }
     // 1. 删除场景时，同步删掉 IndexedDB 里的原图
     const _origDeleteScene = window.LocationModalManager?.deleteScene;
     if (_origDeleteScene) {
         window.LocationModalManager.deleteScene = async function (name) {
             const scene = window.WorldManager?.findEntity(name);
             if (scene?.generatedBackgroundId && window.BackgroundImageStore) {
-                window.BackgroundImageStore.delete(scene.generatedBackgroundId).catch(() => {});
+                window.BackgroundImageStore.delete(scene.generatedBackgroundId).catch(() => { });
             }
             return await _origDeleteScene.apply(this, [name]);
         };

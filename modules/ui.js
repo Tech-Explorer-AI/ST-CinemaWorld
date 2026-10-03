@@ -23,8 +23,8 @@
             CharacterNameManager.sync();
             const aiName = CinemaWorld.currentAIChatName;
             const userName = (typeof PlayerStateManager !== 'undefined' && PlayerStateManager.player?.name)
-            ? PlayerStateManager.player.name
-            : CinemaWorld.currentUserName;
+                ? PlayerStateManager.player.name
+                : CinemaWorld.currentUserName;
 
             console.log(`[CinemaWorld] 功能性生成: ${purpose} (AI=${aiName})`);
 
@@ -93,7 +93,23 @@
         // 关闭模态框（彻底清空）
         closeModal() {
             const modal = document.getElementById('cinemaworld-modal');
-            if (modal) modal.className = '';
+            if (!modal) return;
+        
+            // ★ 彻底清空所有类，包括 cw-inv-modal / cw-modal-map 等
+            modal.className = '';
+        
+            // ★ 清掉可能残留的内联样式
+            modal.style.width = '';
+            modal.style.maxWidth = '';
+            modal.style.maxHeight = '';
+            modal.style.padding = '';
+            modal.style.overflowY = '';
+            modal.style.boxSizing = '';
+            modal.style.pointerEvents = '';
+            modal.style.display = '';
+            modal.style.zIndex = '';
+        
+            modal.innerHTML = '';
         },
 
         createMainContainer() {
@@ -107,6 +123,8 @@
                 <div id="cinemaworld-text-area"></div>
                 <div id="cinemaworld-floating-buttons"></div>
                 <div id="cinemaworld-scene-actions"></div>
+                <div id="cinemaworld-map-window"></div>   
+                <div id="cinemaworld-vn-background"></div>
                 <div id="cinemaworld-modal"></div>`;
 
             document.body.appendChild(container);
@@ -126,9 +144,10 @@
                 highFreq = [
                     { icon: '🎒', label: '背包', action: 'inventory' },
                     { icon: '📖', label: '剧情', action: 'story' },
-                    { icon: '📦', label: '场景实体', action: 'scene-items' },
+                    { icon: '🗺️', label: '地图', action: 'map' },
                 ];
                 lowFreq = [
+                    { icon: '📦', label: '场景实体', action: 'scene-items' },
                     { icon: '📚', label: '章节', action: 'chapters' },
                     { icon: '👥', label: '场景人物', action: 'scene-characters' },
                     { icon: '📍', label: '场景切换', action: 'location' },
@@ -211,6 +230,7 @@
                 case 'location': LocationModalManager.openLocationBrowser(); break;
                 case 'exit-location': LocationModalManager.exitCurrentLocation(); break;
                 case 'settings': this.openSettings(); break;
+                case 'map': MapLauncher.open(); break;
                 case 'exit': this.exitCinemaWorld(); break;
             }
         },
@@ -238,15 +258,21 @@
 
         resetWorld() {
             if (!confirm('确定要重置世界吗？所有数据将丢失！')) return;
-
-            // ★ 使用 SaveManager 的统一空模板
+            if (!confirm('再确认一次：所有地图、剧情、角色、背包、模板都会清空。')) return;
+        
+            // ============================================================
+            // 1. 清空核心状态
+            // ============================================================
             CinemaWorld.worldState = SaveManager.getEmptyWorldState();
             PlayerStateManager.player = SaveManager.getEmptyPlayer();
             PlayerStateManager.player.name = CinemaWorld.currentUserName || '主人公';
-
+            PlayerStateManager.displayedBars = [0, 1];
+        
             CinemaWorld.ui.currentLocation = null;
             LocationModalManager.currentLocation = null;
-
+            CinemaWorld.worldState.mainQuest = null;
+        
+            // 剧情
             StoryManager.storyList = [];
             StoryManager.chapters = [];
             StoryManager.currentChapter = null;
@@ -254,8 +280,8 @@
             StoryManager.volumes = [];
             StoryManager.currentVolume = null;
             StoryManager._listIndex = 0;
-
-            // ★ 清空规则引擎
+        
+            // 规则引擎
             if (typeof RuleEngine !== 'undefined') {
                 RuleEngine.parse('');
             }
@@ -265,33 +291,153 @@
             if (typeof TagEffectManager !== 'undefined') {
                 TagEffectManager.syncFromRules();
             }
-
-            // ★ 清空视觉层
+        
+            // ============================================================
+            // 2. 清空视觉层
+            // ============================================================
             BackgroundManager.clear();
+            BackgroundManager.cache = {};
+            BackgroundManager.preloaded = {};
+            BackgroundManager.current = null;
+        
             MusicManager.setSceneMusic(null);
-            MusicManager.clearOverrideMusic();
+            MusicManager.clearAllOverrides?.();
+            MusicManager.cache = {};
+            MusicManager.currentMusic = null;
+            MusicManager.mapMusic = null;
+            MusicManager.baseMusic = null;
+            MusicManager._currentOverride = null;
+            if (MusicManager.audio) {
+                try { MusicManager.audio.pause(); MusicManager.audio.src = ''; } catch (e) { }
+            }
+        
             SceneSpriteLayerManager.clear();
             SceneAvatarBarManager.clear();
-
-            // ★ 清空运行时缓存
+            SceneActionManager.refresh();
+        
+            // VN 层：如果有正在播放的，强制停
+            if (typeof VisualNovelManager !== 'undefined') {
+                try { VisualNovelManager.stop?.(); } catch (e) { }
+            }
+        
+            // ============================================================
+            // 3. 重置地图系统
+            // ============================================================
+            if (window.MapLauncher?.reset) {
+                window.MapLauncher.reset();
+            }
+        
+            // MapLauncher 里的规则缓存（如果有）
+            if (window.MapLauncher) {
+                window.MapLauncher._mapRules = {};
+            }
+        
+            // 玩法区
+            if (window.MapPlotManager) {
+                window.MapPlotManager._selectedPlotId = null;
+                window.MapPlotManager._plotCacheCanvas = null;
+                window.MapPlotManager._plotCacheDirty = true;
+                window.MapPlotManager.cancelSelection?.();
+                window.MapPlotManager._hideInfoCard?.();
+            }
+        
+            // 玩法区模板库（内存 + localStorage）
+            if (window.MapPlotTemplate) {
+                window.MapPlotTemplate.clearCustom?.();
+            }
+        
+            // NPC 漫步 & 遭遇追击 的运行时状态
+            if (window.MapNPCWander?._approach) {
+                window.MapNPCWander._approach.activeId = null;
+                window.MapNPCWander._approach.pendingBubble = null;
+                window.MapNPCWander._approach.playerIdleSince = null;
+                window.MapNPCWander._approach.playerLastX = null;
+                window.MapNPCWander._approach.playerLastY = null;
+                window.MapNPCWander._approach.isApproachInteracting = false;
+                window.MapNPCWander._dismissApproachBubble?.();
+            }
+            if (window.MapEncounterChase?._state) {
+                window.MapEncounterChase._state.chasing = {};
+                window.MapEncounterChase._state.cooldowns = {};
+            }
+        
+            // 地图任务 & 主线
+            if (window.MapQuestManager) {
+                window.MapQuestManager._generating = false;
+            }
+            if (window.MainQuestManager) {
+                window.MainQuestManager._generating = false;
+            }
+        
+            // 环境时钟
+            if (window.EnvironmentClock) {
+                window.EnvironmentClock._accumulator = 0;
+                window.EnvironmentClock._lastRealTs = performance.now();
+            }
+            if (window.DayNightFilter) {
+                window.DayNightFilter._cached = null;
+                window.DayNightFilter._prev = null;
+                window.DayNightFilter._hourKey = null;
+            }
+            if (window.EnvironmentHUD) {
+                window.EnvironmentHUD._lastOtherSig = null;
+            }
+        
+            // ============================================================
+            // 4. 清空运行时缓存
+            // ============================================================
             if (typeof SpriteManager !== 'undefined') {
                 SpriteManager.cache = {};
                 SpriteManager.characterSpriteMap = {};
                 SpriteManager.randomPoolCache = {};
+                SpriteManager._characterType = {};
+                SpriteManager._existsCache = {};
+                SpriteManager._existsPending = {};
                 SpriteManager.playerSprite = undefined;
                 SpriteManager.playerAvatar = undefined;
             }
+        
             if (typeof BattleManager !== 'undefined') {
                 BattleManager._runtime = { defending: false, playerCooldowns: {}, enemyCooldowns: {} };
+                BattleManager._activeCombat = null;
             }
-
+        
+            // 立绘层
+            if (window.MapCanvas?._portraitImages) {
+                window.MapCanvas._portraitImages.clear();
+            }
+        
+            // 手机 UI
+            if (typeof PhoneUIManager !== 'undefined') {
+                if (PhoneUIManager.isOpen) {
+                    try { PhoneUIManager.close(); } catch (e) { }
+                }
+                PhoneUIManager.currentApp = null;
+                PhoneUIManager.viewingFriend = null;
+                PhoneUIManager._contactFilter = 'all';
+            }
+        
+            // ============================================================
+            // 5. 删除存档（清 localStorage）
+            // ============================================================
             SaveManager.deleteSave();
+        
+            // ============================================================
+            // 6. 刷新 UI
+            // ============================================================
             PlayerStateManager.refreshAvatarArea();
             this.createFloatingButtons();
             this.updateWorldStateDisplay();
             this.closeModal();
-            SceneActionManager.refresh();
+        
+            // 手机 / 战斗浮层残留
+            document.querySelectorAll('.cw-battle-root, #cw-battle-rule-overlay').forEach(el => el.remove());
+            document.querySelectorAll('.cw-phone-modal').forEach(el => el.remove());
+        
+            // 触发场景选择 / 初始创建
             StartupManager.checkInitialization();
+        
+            console.log('[CinemaWorld] 世界已重置');
         },
 
         async showText(text, duration = 3000) {
@@ -340,8 +486,8 @@
             const env = scene.environmentData;
             if (env && env._order && env._order.length > 0) {
                 const iconMap = {
-                    '时间':'🕐','天气':'🌤','温度':'🌡','风力':'💨','季节':'🍃',
-                    '湿度':'💧','能见度':'👁','日期':'📅','月相':'🌙','潮汐':'🌊',
+                    '时间': '🕐', '天气': '🌤', '温度': '🌡', '风力': '💨', '季节': '🍃',
+                    '湿度': '💧', '能见度': '👁', '日期': '📅', '月相': '🌙', '潮汐': '🌊',
                 };
                 const lines = env._order
                     .filter(k => env[k] !== undefined && env[k] !== '')
@@ -356,12 +502,21 @@
                 if (lines.length > 0) {
                     html += `
                         <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.15);
-                            max-height:180px;overflow-y:auto;font-size:12px;line-height:1.9;">
+                            max-height:160px;overflow-y:auto;font-size:14px;line-height:1.9;">
                             ${lines.join('')}
                         </div>`;
                 }
             }
-
+            // ★ 战略面板入口
+            if (window.StrategyManager) {
+                html += `
+                    <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.15);">
+                        <button class="cw-ws-btn cw-ws-btn-wide"
+                            onclick="StrategyUIManager.open()">
+                            🗺️ 战略面板
+                        </button>
+                    </div>`;
+            }
             el.innerHTML = html;
         },
 
@@ -450,16 +605,16 @@
             SaveManager.save();
         },
         // ==================== 进入按钮（从 index.js 迁入）====================
-// 说明：按钮的锚点层用最高 z-index，保证在 ST 聊天界面里始终可点。
-// 进入 CinemaWorld 后隐藏，退出后恢复。
-createEnterButton() {
-    // 已有就不重复创建
-    if (document.getElementById('cinemaworld-enter-wrapper')) return;
+        // 说明：按钮的锚点层用最高 z-index，保证在 ST 聊天界面里始终可点。
+        // 进入 CinemaWorld 后隐藏，退出后恢复。
+        createEnterButton() {
+            // 已有就不重复创建
+            if (document.getElementById('cinemaworld-enter-wrapper')) return;
 
-    // ★ 锚点层
-    const wrapper = document.createElement('div');
-    wrapper.id = 'cinemaworld-enter-wrapper';
-    wrapper.style.cssText = `
+            // ★ 锚点层
+            const wrapper = document.createElement('div');
+            wrapper.id = 'cinemaworld-enter-wrapper';
+            wrapper.style.cssText = `
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
@@ -476,12 +631,12 @@ createEnterButton() {
         overflow: visible !important;
     `;
 
-    // ★ 按钮
-    const btn = document.createElement('button');
-    btn.id = 'cinemaworld-enter-btn';
-    btn.textContent = '🎬';
-    btn.title = '进入 CinemaWorld';
-    btn.style.cssText = `
+            // ★ 按钮
+            const btn = document.createElement('button');
+            btn.id = 'cinemaworld-enter-btn';
+            btn.textContent = '🎬';
+            btn.title = '进入 CinemaWorld';
+            btn.style.cssText = `
         position: absolute !important;
         right: max(20px, env(safe-area-inset-right, 20px)) !important;
         bottom: max(20px, env(safe-area-inset-bottom, 20px)) !important;
@@ -508,30 +663,30 @@ createEnterButton() {
         touch-action: manipulation !important;
     `;
 
-    // ★ 点击：进入 CinemaWorld
-    btn.addEventListener('click', () => {
-        this.enterCinemaWorld();
-    });
+            // ★ 点击：进入 CinemaWorld
+            btn.addEventListener('click', () => {
+                this.enterCinemaWorld();
+            });
 
-    wrapper.appendChild(btn);
-    document.body.appendChild(wrapper);
-},
+            wrapper.appendChild(btn);
+            document.body.appendChild(wrapper);
+        },
 
-destroyEnterButton() {
-    const wrapper = document.getElementById('cinemaworld-enter-wrapper');
-    if (wrapper) wrapper.remove();
-},
+        destroyEnterButton() {
+            const wrapper = document.getElementById('cinemaworld-enter-wrapper');
+            if (wrapper) wrapper.remove();
+        },
 
-// 显示/隐藏进入按钮（不改 DOM，只切显隐）
-setEnterButtonVisible(visible) {
-    const wrapper = document.getElementById('cinemaworld-enter-wrapper');
-    if (!wrapper) return;
-    wrapper.style.setProperty('display', visible ? '' : 'none', 'important');
-},
+        // 显示/隐藏进入按钮（不改 DOM，只切显隐）
+        setEnterButtonVisible(visible) {
+            const wrapper = document.getElementById('cinemaworld-enter-wrapper');
+            if (!wrapper) return;
+            wrapper.style.setProperty('display', visible ? '' : 'none', 'important');
+        },
         exitCinemaWorld() {
             document.getElementById('cinemaworld-container').classList.remove('active');
             MusicManager.setEnabled(false);   // ★
-            this.createEnterButton();  
+            this.createEnterButton();
             SaveManager.save();
         },
 
@@ -600,16 +755,16 @@ setEnterButtonVisible(visible) {
         parseScript(text) {
             const out = [];
             const rawLines = text.split('\n');
-        
+
             // ★ 预处理：合并"角色行 + 下一行以冒号开头"的跨行格式
             const mergedLines = [];
             for (let i = 0; i < rawLines.length; i++) {
                 const cur = rawLines[i].trim();
                 if (!cur) continue;
-        
+
                 // 当前行是【xxx】格式（角色行），且不含冒号
                 const isCharLine = /^【.+?】\s*$/.test(cur);
-        
+
                 if (isCharLine && i + 1 < rawLines.length) {
                     const next = rawLines[i + 1].trim();
                     // 下一行以冒号开头 → 合并
@@ -619,26 +774,26 @@ setEnterButtonVisible(visible) {
                         continue;
                     }
                 }
-        
+
                 mergedLines.push(cur);
             }
-        
+
             // ★ 正式解析（单行格式）
             for (const line of mergedLines) {
                 const m = line.match(/^【(.+?)】\s*[:：]\s*(.+)$/);
                 if (!m) continue;
-        
+
                 const meta = m[1].split('|').map(s => s.trim());
                 const name = meta[0] || '未知';
                 const vis = meta[1] || '显示';
                 const posStr = meta[2] || '中';
                 const extra = meta[3] || '';
                 const state = meta[4] || '';
-        
+
                 let pos = 'center';
                 if (posStr.includes('左')) pos = 'left';
                 else if (posStr.includes('右')) pos = 'right';
-        
+
                 out.push({
                     character: name,
                     visibility: vis.includes('隐藏') ? 'hidden' : 'visible',
@@ -655,7 +810,7 @@ setEnterButtonVisible(visible) {
             if (this.isPlaying) this.stop();
             this.dialogueQueue = [...dialogues];
             this.isPlaying = true;
-
+            await this._applyVNBackground();
             const playPromise = new Promise(resolve => { this._playResolve = resolve; });
 
             // ★ 隐藏场景立绘层
@@ -669,7 +824,18 @@ setEnterButtonVisible(visible) {
             this.playNext();
             await playPromise;
         },
-
+        async _applyVNBackground() {
+            const url = await this._getVNBackground();
+            if (!url) return;   // 没背景就不显示
+        
+            const el = document.getElementById('cinemaworld-vn-background');
+            if (!el) return;
+        
+            el.style.backgroundImage = `url('${url}')`;
+            el.classList.add('active');
+        
+            console.log('[VN] 已应用 VN 背景:', url.slice(0, 60));
+        },
         async playNext() {
             if (this.dialogueQueue.length === 0) {
                 await this.end();
@@ -874,6 +1040,7 @@ setEnterButtonVisible(visible) {
 
         async end() {
             this.isPlaying = false;
+            this._hideVNBackground();
             document.getElementById('cinemaworld-dialogue-box').classList.remove('active');
             await new Promise(r => setTimeout(r, 500));
             this.clearSprites();
@@ -887,7 +1054,79 @@ setEnterButtonVisible(visible) {
                 this._playResolve = null;
             }
         },
-
+        async _getVNBackground() {
+            const playMode = window.CinemaWorld?.worldState?.playMode;
+        
+            // ---------- 场景模式 ----------
+            if (playMode === 'scene') {
+                const scene = window.LocationModalManager?.currentLocation;
+                if (scene) {
+                    if (scene.generatedBackgroundId && window.BackgroundImageStore) {
+                        try {
+                            const rec = await window.BackgroundImageStore.get(scene.generatedBackgroundId);
+                            if (rec?.dataUrl) return rec.dataUrl;
+                        } catch (e) {}
+                    }
+                    if (scene.generatedBackground) return scene.generatedBackground;
+                    if (scene.background && window.BackgroundManager) {
+                        const url = await window.BackgroundManager.find(scene.background);
+                        if (url) return url;
+                    }
+                }
+                return null;
+            }
+        
+            // ---------- 地图模式 ----------
+            if (playMode === 'map') {
+                const map = window.MapLauncher?.getMap?.();
+        
+                // 1. 地图 AI 生成的背景
+                if (map) {
+                    if (map.generatedBackgroundId && window.BackgroundImageStore) {
+                        try {
+                            const rec = await window.BackgroundImageStore.get(map.generatedBackgroundId);
+                            if (rec?.dataUrl) return rec.dataUrl;
+                        } catch (e) {}
+                    }
+                    if (map.generatedBackground) return map.generatedBackground;
+                    if (map.background && window.BackgroundManager) {
+                        const url = await window.BackgroundManager.find(map.background);
+                        if (url) return url;
+                    }
+                }
+        
+                // ★ 兜底：用当前场景背景
+                const scene = window.LocationModalManager?.currentLocation;
+                if (scene) {
+                    console.log('[VN] 地图模式：兜底用场景背景', scene.name);
+                    if (scene.generatedBackgroundId && window.BackgroundImageStore) {
+                        try {
+                            const rec = await window.BackgroundImageStore.get(scene.generatedBackgroundId);
+                            if (rec?.dataUrl) return rec.dataUrl;
+                        } catch (e) {}
+                    }
+                    if (scene.generatedBackground) return scene.generatedBackground;
+                    if (scene.background && window.BackgroundManager) {
+                        const url = await window.BackgroundManager.find(scene.background);
+                        if (url) return url;
+                    }
+                }
+                return null;
+            }
+        
+            return null;
+        },
+        _hideVNBackground() {
+            const el = document.getElementById('cinemaworld-vn-background');
+            if (!el) return;
+            el.classList.remove('active');
+            // 等淡出后再清空 background-image
+            setTimeout(() => {
+                if (!el.classList.contains('active')) {
+                    el.style.backgroundImage = '';
+                }
+            }, 800);
+        },
         clearSprites() {
             document.querySelectorAll('.cinemaworld-sprite-slot').forEach(s => {
                 s.innerHTML = '';
@@ -898,14 +1137,13 @@ setEnterButtonVisible(visible) {
         // ★ 跳过整段 VN：立刻结束播放，resolve play()
         async skip() {
             if (!this.isPlaying) return;
-
             // 清空队列 + 停掉打字机
             this.dialogueQueue = [];
             if (this.typewriterTimer) {
                 clearTimeout(this.typewriterTimer);
                 this.typewriterTimer = null;
             }
-
+            this._hideVNBackground();
             // 直接走收尾流程（会 resolve _playResolve）
             await this.end();
 
@@ -914,6 +1152,7 @@ setEnterButtonVisible(visible) {
         stop() {
             this.dialogueQueue = [];
             this.isPlaying = false;
+            this._hideVNBackground();
             if (this.typewriterTimer) clearTimeout(this.typewriterTimer);
             if (this._playResolve) {
                 this._playResolve();
@@ -985,21 +1224,21 @@ setEnterButtonVisible(visible) {
                     </div>
                 </div>`;
         },
-        
+
         // ★ 游戏时间：优先读当前场景的 environmentData.时间
         //   没有则退化为"现实时间"
         getGameTime() {
             const scene = window.LocationModalManager?.currentLocation;
             const env = scene?.environmentData;
-        
+
             if (env && env._order && env._order.includes('时间')) {
                 const t = String(env['时间'] || '').trim();
                 if (t) return t;
             }
-        
+
             // 兜底：现实时间
             const now = new Date();
-            return `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         },
 
         // 主屏幕（应用网格）
@@ -1012,6 +1251,7 @@ setEnterButtonVisible(visible) {
                 { id: 'bond', icon: '💫', name: '羁绊', badge: 0 },
                 { id: 'contacts', icon: '💬', name: '通讯录', badge: unread },
                 { id: 'story', icon: '📖', name: '剧情', badge: 0 },
+                { id: 'quests', icon: '📜', name: '任务', badge: this._getQuestBadge() },   // ★ 加这一行
                 { id: 'bggen', icon: '🎨', name: '生图管理', badge: 0 },
                 { id: 'scene', icon: '📍', name: '地图', badge: 0 },
                 { id: 'bag', icon: '🎒', name: '背包', badge: 0 },
@@ -1108,16 +1348,184 @@ setEnterButtonVisible(visible) {
                 case 'story': return this.renderStoryApp();
                 case 'social': return SocialAppUI.render();
                 case 'bond': return BondUI.render();
+                case 'quests': return this.renderQuestApp();        // ★ 加这一行
                 case 'scene': return this.renderSceneApp();
                 case 'shop': return this.renderShopApp();
                 case 'bag': return this.renderBagApp();
-                case 'rules': return this.renderRulesApp();      // ★ 加这一行
+                case 'rules': return this.renderRulesApp();
                 case 'bggen': return BackgroundGenAppUI.render();
                 case 'settings': return this.renderSettingsApp();
                 default: return '<div style="padding:20px;color:#fff;">未知应用</div>';
             }
         },
+        _getQuestBadge() {
+            if (typeof window.MapQuestManager === 'undefined') return 0;
+            const ws = window.CinemaWorld?.worldState;
+            if (!ws?.quests) return 0;
 
+            // ★ 只统计"有进度变化"的活跃任务作为提醒
+            //   如果不想做提醒，直接返回 0
+            const active = Object.values(ws.quests)
+                .filter(q => q.status === 'active');
+            return active.length;
+        },
+        renderQuestApp() {
+            const ws = window.CinemaWorld?.worldState;
+            const quests = Object.values(ws?.quests || {});
+
+            // 顶部栏（返回 + 标题 + 清空）
+            const headerHTML = `
+                <div class="cw-phone-app-header" style="display:flex;align-items:center;gap:8px;">
+                    <button class="cw-phone-back" onclick="PhoneUIManager.goHome()">←</button>
+                    <span style="flex:1;">任务</span>
+                    ${quests.length > 0 ? `
+                        <button class="cw-phone-back"
+                            style="font-size:12px;padding:4px 10px;color:#d87d7d;"
+                            onclick="PhoneUIManager.confirmClearQuests()"
+                            title="清空所有任务">🗑️</button>
+                    ` : ''}
+                </div>`;
+
+            if (quests.length === 0) {
+                return `
+                    ${headerHTML}
+                    <div class="cw-phone-app-body" style="text-align:center;padding:60px 20px;">
+                        <div style="font-size:48px;margin-bottom:15px;">📜</div>
+                        <div style="color:#666;">还没有任何任务</div>
+                        <div style="font-size:12px;color:#555;margin-top:10px;">
+                            在地图上探索，任务会自动生成
+                        </div>
+                    </div>`;
+            }
+
+            const active = quests.filter(q => q.status === 'active');
+            const pending = quests.filter(q => q.status === 'pending');
+            const done = quests.filter(q => q.status === 'completed');
+
+            let html = headerHTML + `<div class="cw-phone-app-body">`;
+
+            // 分组标签
+            html += `
+                <div style="display:flex;gap:8px;margin-bottom:12px;font-size:11px;color:#888;">
+                    <span>进行中 ${active.length}</span>
+                    <span>·</span>
+                    <span>待解锁 ${pending.length}</span>
+                    <span>·</span>
+                    <span>已完成 ${done.length}</span>
+                </div>`;
+
+            if (active.length > 0) {
+                html += `<div style="font-size:12px;color:#7da8ff;margin-bottom:8px;font-weight:600;">进行中</div>`;
+                for (const q of active) html += this._renderQuestCard(q, 'active');
+            }
+            if (pending.length > 0) {
+                html += `<div style="font-size:12px;color:#888;margin:12px 0 8px;font-weight:600;">待解锁</div>`;
+                for (const q of pending) html += this._renderQuestCard(q, 'pending');
+            }
+            if (done.length > 0) {
+                html += `<div style="font-size:12px;color:#666;margin:12px 0 8px;font-weight:600;">已完成</div>`;
+                for (const q of done) html += this._renderQuestCard(q, 'done');
+            }
+
+            html += `</div>`;
+            return html;
+        },
+
+        _renderQuestCard(q, status) {
+            const need = q.target.count || 1;
+            const pct = Math.min(100, (q.current / need) * 100);
+            const isDone = status === 'done';
+            const isPending = status === 'pending';
+
+            const opacity = isDone ? '0.55' : isPending ? '0.45' : '1';
+            const borderColor = isDone
+                ? 'rgba(125,216,125,.25)'
+                : isPending
+                    ? 'rgba(255,255,255,.06)'
+                    : 'rgba(125,168,255,.3)';
+
+            const badge = isDone
+                ? '<span style="color:#7dd87d;font-size:10px;">✓ 已完成</span>'
+                : isPending
+                    ? '<span style="color:#888;font-size:10px;">🔒 待解锁</span>'
+                    : '';
+
+            const showProgress = !isDone && !isPending
+                && q.progressType !== 'explore'
+                && need > 1;
+
+            return `
+                <div style="padding:12px 14px;margin-bottom:8px;
+                    background:rgba(255,255,255,.04);
+                    border:1px solid ${borderColor};
+                    border-radius:10px;opacity:${opacity};">
+        
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                        <div style="font-size:22px;flex-shrink:0;">${q.emoji}</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:13px;color:#fff;font-weight:600;
+                                display:flex;align-items:center;gap:6px;">
+                                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    ${q.title}
+                                </span>
+                                ${badge}
+                            </div>
+                            <div style="font-size:11px;color:#888;margin-top:3px;
+                                overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                ${q.description || ''}
+                            </div>
+                        </div>
+                    </div>
+        
+                    ${showProgress ? `
+                        <div style="height:4px;background:rgba(255,255,255,.1);
+                            border-radius:2px;overflow:hidden;margin-top:6px;">
+                            <div style="width:${pct}%;height:100%;
+                                background:linear-gradient(90deg,#7da8ff,#a8c4ff);"></div>
+                        </div>
+                        <div style="font-size:10px;color:#666;margin-top:4px;text-align:right;">
+                            ${q.current}/${need}
+                        </div>
+                    ` : ''}
+        
+                    <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                        <button class="cw-phone-back"
+                            style="font-size:11px;padding:4px 10px;"
+                            onclick="PhoneUIManager.viewQuestDetail('${q.id}')">
+                            📋 详情
+                        </button>
+                    </div>
+                </div>`;
+        },
+        // 查看任务详情（模态框）
+        viewQuestDetail(questId) {
+            if (typeof window.MapQuestManager === 'undefined') return;
+
+            // 关掉手机（避免两个模态框叠加）
+            const wasOpen = this.isOpen;
+            this.close();
+
+            // 打开任务详情
+            window.MapQuestManager.openQuestDetail(questId);
+        },
+
+        // 确认清空
+        confirmClearQuests() {
+            if (typeof window.MapQuestManager === 'undefined') return;
+
+            const count = Object.keys(window.CinemaWorld?.worldState?.quests || {}).length;
+            if (count === 0) {
+                window.UIManager?.showText?.('没有任务可清空', 1500);
+                return;
+            }
+
+            if (!confirm(`确定清空全部 ${count} 个任务？\n\n此操作不可撤销。`)) return;
+
+            window.MapQuestManager.clearAllQuests();
+
+            // 刷新手机界面
+            this.render();
+        },
         // ========== 规则 App ==========
         renderRulesApp() {
             const rules = RuleEngine?.rules;
@@ -1165,26 +1573,26 @@ setEnterButtonVisible(visible) {
                     <div class="cw-phone-rule-section">
                         <div class="cw-phone-rule-section-title">触发规则</div>
                         ${rules.triggers.map(t => {
-                            const cond = t.condition.type === 'full' ? `${t.condition.barKey} 满`
-                                    : t.condition.type === 'empty' ? `${t.condition.barKey} 空`
-                                    : `${t.condition.barKey} ${t.condition.op} ${t.condition.value}`;
-                            const acts = t.actions.map(a => {
-                                if (a.type === 'attrChange') return `${a.target} ${a.op}${a.value}`;
-                                if (a.type === 'gainItem') return `获得 ${a.name}`;
-                                if (a.type === 'gainStatus') return `状态: ${a.name}`;
-                                if (a.type === 'triggerEvent') {
-                                    return a.detail ? `触发 ${a.name}（${a.detail}）` : `触发 ${a.name}`;
-                                }
-                                if (a.type === 'resetBar') return `${a.barKey} 归零`;
-                                return '';
-                            }).filter(Boolean).join('；');
-                            return `
+                    const cond = t.condition.type === 'full' ? `${t.condition.barKey} 满`
+                        : t.condition.type === 'empty' ? `${t.condition.barKey} 空`
+                            : `${t.condition.barKey} ${t.condition.op} ${t.condition.value}`;
+                    const acts = t.actions.map(a => {
+                        if (a.type === 'attrChange') return `${a.target} ${a.op}${a.value}`;
+                        if (a.type === 'gainItem') return `获得 ${a.name}`;
+                        if (a.type === 'gainStatus') return `状态: ${a.name}`;
+                        if (a.type === 'triggerEvent') {
+                            return a.detail ? `触发 ${a.name}（${a.detail}）` : `触发 ${a.name}`;
+                        }
+                        if (a.type === 'resetBar') return `${a.barKey} 归零`;
+                        return '';
+                    }).filter(Boolean).join('；');
+                    return `
                                 <div class="cw-phone-rule-trigger">
                                     <span class="cw-phone-rule-cond">${cond}</span>
                                     <span class="cw-phone-rule-arrow">→</span>
                                     <span class="cw-phone-rule-act">${acts}</span>
                                 </div>`;
-                        }).join('')}
+                }).join('')}
                     </div>`;
             }
 
@@ -1256,16 +1664,16 @@ setEnterButtonVisible(visible) {
             // ★ 筛选
             const filter = this._contactFilter || 'all';
             let filtered = friends;
-            if (filter === 'main')  filtered = friends.filter(f => f.role === 'main');
+            if (filter === 'main') filtered = friends.filter(f => f.role === 'main');
             if (filter === 'minor') filtered = friends.filter(f => f.role === 'minor');
-            if (filter === 'npc')   filtered = friends.filter(f => f.role === 'npc');
+            if (filter === 'npc') filtered = friends.filter(f => f.role === 'npc');
 
             // 计数
             const counts = {
-                all:   friends.length,
-                main:  friends.filter(f => f.role === 'main').length,
+                all: friends.length,
+                main: friends.filter(f => f.role === 'main').length,
                 minor: friends.filter(f => f.role === 'minor').length,
-                npc:   friends.filter(f => f.role === 'npc').length,
+                npc: friends.filter(f => f.role === 'npc').length,
             };
 
             // 筛选 tab
@@ -1325,7 +1733,7 @@ setEnterButtonVisible(visible) {
             const favPct = isNaN(fav) ? 0 : Math.min(100, fav);
             const state = SpriteManager.pickSpriteState(f);
             const spriteUrl = SpriteManager.getCachedSpriteWithState(f.name, state)
-                           || SpriteManager.getCachedSprite(f.name);
+                || SpriteManager.getCachedSprite(f.name);
             const avatarHTML = spriteUrl
                 ? `<img src="${spriteUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="${f.name}">`
                 : initial;
@@ -1343,8 +1751,8 @@ setEnterButtonVisible(visible) {
 
             // ★ 角色徽章
             const roleBadge = f.role === 'main' ? '⭐'
-                            : f.role === 'npc'  ? '🏷️'
-                            : '';
+                : f.role === 'npc' ? '🏷️'
+                    : '';
 
             return `
                 <div class="cw-contact-item" onclick="PhoneUIManager.viewFriend('${f.name.replace(/'/g, "\\'")}')">
@@ -1376,7 +1784,7 @@ setEnterButtonVisible(visible) {
             this.viewingFriend = name;
             this.render();
         },
-
+        
         renderFriendDetail(name) {
             const friend = this.getAllFriends().find(f => f.name === name);
             if (!friend) {
@@ -1384,13 +1792,20 @@ setEnterButtonVisible(visible) {
             }
 
             const initial = friend.name.charAt(0);
-            const isInCurrentScene = friend.lastScene === CinemaWorld.ui.currentLocation;
+            const isInCurrentScene = (() => {
+                const playMode = window.CinemaWorld?.worldState?.playMode;
+                if (playMode === 'map') {
+                    const map = window.MapLauncher?.getMap?.();
+                    return map && friend.lastScene === map.name;
+                }
+                return friend.lastScene === CinemaWorld.ui.currentLocation;
+            })();
             const role = friend.role || 'minor';
 
             // ★ 头像：优先用立绘
             const state = SpriteManager.pickSpriteState(friend);
             const spriteUrl = SpriteManager.getCachedSpriteWithState(friend.name, state)
-                           || SpriteManager.getCachedSprite(friend.name);
+                || SpriteManager.getCachedSprite(friend.name);
             const avatarHTML = spriteUrl
                 ? `<img src="${spriteUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="${friend.name}">`
                 : initial;
@@ -1426,9 +1841,9 @@ setEnterButtonVisible(visible) {
                             ${friend.gender ? `<span class="cw-friend-tag">${friend.gender}</span>` : ''}
                             ${friend.mood ? `<span class="cw-friend-tag">${friend.mood}</span>` : ''}
                             ${(friend.tags || []).map(t => {
-                                const name = typeof t === 'string' ? t : t.name;
-                                return `<span class="cw-friend-tag cw-friend-tag-special">${name}</span>`;
-                            }).join('')}
+                const name = typeof t === 'string' ? t : t.name;
+                return `<span class="cw-friend-tag cw-friend-tag-special">${name}</span>`;
+            }).join('')}
                         </div>
                     </div>
 
@@ -1450,8 +1865,8 @@ setEnterButtonVisible(visible) {
                         </div>
                         <div class="cw-role-hint">
                             ${role === 'main' ? '⭐ 主要角色会参与主线剧情，可远程登场。'
-                            : role === 'npc'  ? '🏷️ 路人是背景人物，不参与主线。'
-                            : '👤 次要角色只在自己场景出现，不主动参与主线。'}
+                    : role === 'npc' ? '🏷️ 路人是背景人物，不参与主线。'
+                        : '👤 次要角色只在自己场景出现，不主动参与主线。'}
                         </div>
                     </div>
 
@@ -1542,9 +1957,13 @@ setEnterButtonVisible(visible) {
                     <button class="cw-phone-back" onclick="PhoneUIManager.goHome()">←</button>
                     <span>地图</span>
                 </div>
-                <div class="cw-phone-app-body" style="text-align:center;padding:60px 20px;">
-                    <div style="font-size:48px;margin-bottom:15px;">📍</div>
-                    <div style="color:#666;">敬请期待</div>
+                <div class="cw-phone-app-body" style="text-align:center;padding:40px 20px;">
+                    <div style="font-size:48px;margin-bottom:15px;">🗺️</div>
+                    <div style="color:#888;margin-bottom:20px;">在 AI 生成的地图上自由移动</div>
+                    <button class="cw-phone-rule-btn primary"
+                        onclick="PhoneUIManager.close(); MapLauncher.open()">
+                        🗺️ 打开地图
+                    </button>
                 </div>`;
         },
         renderBagApp() {
@@ -1598,23 +2017,36 @@ setEnterButtonVisible(visible) {
 
         // 从手机界面直接发起交互
         async interactWithFriend(name) {
-            // 检查角色是否在当前场景
+            const playMode = window.CinemaWorld?.worldState?.playMode;
+            const record = window.CharacterRegistry.get(name);
+        
+            // ---------- 地图模式 + 地图 NPC ----------
+            if (playMode === 'map' && record?.source === 'map') {
+                const map = window.MapLauncher?.getMap?.();
+                const ent = map?.entities?.find(e =>
+                    e.kind === 'npc' && e.name === name
+                );
+                if (!ent) {
+                    await UIManager.showText(`${name} 不在当前地图上`, 2000);
+                    return;
+                }
+                this.close();
+                window.MapInteract?.talkTo?.(ent.id);
+                return;
+            }
+        
+            // ---------- 场景模式 ----------
             const scene = LocationModalManager.currentLocation;
             if (!scene) {
                 await UIManager.showText('你不在任何场景中', 2000);
                 return;
             }
-
             const charIndex = scene.sceneCharacters.findIndex(c => c.name === name);
             if (charIndex === -1) {
                 await UIManager.showText(`${name} 不在当前场景`, 2000);
                 return;
             }
-
-            // 关闭手机
             this.close();
-
-            // 调用现有人物交互
             CharacterInteractionManager.open(charIndex);
         },
 
@@ -1626,8 +2058,39 @@ setEnterButtonVisible(visible) {
 
         // ========== 数据 ==========
         getAllFriends() {
-            const all = CharacterRegistry.getAll();
-
+            const sceneChars = CharacterRegistry.getAll();
+            const playMode = window.CinemaWorld?.worldState?.playMode;
+            const map = playMode === 'map' ? window.MapLauncher?.getMap?.() : null;
+        
+            // ★ 地图 NPC 转成和 CharacterRegistry 一样的结构
+            const mapNpcs = [];
+            if (map?.entities) {
+                const seen = new Set(sceneChars.map(c => c.name));
+                for (const e of map.entities) {
+                    if (e.kind !== 'npc') continue;
+                    if (e.isPlayer) continue;
+                    if (!e._placed) continue;
+                    if (seen.has(e.name)) continue;   // 场景里已存在的同名角色不重复
+        
+                    mapNpcs.push({
+                        name: e.name,
+                        gender: e.meta?.gender || e.fields?.['性别'] || '',
+                        mood: e.meta?.mood || e.fields?.['心情'] || '',
+                        favorability: e.fields?.['好感度'] || '',
+                        status: e.status || '',
+                        description: e.description || '',
+                        tags: e.tags || [],
+                        role: 'npc',                       // 地图 NPC 默认当路人/次要
+                        lastScene: map.name,
+                        lastSeenAt: Date.now(),
+                        _source: 'map',
+                        _entityId: e.id,
+                    });
+                }
+            }
+        
+            const all = [...sceneChars, ...mapNpcs];
+        
             const history = CinemaWorld.worldState.interactions || [];
             const interactionMap = {};
             for (const rec of history) {
@@ -1636,12 +2099,11 @@ setEnterButtonVisible(visible) {
                     interactionMap[rec.target].push(rec);
                 }
             }
-
+        
             return all.map(f => ({
                 ...f,
                 interactions: interactionMap[f.name] || [],
             })).sort((a, b) => {
-                // 排序：主要 > 次要 > 路人，然后当前在场，然后好感度，最后最近见面
                 const roleOrder = { main: 0, minor: 1, npc: 2 };
                 const ra = roleOrder[a.role] ?? 1;
                 const rb = roleOrder[b.role] ?? 1;
@@ -1658,36 +2120,36 @@ setEnterButtonVisible(visible) {
         getClockTime() {
             const scene = window.LocationModalManager?.currentLocation;
             const env = scene?.environmentData;
-        
+
             if (env && env._order && env._order.includes('时间')) {
                 const t = String(env['时间'] || '').trim();
                 if (t) {
                     // 场景时间是 "清晨7:00" 这种描述 → 尝试抠出 HH:MM
                     const m = t.match(/(\d{1,2})[:：](\d{2})/);
-                    if (m) return `${String(m[1]).padStart(2,'0')}:${m[2]}`;
+                    if (m) return `${String(m[1]).padStart(2, '0')}:${m[2]}`;
                     // 抠不出来 → 直接显示原文（"清晨"、"黄昏"）
                     return t;
                 }
             }
-        
+
             const d = new Date();
-            return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         },
-        
+
         getDateString() {
             const scene = window.LocationModalManager?.currentLocation;
             const env = scene?.environmentData;
-        
+
             // 场景里有"日期"字段 → 优先用
             if (env && env._order && env._order.includes('日期')) {
                 const d = String(env['日期'] || '').trim();
                 if (d) return d;
             }
-        
+
             // 兜底：现实日期
             const d = new Date();
-            const weekdays = ['日','一','二','三','四','五','六'];
-            return `${d.getMonth()+1}月${d.getDate()}日 星期${weekdays[d.getDay()]}`;
+            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            return `${d.getMonth() + 1}月${d.getDate()}日 星期${weekdays[d.getDay()]}`;
         },
 
         // ========== 样式 ==========
@@ -1849,11 +2311,11 @@ ${input || '（玩家没有特别设定，请生成一个符合世界观、适�
 （除以上外，生成多个属性，格式：图标 名称：数值|描述）
 
 【物品栏】
-【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|其他]
 （生成 1-4 个物品）
 
 【装备栏】
-【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
+【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y|其他]
 （生成 0-2 个初始装备，符合玩家设定和世界观。没有就不写这一块）
 注意：
 1. 物品必须严格按上面的格式，方括号内字段用 | 分隔
@@ -1870,9 +2332,25 @@ ${input || '（玩家没有特别设定，请生成一个符合世界观、适�
     - 非属性字段（类型、状态、图标等）不会生效，只是展示
 5. 所有数值要符合当前世界状态和角色设定，数值要精确，不能有？，不明等等模糊的表述
 
+6.物品说明：效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
+
 【状态】
 （可以生成 0-3 个初始状态标签，如"轻伤"、"疲惫"，一行一个）
 【额外数据】
+金钱: X
 数据1: X
 数据2: Y
 （可选。用来记录玩法相关的数值，要符合背景还有剧情，如金钱、声望、罪孽...，
@@ -2019,7 +2497,7 @@ ${guide ? `用户的要求：${guide}` : '这是一个全新的世界，请创�
 *【场景名】*
 描述：(场景的详细描述)
 环境：(场景的环境特征)
-环境数据:[时间:具体时间|天气:具体天气|温度:具体温度|风力:具体风力|湿度:具体湿度|...]
+环境数据:[时间:HH:MM|日期:YYYY年MM月DD日|季节:X|天气:X|温度:X°C|湿度:X%|风力:X级|明日:X|...AI自定义字段]
 背景：(中文背景图片文件名)
 🎵 音乐：(中文背景音乐文件名)
 
@@ -2029,8 +2507,30 @@ ${guide ? `用户的要求：${guide}` : '这是一个全新的世界，请创�
 场景实体：
 - 【实体名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
 如果是物品(物品也是一种实体）：
-- 【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 - 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
+
+说明：
+物品：用于消耗、食用、携带、交互的普通物品。
+装备：能给玩家提供属性加成的物品（武器、护甲、饰品、工具等）。
+在物品字段基础上，额外写属性字段，格式为 键:值，根据玩家有的属性来写。
+例如 攻击:+X|防御:+Y|暴击:+X%|幸运:+X。
+玩家装备后属性会生效，脱下后失效
+
+效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
 
 ★ 特殊场景实体类型：
 以下类型有专用系统，必须严格使用对应字段：
@@ -2065,7 +2565,7 @@ ${guide ? `用户的要求：${guide}` : '这是一个全新的世界，请创�
 
 字段说明：
 0. ★ 环境数据必须用"键:值"格式，用 | 分隔。键名必须写出来，例如：
-[时间:具体时间|天气:具体天气|温度:具体温度|风力:具体风力|湿度:具体湿度|...]
+环境数据:[时间:HH:MM|日期:YYYY年MM月DD日|季节:X|天气:X|温度:X°C|湿度:X%|风力:X级|明日:X|...AI自定义字段]
 你可以根据背景和剧情自由添加任何键：时间、天气、温度、风力、湿度、能见度、
 季节、月相、潮汐、日期、声望……系统都能存能显。
 1. 描述：实体的外观、位置、给人的感觉（实体可以是物品、建筑、植物、家具、机关、载具、自然景观等任何东西）

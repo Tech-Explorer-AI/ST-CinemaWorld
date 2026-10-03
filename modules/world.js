@@ -13,12 +13,20 @@
     // ==================== 世界数据管理 ====================
     const WorldManager = {
         // 添加场景（唯一的添加入口）
-        addScene(text) {
+        addScene(text, options = {}) {
             const scene = this.parseScene(text);
             if (!scene.name) return null;
+
+            // ★ 允许调用方覆盖名字（用于地区 → 场景对齐）
+            if (options.renameTo) {
+                scene.name = options.renameTo;
+            }
+            if (options.regionId) {
+                scene.regionId = options.regionId;
+            }
+
             CinemaWorld.worldState.entities.push(scene);
 
-            // ★ 注册角色
             if (typeof CharacterRegistry !== 'undefined') {
                 CharacterRegistry.syncFromScene(scene);
             }
@@ -26,7 +34,32 @@
             this.addToNarrativeLog(`[创建场景] ${scene.name}`);
             return scene;
         },
+        // WorldManager 里加
+        getMap(name) {
+            const ws = window.CinemaWorld?.worldState;
+            if (!ws?.maps) return null;
+            return ws.maps[name] || null;
+        },
 
+        setMap(map) {
+            if (!map || !map.name) return null;
+            const ws = window.CinemaWorld.worldState;
+            ws.maps = ws.maps || {};
+            ws.maps[map.name] = map;
+            ws.currentMapName = map.name;
+            return map;
+        },
+
+        getAllMaps() {
+            const ws = window.CinemaWorld?.worldState;
+            return ws?.maps ? Object.values(ws.maps) : [];
+        },
+
+        removeMap(name) {
+            const ws = window.CinemaWorld?.worldState;
+            if (ws?.maps) delete ws.maps[name];
+            if (ws?.currentMapName === name) ws.currentMapName = null;
+        },
         // 解析场景文本
         // 格式：
         // 【场景名】
@@ -123,16 +156,21 @@
         },
 
         // ★ 把环境数据格式化成一行文本，供所有 prompt 复用
+        // world.js - WorldManager
         getEnvDataText(scene) {
+            // ★ 统一走 CWEnv：自动判断场景/地图
+            if (window.CWEnv?.getEnvDataText) {
+                return window.CWEnv.getEnvDataText(scene);
+            }
+            // 兜底（CWEnv 未加载时）
             const env = scene?.environmentData;
             if (!env || !env._order || env._order.length === 0) {
                 return '（暂无环境数据）';
             }
-            const text = env._order
+            return env._order
                 .filter(k => env[k] !== undefined && env[k] !== '')
                 .map(k => `${k}:${env[k]}`)
-                .join(' | ');
-            return text || '（暂无环境数据）';
+                .join(' | ') || '（暂无环境数据）';
         },
 
         // ★ 提取字符串里的第一个 emoji（含变体选择符、ZWJ、肤色、键帽等）
@@ -248,11 +286,11 @@
 
             const meta = metaMatch[1].split('|').map(s => s.trim());
 
-            ch.name         = stripPrefix(meta[0] || '', '名字', '姓名', 'name');
-            ch.gender       = stripPrefix(meta[1] || '', '性别', 'gender');
-            ch.mood         = stripPrefix(meta[2] || '', '心情', '情绪', 'mood');
+            ch.name = stripPrefix(meta[0] || '', '名字', '姓名', 'name');
+            ch.gender = stripPrefix(meta[1] || '', '性别', 'gender');
+            ch.mood = stripPrefix(meta[2] || '', '心情', '情绪', 'mood');
             ch.favorability = stripPrefix(meta[3] || '', '好感度', '好感', 'favorability', 'fav');
-            ch.status       = stripPrefix(meta[4] || '', '状态', 'status');
+            ch.status = stripPrefix(meta[4] || '', '状态', 'status');
 
             // 好感度只保留开头的数字
             if (ch.favorability) {
@@ -309,24 +347,22 @@
                 maxStack: null,
                 count: 1,
             };
-
+        
             // ========== 名字解析 ==========
             const nameMatch = text.match(/^【(.+?)】/);
             if (nameMatch) {
                 const nameParts = nameMatch[1].split('|').map(s => s.trim());
                 it.name = nameParts[0] || '';
-
+        
                 if (nameParts.length > 1) {
                     const extraParts = nameParts.slice(1);
                     let iconFromName = null;
                     const restParts = [];
-
+        
                     for (const v of extraParts) {
                         if (!v) continue;
-                        // 第一个纯 emoji → 当图标
                         if (!iconFromName) {
                             const emoji = this._extractEmoji(v);
-                            // ★ 只有当整段 v 就是一个 emoji 时才当图标，避免误吞名字
                             if (emoji && v.replace(emoji, '').trim() === '') {
                                 iconFromName = emoji;
                                 continue;
@@ -334,104 +370,131 @@
                         }
                         restParts.push(v);
                     }
-
+        
                     if (iconFromName) it.icon = iconFromName;
-
+        
                     restParts.forEach((v, i) => {
                         it.fields[`_pos${i + 1}`] = v;
                     });
                 }
             }
-
+        
             const afterName = nameMatch
                 ? text.substring(nameMatch[0].length).replace(/^[：:]\s*/, '')
                 : text;
-
+        
             // ========== 方括号字段解析 ==========
             const bracketMatch = afterName.match(/^([\s\S]*?)\s*[\[【]([^\]】]+)[\]】]\s*$/);
-
+        
             if (bracketMatch) {
                 const descPart = bracketMatch[1].trim();
                 const fields = bracketMatch[2].split('|').map(s => s.trim());
-
+        
                 it.description = descPart;
-
+        
+                // ★ 容器键名单：值本身是 "键:值" 结构，需要二次拆分
+                const AGGREGATE_KEYS = ['属性', '加成', '效果数值', '数值', '加成属性'];
+        
                 fields.forEach((f, i) => {
                     if (!f) return;
                     const kv = f.match(/^(.+?)[:：]\s*(.+)$/);
                     if (kv) {
                         const key = kv[1].trim();
                         const value = kv[2].trim();
-                        it.fields[key] = value;
-
-                        // 交互方式
-                        if (['交互', '交互方式', '互动', '互动方式', '操作', 'actions', 'interactions'].includes(key)) {
-                            it.interactions = this._parseInteractions(value);
-                        }
-
-                        if (key === '状态') it.status = value;
-                        if (key === '功能') it.effect = value;
-                        if (key === '可堆叠') {
-                            if (/^(否|不可|false|no)$/i.test(value)) it.stackable = false;
-                            else if (/^(是|可|true|yes)$/i.test(value)) it.stackable = true;
-                            else {
+        
+                        // ★ 容器键重复出现 → 用 \u0001 拼接，稍后一次性拆
+                        //   非容器键重复出现 → 保持覆盖（向后兼容旧行为，下游没准备好吃数组）
+                        const isAggregate = AGGREGATE_KEYS.includes(key)
+                            || /^属性\d+$/.test(key);
+        
+                        if (isAggregate && it.fields[key] !== undefined) {
+                            it.fields[key] = it.fields[key] + '\u0001' + value;
+                        } else if (isAggregate) {
+                            it.fields[key] = value;
+                        } else {
+                            // 非容器键：保持旧的覆盖语义（下游很多地方按单值处理）
+                            it.fields[key] = value;
+        
+                            // 交互方式
+                            if (['交互', '交互方式', '互动', '互动方式', '操作', 'actions', 'interactions'].includes(key)) {
+                                it.interactions = this._parseInteractions(value);
+                            }
+                            if (key === '状态') it.status = value;
+                            if (key === '功能') it.effect = value;
+                            if (key === '可堆叠') {
+                                if (/^(否|不可|false|no)$/i.test(value)) it.stackable = false;
+                                else if (/^(是|可|true|yes)$/i.test(value)) it.stackable = true;
+                                else {
+                                    const n = parseInt(value);
+                                    if (!isNaN(n) && n > 1) { it.stackable = true; it.maxStack = n; }
+                                }
+                            }
+                            if (key === '数量') {
                                 const n = parseInt(value);
-                                if (!isNaN(n) && n > 1) { it.stackable = true; it.maxStack = n; }
+                                if (!isNaN(n) && n > 0) it.count = n;
+                            }
+                            if (key === '类型') it.type = value;
+                            if (key === '图标' || key === 'icon') {
+                                const icon = this._extractEmoji(value);
+                                if (icon) it.icon = icon;
                             }
                         }
-                        if (key === '数量') {
-                            const n = parseInt(value);
-                            if (!isNaN(n) && n > 0) it.count = n;
-                        }
-                        if (key === '类型') it.type = value;
-                        if (key === '图标' || key === 'icon') {
-                            const icon = this._extractEmoji(value);
-                            if (icon) it.icon = icon;
-                        }
                     } else {
+                        // ★ 旧容错：裸词进 _posN
                         it.fields[`_pos${i + 1}`] = f;
                         if (i === 0 && !it.status) it.status = f;
                     }
                 });
-
+        
                 const descEmoji = this._extractEmoji(it.description);
                 if (descEmoji && it.icon === '📦') it.icon = descEmoji;
-
+        
                 // ★ 统一拆容器字段
                 this._expandAggregateFields(it);
                 return it;
             }
-
+        
             // ========== 没方括号的兜底 ==========
             it.description = afterName.trim();
             const emoji = this._extractEmoji(it.name) || this._extractEmoji(it.description);
             if (emoji) it.icon = emoji;
-
-            // ★ 统一拆容器字段
+        
             this._expandAggregateFields(it);
             return it;
         },
-
+        
         // ★ 拆分 AI 塞进一个字段的多个属性
-        // 处理 "属性:体力:+80、攻击:+5、暴击:+10%" 这种
+        // 处理：
+        //   旧格式 "属性:体力:+80、攻击:+5、暴击:+10%"
+        //   新格式 "属性:攻击:+420\u0001暴击:+8%\u0001意志:+2"
         _expandAggregateFields(it) {
             const AGGREGATE_KEYS = ['属性', '加成', '效果数值', '数值', '加成属性'];
             let changed = false;
-
-            for (const aggKey of AGGREGATE_KEYS) {
+        
+            // ★ 兼容 "属性"、"属性1"、"属性2"…
+            const keysToProcess = [...AGGREGATE_KEYS];
+            for (const k of Object.keys(it.fields)) {
+                if (/^属性\d+$/.test(k) && !keysToProcess.includes(k)) {
+                    keysToProcess.push(k);
+                }
+            }
+        
+            for (const aggKey of keysToProcess) {
                 const raw = it.fields[aggKey];
                 if (raw === undefined) continue;
-
+        
                 delete it.fields[aggKey];
                 changed = true;
-
+        
+                // ★ 先按 \u0001 拆（多个同名键拼接），
+                //   再按常见的多值分隔符拆（一个值里塞了多个属性）
                 const parts = String(raw)
-                    .split(/[、,，;；|]/)
+                    .split('\u0001')
+                    .flatMap(seg => seg.split(/[、,，;；|]/))
                     .map(s => s.trim())
                     .filter(Boolean);
-
+        
                 for (const part of parts) {
-                    // 去掉开头可能的 "-" 或 "•"
                     const clean = part.replace(/^[-•·]\s*/, '').trim();
                     const kv = clean.match(/^(.+?)[:：]\s*(.+)$/);
                     if (kv) {
@@ -440,7 +503,7 @@
                         if (it.fields[k] === undefined) {
                             it.fields[k] = v;
                         } else {
-                            // 已存在 → 尝试数值叠加
+                            // 已存在 → 数值叠加
                             const oldStr = String(it.fields[k]);
                             const oldNum = parseFloat(oldStr.replace(/[^\d.\-+]/g, ''));
                             const newNum = parseFloat(v.replace(/[^\d.\-+]/g, ''));
@@ -449,13 +512,13 @@
                                 const sum = oldNum + newNum;
                                 it.fields[k] = `${sum >= 0 ? '+' : ''}${sum}${unit}`;
                             }
-                            // 非数值 → 跳过（保留原值）
+                            // 非数值 → 保留原值
                         }
                     }
-                    // 裸词 → 跳过（不写入，避免污染）
+                    // 裸词 → 跳过
                 }
             }
-
+        
             return changed;
         },
 
@@ -636,20 +699,23 @@
             './music/',
         ],
         cache: {},
-    
+
         // 场景音乐（底层）
         baseMusic: null,
+
+        // ★ 新增：地图音乐
+        mapMusic: null,
         // ★ 改成按 scope 存储的 override 集合
         //   { "story": "剧情曲", "battle": "战斗曲" }
         overrideScopes: {},
         // 当前生效的 override 曲名（缓存，避免每次重算）
         _currentOverride: null,
-    
+
         currentMusic: null,
         volume: 0.5,
         audio: null,
         ready: false,
-    
+
         init() {
             if (!this.audio) {
                 this.audio = new Audio();
@@ -659,7 +725,7 @@
             const unlock = () => {
                 this.ready = true;
                 if (this.enabled && this.currentMusic && this.audio.paused) {
-                    this.audio.play().catch(() => {});
+                    this.audio.play().catch(() => { });
                 }
                 document.removeEventListener('click', unlock);
                 document.removeEventListener('keydown', unlock);
@@ -667,13 +733,13 @@
             document.addEventListener('click', unlock);
             document.addEventListener('keydown', unlock);
         },
-    
+
         setEnabled(on) {
             this.enabled = !!on;
             if (this.enabled) {
                 if (this.currentMusic) {
                     if (this.audio && this.audio.paused && this.ready) {
-                        this.audio.play().catch(() => {});
+                        this.audio.play().catch(() => { });
                     }
                 } else {
                     this._playEffective();
@@ -682,7 +748,7 @@
                 if (this.audio) this.audio.pause();
             }
         },
-    
+
         // ============ 路径查找 ============
         async find(name) {
             if (!name) return null;
@@ -700,7 +766,7 @@
             this.cache[name] = null;
             return null;
         },
-    
+
         exists(url) {
             return new Promise(resolve => {
                 fetch(url, { method: 'HEAD' })
@@ -708,14 +774,18 @@
                     .catch(() => resolve(false));
             });
         },
-    
+
         // ============ 场景音乐 ============
         async setSceneMusic(name) {
             this.baseMusic = name;
             // 场景音乐变了，重新算一次"有效曲目"
             await this._playEffective();
         },
-    
+        // ============ 地图音乐 ============
+        async setMapMusic(name) {
+            this.mapMusic = name;
+            await this._playEffective();
+        },
         // ============ 作用域 override（新 API）============
         /**
          * 设置一个作用域的 override
@@ -731,7 +801,7 @@
             }
             await this._playEffective();
         },
-    
+
         /**
          * 清除某个作用域的 override
          * @param {string} scope
@@ -741,7 +811,7 @@
             delete this.overrideScopes[scope];
             await this._playEffective();
         },
-    
+
         /**
          * 清除所有 override（慎用，用来兜底）
          */
@@ -749,28 +819,35 @@
             this.overrideScopes = {};
             await this._playEffective();
         },
-    
+
         // ============ 向后兼容（旧的 API）============
         async setOverrideMusic(name) {
             // 旧 API 映射到 'default' scope
             return this.setScopedMusic('default', name);
         },
-    
+
         async clearOverrideMusic() {
             return this.clearScopedMusic('default');
         },
-    
+
         // ============ 核心：算出应该播什么 ============
         _getEffectiveMusic() {
-            // 优先取最后一个 override（按插入顺序）
+            // 1. override 优先（剧情、战斗等）
             const scopes = Object.keys(this.overrideScopes);
             if (scopes.length > 0) {
                 const lastScope = scopes[scopes.length - 1];
                 return this.overrideScopes[lastScope];
             }
+
+            // 2. 按 playMode 决定
+            const playMode = window.CinemaWorld?.worldState?.playMode || 'scene';
+            if (playMode === 'map') {
+                // 地图模式：优先地图音乐，没有则回退场景音乐
+                return this.mapMusic || this.baseMusic;
+            }
             return this.baseMusic;
         },
-    
+
         async _playEffective() {
             const target = this._getEffectiveMusic();
             this._currentOverride = target;
@@ -780,16 +857,16 @@
                 this.stop();
             }
         },
-    
+
         // ============ 播放 ============
         async play(name) {
             if (!name) return this.stop();
-    
+
             // 相同曲目正在播 → 跳过
             if (this.currentMusic === name && this.audio && !this.audio.paused) {
                 return;
             }
-    
+
             const url = await this.find(name);
             if (!url) {
                 console.log(`[CinemaWorld] 未找到音乐: ${name}`);
@@ -797,15 +874,15 @@
                 this.currentMusic = name;
                 return;
             }
-    
+
             this.currentMusic = name;
             this.audio.src = url;
-    
+
             if (!this.enabled) {
                 console.log(`[CinemaWorld] 音乐已准备（插件未激活）: ${name}`);
                 return;
             }
-    
+
             if (this.ready) {
                 try {
                     await this.audio.play();
@@ -817,7 +894,7 @@
                 console.log(`[CinemaWorld] 音乐已准备（等待用户交互）: ${name}`);
             }
         },
-    
+
         stop() {
             if (this.audio) {
                 this.audio.pause();
@@ -825,23 +902,29 @@
             }
             this.currentMusic = null;
         },
-    
+
         setVolume(v) {
             this.volume = Math.max(0, Math.min(1, v));
             if (this.audio) this.audio.volume = this.volume;
         },
-    
+
         // ============ 音乐标记解析 ============
         parseMusicMarkers(text) {
             const markers = [];
-            const regex = /🎵\s*音乐[:：]\s*(.+)/g;
+            // 匹配多种格式：
+            // 🎵 音乐: xxx
+            // 音乐: xxx
+            // 🎵音乐：xxx
+            // 【音乐】xxx
+            const regex = /(?:🎵\s*)?(?:音乐|BGM|bgm|背景音乐)\s*[:：]\s*(.+)/g;
             let m;
             while ((m = regex.exec(text)) !== null) {
-                markers.push(m[1].trim());
+                const name = m[1].trim();
+                if (name && !markers.includes(name)) markers.push(name);
             }
             return markers;
         },
-    
+
         async applyMusicMarker(text) {
             const markers = this.parseMusicMarkers(text);
             if (markers.length > 0) {
@@ -871,7 +954,7 @@
             './images/玩家/',
         ],
 
-        extensions: ['png', 'webp', 'jpg', 'jpeg'],
+        extensions: ['png', 'webp',],
         randomRange: { min: 1, max: 200 },
         missLimit: 3,
 
@@ -1020,7 +1103,7 @@
             for (const char of (scene.sceneCharacters || [])) {
                 const state = this.pickSpriteState(char);
                 window.SceneSpriteLayerManager.refreshSpriteFor(char.name, state)
-                    .catch(() => {});
+                    .catch(() => { });
             }
         },
         // ★ 决定"这一刻该用哪个状态"
@@ -1120,7 +1203,7 @@
         async getPlayerAvatar() {
             if (this.playerAvatar !== undefined) return this.playerAvatar;
             this.playerAvatar = await this.findPlayerFile('头像')
-                             || await this.findPlayerFile('avatar');
+                || await this.findPlayerFile('avatar');
             if (this.playerAvatar) {
                 console.log(`[CinemaWorld] 玩家头像: ${this.playerAvatar}`);
             }
@@ -1159,7 +1242,7 @@
             return await this.get(name, gender);
         },
 
-                // 精确匹配（支持状态子目录）
+        // 精确匹配（支持状态子目录）
         // 查找顺序：
         //   base/性别/名字/状态.ext      ← 新结构
         //   base/性别/名字/默认.ext
@@ -1302,39 +1385,39 @@
             const stdState = this._normalizeState(state);
             const key = `${name}_${gender}_${stdState}`;
             if (key in this.cache) return this.cache[key];
-        
+
             // 玩家特殊处理
             if (['玩家', '我', '主人公', 'player'].includes(name)) {
                 const url = await this.getPlayerSpriteState(stdState);
                 this.cache[key] = url;
                 return url;
             }
-        
+
             // ★ 判定角色类型（首次调用时探测一次，之后走缓存）
             const charType = await this._detectCharacterType(name, gender);
-        
+
             // ★ 随机池角色：只有一张图，任何状态都返回它
             if (charType === 'random') {
                 const url = CinemaWorld.worldState.spriteAssignments?.[name] || null;
                 this.cache[key] = url;
                 return url;
             }
-        
+
             // ★ 无立绘
             if (charType === 'none') {
                 this.cache[key] = null;
                 return null;
             }
-        
+
             // ★ 专属立绘：走原有的状态检索
             // 1. 精确匹配（带状态 fallback）
             let url = await this.findExact(name, gender, stdState);
-        
+
             // 2. 非默认状态找不到 → 退回默认
             if (!url && stdState !== '默认') {
                 url = await this.get(name, gender, '默认');
             }
-        
+
             this.cache[key] = url;
             return url;
         },
@@ -1357,21 +1440,21 @@
         getCachedSpriteWithState(name, state = '默认') {
             const stdState = this._normalizeState(state);
             const prefix = `${name}_`;
-        
+
             // ★ 随机池角色：任何状态都用默认那张
             if (this._characterType[name] === 'random') {
                 return CinemaWorld.worldState.spriteAssignments?.[name]
                     || this.characterSpriteMap[name]
                     || null;
             }
-        
+
             // 1. 精确 key
             for (const key in this.cache) {
                 if (key.startsWith(prefix) && key.endsWith(`_${stdState}`)) {
                     return this.cache[key];
                 }
             }
-        
+
             // 2. 默认状态兜底
             if (stdState !== '默认') {
                 for (const key in this.cache) {
@@ -1380,7 +1463,7 @@
                     }
                 }
             }
-        
+
             // 3. 旧映射表兜底
             return this.characterSpriteMap[name] || null;
         },
@@ -1389,7 +1472,7 @@
         async ensureSpriteWithState(name, gender, state = '默认') {
             const stdState = this._normalizeState(state);
             const url = await this.get(name, gender, stdState);
-        
+
             if (stdState === '默认' && url) {
                 this.characterSpriteMap[name] = url;
             }
@@ -1420,7 +1503,7 @@
                     const url = await this.get(ch.name, ch.gender, '默认');
                     if (url) this.characterSpriteMap[ch.name] = url;
                 }
-        
+
                 // ★ 2. 只有专属立绘才预热状态
                 const charType = this._characterType[ch.name];
                 if (charType === 'exact') {

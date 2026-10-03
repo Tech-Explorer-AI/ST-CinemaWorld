@@ -22,6 +22,12 @@
                 name: '',
 
                 entities: [],
+                maps: {},                      // 所有地图
+                currentMapName: null,          // 当前打开的地图
+                mainQuest: null,               // 主线
+                quests: {},                    // ★ 新增：地图任务表
+                _mapQuestGenerated: {},        // ★ 新增：每张地图是否已生成过任务 
+                playMode: 'scene', 
                 narrativeLog: [],
                 characters: {},
                 interactions: [],
@@ -32,7 +38,9 @@
                 combat: {
                     activeCombat: null,
                     battleRules: null,
-                    battlePackages: {},      // ★ 修复 1：战斗包缓存
+                    battlePackages: {},
+                    battleSkeletons: {},
+                    battleNarratives: {},
                     history: [],
                 },
                 bonds: {},
@@ -50,6 +58,21 @@
                         autoReplyChance: 0.3,
                     },
                 },
+                strategy: {
+                    factions: {},
+                    regions: {},
+                    actions: [],
+                    rules: { raw: '', parsed: null },
+                    turnCount: 0,
+                    turnLog: [],
+                    initialized: false,
+                    contextEnabled: true,
+                    autoTurnOnStory: true,
+                },
+
+                // ★ 新增：TTS 持久化状态
+                ttsVoiceAssign: { female: {}, male: {} },
+                ttsCharacterMode: {},
             };
         },
 
@@ -84,6 +107,7 @@
         // 序列化：把当前内存状态打包成存档对象
         // ============================================================
         serialize() {
+            this._syncCurrentMap();
             // 深拷贝，避免把运行时引用写进存档
             const safeClone = (obj) => {
                 try {
@@ -124,7 +148,31 @@
                 },
             };
         },
-
+        // ★ 新增方法
+        _syncCurrentMap() {
+            const map = window.MapLauncher?._map;
+            if (!map) return;
+            if (!window.CinemaWorld?.worldState) return;
+            if (!window.MapSchema?.serialize) return;
+        
+            try {
+                // 存玩家位置
+                if (window.MapCanvas?.player) {
+                    map._playerPos = {
+                        x: window.MapCanvas.player.x,
+                        y: window.MapCanvas.player.y,
+                    };
+                }
+        
+                const serialized = window.MapSchema.serialize(map);
+                const ws = window.CinemaWorld.worldState;
+                ws.maps = ws.maps || {};
+                ws.maps[map.name] = serialized;
+                ws.currentMapName = map.name;
+            } catch (e) {
+                console.warn('[SaveManager] 地图同步失败:', e);
+            }
+        },
         // ============================================================
         // 版本迁移
         // ============================================================
@@ -213,6 +261,14 @@
                 name: typeof ws.name === 'string' ? ws.name : '',
 
                 entities: Array.isArray(ws.entities) ? ws.entities : [],
+
+                maps: (ws.maps && typeof ws.maps === 'object') ? ws.maps : {},
+                currentMapName: typeof ws.currentMapName === 'string' ? ws.currentMapName : null,
+                mainQuest: ws.mainQuest || null,
+                quests: (ws.quests && typeof ws.quests === 'object') ? ws.quests : {},                    // ★ 新增
+                _mapQuestGenerated: (ws._mapQuestGenerated && typeof ws._mapQuestGenerated === 'object')
+                    ? ws._mapQuestGenerated : {},                                                          // ★ 新增
+                playMode: typeof ws.playMode === 'string' ? ws.playMode : 'scene', 
                 narrativeLog: Array.isArray(ws.narrativeLog) ? ws.narrativeLog : [],
                 characters: (ws.characters && typeof ws.characters === 'object') ? ws.characters : {},
                 interactions: Array.isArray(ws.interactions) ? ws.interactions : [],
@@ -226,6 +282,25 @@
                 pendingEvents: Array.isArray(ws.pendingEvents) ? ws.pendingEvents : [],
                 pendingUpdates: Array.isArray(ws.pendingUpdates) ? ws.pendingUpdates : [],
                 bonds: this._normalizeBonds(ws.bonds), 
+                strategy: ws.strategy || {
+                    factions: {}, regions: {}, actions: [],
+                    rules: { raw: '', parsed: null },
+                    turnCount: 0, turnLog: [], initialized: false,
+                    contextEnabled: true,
+                    autoTurnOnStory: true,
+                },
+
+                // ★ 新增：TTS 持久化状态（老存档缺字段时补空对象）
+                ttsVoiceAssign: (ws.ttsVoiceAssign && typeof ws.ttsVoiceAssign === 'object')
+                    ? {
+                        female: (ws.ttsVoiceAssign.female && typeof ws.ttsVoiceAssign.female === 'object')
+                            ? ws.ttsVoiceAssign.female : {},
+                        male: (ws.ttsVoiceAssign.male && typeof ws.ttsVoiceAssign.male === 'object')
+                            ? ws.ttsVoiceAssign.male : {},
+                      }
+                    : { female: {}, male: {} },
+                ttsCharacterMode: (ws.ttsCharacterMode && typeof ws.ttsCharacterMode === 'object')
+                    ? ws.ttsCharacterMode : {},
             };
 
             // 补齐缺失的人物档案
@@ -452,13 +527,31 @@
 
         _normalizeCombat(raw) {
             if (!raw || typeof raw !== 'object') {
-                return { activeCombat: null, battleRules: null, battlePackages: {}, history: [] };
+                return {
+                    activeCombat: null,
+                    battleRules: null,
+                    battlePackages: {},
+                    battleSkeletons: {},
+                    battleNarratives: {},
+                    history: [],
+                };
             }
             return {
                 activeCombat: raw.activeCombat || null,
                 battleRules: raw.battleRules || null,
+        
+                // 旧：整包缓存
                 battlePackages: (raw.battlePackages && typeof raw.battlePackages === 'object')
                     ? raw.battlePackages : {},
+        
+                // ★ 新：战斗骨架（可复用）
+                battleSkeletons: (raw.battleSkeletons && typeof raw.battleSkeletons === 'object')
+                    ? raw.battleSkeletons : {},
+        
+                // ★ 新：战斗叙事
+                battleNarratives: (raw.battleNarratives && typeof raw.battleNarratives === 'object')
+                    ? raw.battleNarratives : {},
+        
                 history: Array.isArray(raw.history) ? raw.history : [],
             };
         },
@@ -594,15 +687,18 @@
                     MusicManager.cache = {};
                     MusicManager.currentMusic = null;
                     MusicManager.baseMusic = null;
-                    MusicManager.overrideMusic = null;
+                    MusicManager.mapMusic = null;         // ★ 加这一行
+                    MusicManager.overrideScopes = {};     // ★ 顺便修一下（原来是 overrideMusic，已经不用了）
                 }
-
+                
                 // ---------- 2. 应用 cinema ----------
                 CinemaWorld.worldState = data.cinema.worldState;
                 CinemaWorld.ui.currentLocation = data.cinema.ui.currentLocation;
                 CinemaWorld.currentAIChatName = data.cinema.currentAIChatName;
                 CinemaWorld.currentUserName = data.cinema.currentUserName;
 
+                // ★ 恢复地图
+                this._restoreMapFromState();    
                 // ---------- 3. 应用 player ----------
                 PlayerStateManager.player = data.player.data;
                 PlayerStateManager.displayedBars = data.player.displayedBars;
@@ -663,7 +759,30 @@
                 this._applying = false;
             }
         },
-
+        _restoreMapFromState() {
+            const ws = window.CinemaWorld?.worldState;
+            if (!ws?.currentMapName) return;
+            if (!window.MapSchema?.deserialize) return;
+            if (!window.MapLayout?.build) return;
+        
+            const data = ws.maps?.[ws.currentMapName];
+            if (!data) return;
+        
+            try {
+                const map = window.MapSchema.deserialize(data, window.WorldManager);
+                if (!map) return;
+        
+                // 重建网格
+                if (!map._generated) {
+                    window.MapLayout.build(map);
+                }
+        
+                window.MapLauncher._map = map;
+                console.log('[SaveManager] 地图已恢复:', map.name);
+            } catch (e) {
+                console.warn('[SaveManager] 地图恢复失败:', e);
+            }
+        },
         // ============================================================
         // 刷新全部 UI
         // ============================================================
@@ -736,7 +855,7 @@
             try {
                 const str = localStorage.getItem(this.SAVE_KEY);
                 if (!str) return false;
-
+        
                 const parsed = JSON.parse(str);
                 const migrated = this._migrate(parsed);
                 if (!migrated) {
@@ -745,7 +864,12 @@
                 }
                 const normalized = this._normalize(migrated);
                 this.apply(normalized);
-
+        
+                // ★ 兜底：如果 apply 里没恢复成功，再试一次
+                if (!window.MapLauncher._map && window.CinemaWorld.worldState?.currentMapName) {
+                    this._restoreMapFromState();
+                }
+        
                 console.log('[CinemaWorld] 存档已加载');
                 return true;
             } catch (e) {

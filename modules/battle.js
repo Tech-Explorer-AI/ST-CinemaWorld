@@ -98,7 +98,7 @@
     // ============================================================
     // 敌人数据转换
     // ============================================================
-        // ============================================================
+    // ============================================================
     // 敌人数据转换
     // ============================================================
     const EnemyBuilder = {
@@ -147,9 +147,9 @@
             }
 
             // ---------- 默认槽位 ----------
-            const attack  = this._pick(stats, ['攻击', '攻击力', '力量', '攻击强度'], 10);
+            const attack = this._pick(stats, ['攻击', '攻击力', '力量', '攻击强度'], 10);
             const defense = this._pick(stats, ['防御', '防御力', '护甲', '体质'], 5);
-            const speed   = this._pick(stats, ['敏捷', '速度', '先攻', '闪避'], 10);
+            const speed = this._pick(stats, ['敏捷', '速度', '先攻', '闪避'], 10);
 
             // ---------- 额外属性（UI 展示 + 公式引用）----------
             const extra = {};
@@ -357,14 +357,14 @@
         // ★ 类型对应图标
         _guessSkillIcon(type) {
             switch (type) {
-                case 'heal':   return '💚';
+                case 'heal': return '💚';
                 case 'defend': return '🛡';
                 case 'debuff': return '🌀';
-                case 'buff':   return '🔥';
-                case 'drain':  return '🩸';
+                case 'buff': return '🔥';
+                case 'drain': return '🩸';
                 case 'summon': return '👥';
-                case 'magic':  return '✨';
-                default:       return '⚔️';
+                case 'magic': return '✨';
+                default: return '⚔️';
             }
         },
 
@@ -530,10 +530,10 @@
                     if (!m) continue;
                     const key = m[1].trim();
                     const val = m[2].trim();
-                    if (/^攻击|attack$/i.test(key))   rules.attrMap.attack  = val;
+                    if (/^攻击|attack$/i.test(key)) rules.attrMap.attack = val;
                     else if (/^防御|defense$/i.test(key)) rules.attrMap.defense = val;
                     else if (/^敏捷|速度|speed$/i.test(key)) rules.attrMap.speed = val;
-                    else if (/^生命|HP$/i.test(key))      rules.attrMap.hp      = val;
+                    else if (/^生命|HP$/i.test(key)) rules.attrMap.hp = val;
                 }
             }
 
@@ -663,7 +663,7 @@
             playerCooldowns: {},
             enemyCooldowns: {},
         },
-
+        _onBattleEnd: null,
         startBattle(pkg, enemyItemName) {
             const scene = window.LocationModalManager.currentLocation;
             const player = PlayerStateManager.player;
@@ -688,15 +688,15 @@
                 log: [],
                 result: null,
                 package: {
-                    preScript:      pkg.sections['战前剧情'] || '',
-                    victoryScript:  pkg.sections['战后剧情·胜利'] || '',
-                    defeatScript:   pkg.sections['战后剧情·失败'] || '',
-                    rewards:        pkg.sections['战斗奖励'] || '',
-                    sceneUpdate:    pkg.sections['场景更新'] || '',
+                    preScript: pkg.sections['战前剧情'] || '',
+                    victoryScript: pkg.sections['战后剧情·胜利'] || '',
+                    defeatScript: pkg.sections['战后剧情·失败'] || '',
+                    rewards: pkg.sections['战斗奖励'] || '',
+                    sceneUpdate: pkg.sections['场景更新'] || '',
                     victorySummary: pkg.sections['胜利摘要'] || '',
-                    preMusic:       pkg.sections.__music?.战前音乐 || '',
-                    battleMusic:    pkg.sections.__music?.战中音乐 || '',
-                    postMusic:      pkg.sections.__music?.战后音乐 || '',
+                    preMusic: pkg.sections.__music?.战前音乐 || '',
+                    battleMusic: pkg.sections.__music?.战中音乐 || '',
+                    postMusic: pkg.sections.__music?.战后音乐 || '',
                 },
                 playerFirst,
             };
@@ -730,7 +730,9 @@
 
             this.log(`⚔️ 战斗开始！`);
             this.log(`先攻判定：${playerFirst ? '你先出手' : '敌人先出手'}`);
-
+            if (window.MapQuestManager) {
+                window.MapQuestManager.onEnemyKilled(combat.enemyItemName, 1);
+            }
             if (window.SaveManager) window.SaveManager.save();
             return combat;
         },
@@ -813,17 +815,17 @@
                 return dflt;
             };
 
-            const attackKey  = attrMap.attack  || '攻击';
+            const attackKey = attrMap.attack || '攻击';
             const defenseKey = attrMap.defense || '防御';
-            const speedKey   = attrMap.speed   || '敏捷';
+            const speedKey = attrMap.speed || '敏捷';
 
             const stats = {
                 name: player.name || '主人公',
                 hp,
-                attack:  findValue([attackKey, '攻击', '攻击力', '力量'], 10),
+                attack: findValue([attackKey, '攻击', '攻击力', '力量'], 10),
                 defense: findValue([defenseKey, '防御', '防御力', '护甲', '体质'], 5),
-                speed:   findValue([speedKey, '敏捷', '速度', '先攻'], 10),
-                critRate:   this._findCritRate(player, derived, attrContext, bonuses),
+                speed: findValue([speedKey, '敏捷', '速度', '先攻'], 10),
+                critRate: this._findCritRate(player, derived, attrContext, bonuses),
                 critDamage: this._findCritDamage(player, derived, attrContext, bonuses),
 
                 extra: allAttrs,
@@ -966,7 +968,7 @@
             const f = formula || rules.damageFormula;
 
             const attackerExtra = attackerStats.extra || {};
-            const targetExtra   = targetStats.extra   || {};
+            const targetExtra = targetStats.extra || {};
 
             // ---------- 构建 ctx（顺序同 _calcDamageDetailed）----------
             const ctx = {};
@@ -984,10 +986,10 @@
             ctx['敏捷'] = playerStats.speed;
             ctx['速度'] = playerStats.speed;
             ctx['生命'] = playerStats.hp?.max || 100;
-            ctx['attack']  = playerStats.attack;
+            ctx['attack'] = playerStats.attack;
             ctx['defense'] = enemyStats ? enemyStats.defense : 0; // ★
-            ctx['speed']   = playerStats.speed;
-            ctx['hp']      = playerStats.hp?.max || 100;
+            ctx['speed'] = playerStats.speed;
+            ctx['hp'] = playerStats.hp?.max || 100;
 
             ctx['敌人'] = new Proxy({}, {
                 get(_, p) {
@@ -1029,7 +1031,7 @@
             if (!action) return { error: '行动不存在' };
 
             const enemy = combat.enemies.find(e => e.id === targetId && e.isAlive)
-                       || combat.enemies.find(e => e.isAlive);
+                || combat.enemies.find(e => e.isAlive);
             if (!enemy) return { error: '没有可攻击的敌人' };
 
             const cd = this._runtime.playerCooldowns[actionId] || 0;
@@ -1086,199 +1088,199 @@
             return { ok: true };
         },
         // ★ 带详细过程的命中判定
-                // ★ 带详细过程的命中判定
-                _rollHitDetailed(attackerStats, targetStats) {
-                    const rules = this.getActive()?.rules || BattleRuleManager.DEFAULT_RULES;
-                    if (!rules.hitFormula) {
-                        return { hit: true, detail: '（必中）' };
+        // ★ 带详细过程的命中判定
+        _rollHitDetailed(attackerStats, targetStats) {
+            const rules = this.getActive()?.rules || BattleRuleManager.DEFAULT_RULES;
+            if (!rules.hitFormula) {
+                return { hit: true, detail: '（必中）' };
+            }
+
+            const atkSpeed = attackerStats.speed ?? 10;
+            const defSpeed = targetStats.speed ?? 10;
+
+            const attackerExtra = attackerStats.extra || {};
+            const targetExtra = targetStats.extra || {};
+
+            // ---------- 同 calcDamage 的 ctx 构建顺序 ----------
+            const ctx = {};
+            for (const [k, v] of Object.entries(attackerExtra)) ctx[k] = v;
+            for (const [k, v] of Object.entries(targetExtra)) {
+                if (ctx[k] === undefined) ctx[k] = v;
+            }
+            for (const [k, v] of Object.entries(attackerExtra)) ctx[`a_${k}`] = v;
+            for (const [k, v] of Object.entries(targetExtra)) ctx[`d_${k}`] = v;
+
+            // 默认槽位最后写入
+            ctx['攻击'] = attackerStats.attack;
+            ctx['防御'] = targetStats.defense;
+            ctx['敏捷'] = atkSpeed;
+            ctx['速度'] = atkSpeed;
+            ctx['生命'] = attackerStats.hp?.max || 100;
+            ctx['attack'] = attackerStats.attack;
+            ctx['defense'] = targetStats.defense;
+            ctx['speed'] = atkSpeed;
+            ctx['hp'] = attackerStats.hp?.max || 100;
+
+            ctx['敌人'] = new Proxy({}, {
+                get(_, p) {
+                    if (p in targetExtra) return targetExtra[p];
+                    if (p === '攻击') return targetStats.attack;
+                    if (p === '防御') return targetStats.defense;
+                    if (p === '敏捷' || p === '速度') return defSpeed;
+                    return 0;
+                }
+            });
+            ctx['我方'] = new Proxy({}, {
+                get(_, p) {
+                    if (p in attackerExtra) return attackerExtra[p];
+                    if (p === '攻击') return attackerStats.attack;
+                    if (p === '防御') return attackerStats.defense;
+                    if (p === '敏捷' || p === '速度') return atkSpeed;
+                    return 0;
+                }
+            });
+
+            let roll;
+            try {
+                roll = DiceEngine.roll(rules.hitFormula, ctx);
+            } catch (e) {
+                roll = 10;
+            }
+
+            const threshold = rules.hitThreshold + Math.floor((defSpeed - atkSpeed) / 2);
+            const hit = roll >= threshold;
+
+            const formulaDisplay = rules.hitFormula.replace(
+                /\{([^}]+)\}/g,
+                (_, key) => {
+                    if (key.includes('.')) {
+                        const [side, attr] = key.split('.');
+                        const obj = side === '敌人' ? ctx['敌人'] : ctx['我方'];
+                        return `${attr}(${obj[attr]})`;
                     }
-        
-                    const atkSpeed = attackerStats.speed ?? 10;
-                    const defSpeed = targetStats.speed ?? 10;
-        
-                    const attackerExtra = attackerStats.extra || {};
-                    const targetExtra   = targetStats.extra   || {};
-        
-                    // ---------- 同 calcDamage 的 ctx 构建顺序 ----------
-                    const ctx = {};
-                    for (const [k, v] of Object.entries(attackerExtra)) ctx[k] = v;
-                    for (const [k, v] of Object.entries(targetExtra)) {
-                        if (ctx[k] === undefined) ctx[k] = v;
-                    }
-                    for (const [k, v] of Object.entries(attackerExtra)) ctx[`a_${k}`] = v;
-                    for (const [k, v] of Object.entries(targetExtra)) ctx[`d_${k}`] = v;
-        
-                    // 默认槽位最后写入
-                    ctx['攻击'] = attackerStats.attack;
-                    ctx['防御'] = targetStats.defense;
-                    ctx['敏捷'] = atkSpeed;
-                    ctx['速度'] = atkSpeed;
-                    ctx['生命'] = attackerStats.hp?.max || 100;
-                    ctx['attack']  = attackerStats.attack;
-                    ctx['defense'] = targetStats.defense;
-                    ctx['speed']   = atkSpeed;
-                    ctx['hp']      = attackerStats.hp?.max || 100;
-        
-                    ctx['敌人'] = new Proxy({}, {
-                        get(_, p) {
-                            if (p in targetExtra) return targetExtra[p];
-                            if (p === '攻击') return targetStats.attack;
-                            if (p === '防御') return targetStats.defense;
-                            if (p === '敏捷' || p === '速度') return defSpeed;
-                            return 0;
-                        }
-                    });
-                    ctx['我方'] = new Proxy({}, {
-                        get(_, p) {
-                            if (p in attackerExtra) return attackerExtra[p];
-                            if (p === '攻击') return attackerStats.attack;
-                            if (p === '防御') return attackerStats.defense;
-                            if (p === '敏捷' || p === '速度') return atkSpeed;
-                            return 0;
-                        }
-                    });
-        
-                    let roll;
-                    try {
-                        roll = DiceEngine.roll(rules.hitFormula, ctx);
-                    } catch (e) {
-                        roll = 10;
-                    }
-        
-                    const threshold = rules.hitThreshold + Math.floor((defSpeed - atkSpeed) / 2);
-                    const hit = roll >= threshold;
-        
-                    const formulaDisplay = rules.hitFormula.replace(
-                        /\{([^}]+)\}/g,
-                        (_, key) => {
-                            if (key.includes('.')) {
-                                const [side, attr] = key.split('.');
-                                const obj = side === '敌人' ? ctx['敌人'] : ctx['我方'];
-                                return `${attr}(${obj[attr]})`;
-                            }
-                            const v = ctx[key];
-                            return `${key}(${v === undefined ? '?' : v})`;
-                        }
-                    );
-        
-                    return {
-                        hit,
-                        roll,
-                        threshold,
-                        detail: `${formulaDisplay} = ${roll} ${hit ? '≥' : '<'} ${threshold}，${hit ? '命中' : '闪避'}`,
-                    };
-                },
+                    const v = ctx[key];
+                    return `${key}(${v === undefined ? '?' : v})`;
+                }
+            );
+
+            return {
+                hit,
+                roll,
+                threshold,
+                detail: `${formulaDisplay} = ${roll} ${hit ? '≥' : '<'} ${threshold}，${hit ? '命中' : '闪避'}`,
+            };
+        },
         // ★ 带详细过程的伤害计算
-                // ★ 带详细过程的伤害计算
-                _calcDamageDetailed(formula, attackerStats, targetStats, isDefending = false) {
-                    const combat = this.getActive();
-                    const rules = combat?.rules || BattleRuleManager.DEFAULT_RULES;
-                    const f = formula || rules.damageFormula;
-        
-                    // ============================================================
-                    // 1. 先构建"额外属性池"（不含默认槽位）
-                    // ============================================================
-                    const attackerExtra = attackerStats.extra || {};
-                    const targetExtra   = targetStats.extra   || {};
-        
-                    // ============================================================
-                    // 2. 构建最终 ctx
-                    //    顺序（后面的覆盖前面的）：
-                    //      a. 额外属性（裸名）
-                    //      b. a_ / d_ 前缀版本
-                    //      c. 默认槽位（★ 最优先，绝不允许被覆盖）
-                    // ============================================================
-                    const ctx = {};
-        
-                    // a. 攻击方的额外属性（裸名）
-                    for (const [k, v] of Object.entries(attackerExtra)) {
-                        ctx[k] = v;
+        // ★ 带详细过程的伤害计算
+        _calcDamageDetailed(formula, attackerStats, targetStats, isDefending = false) {
+            const combat = this.getActive();
+            const rules = combat?.rules || BattleRuleManager.DEFAULT_RULES;
+            const f = formula || rules.damageFormula;
+
+            // ============================================================
+            // 1. 先构建"额外属性池"（不含默认槽位）
+            // ============================================================
+            const attackerExtra = attackerStats.extra || {};
+            const targetExtra = targetStats.extra || {};
+
+            // ============================================================
+            // 2. 构建最终 ctx
+            //    顺序（后面的覆盖前面的）：
+            //      a. 额外属性（裸名）
+            //      b. a_ / d_ 前缀版本
+            //      c. 默认槽位（★ 最优先，绝不允许被覆盖）
+            // ============================================================
+            const ctx = {};
+
+            // a. 攻击方的额外属性（裸名）
+            for (const [k, v] of Object.entries(attackerExtra)) {
+                ctx[k] = v;
+            }
+            // a2. 防御方的额外属性（裸名，会被攻击方同名覆盖）
+            for (const [k, v] of Object.entries(targetExtra)) {
+                if (ctx[k] === undefined) ctx[k] = v;
+            }
+
+            // b. a_ / d_ 前缀版本
+            for (const [k, v] of Object.entries(attackerExtra)) {
+                ctx[`a_${k}`] = v;
+            }
+            for (const [k, v] of Object.entries(targetExtra)) {
+                ctx[`d_${k}`] = v;
+            }
+
+            // c. ★ 默认槽位最后写入，永不被覆盖
+            ctx['攻击'] = attackerStats.attack;
+            ctx['防御'] = targetStats.defense;
+            ctx['敏捷'] = attackerStats.speed;
+            ctx['生命'] = attackerStats.hp?.max || 100;
+            ctx['attack'] = attackerStats.attack;
+            ctx['defense'] = targetStats.defense;
+            ctx['speed'] = attackerStats.speed;
+            ctx['hp'] = attackerStats.hp?.max || 100;
+
+            // ============================================================
+            // 3. 特殊命名空间
+            // ============================================================
+            ctx['敌人'] = new Proxy({}, {
+                get(_, p) {
+                    if (p in targetExtra) return targetExtra[p];
+                    if (p === '攻击') return targetStats.attack;
+                    if (p === '防御') return targetStats.defense;
+                    if (p === '敏捷') return targetStats.speed;
+                    if (p === '生命' || p === 'HP' || p === 'hp') {
+                        return targetStats.hp?.max || 100;
                     }
-                    // a2. 防御方的额外属性（裸名，会被攻击方同名覆盖）
-                    for (const [k, v] of Object.entries(targetExtra)) {
-                        if (ctx[k] === undefined) ctx[k] = v;
+                    return 0;
+                }
+            });
+            ctx['我方'] = new Proxy({}, {
+                get(_, p) {
+                    if (p in attackerExtra) return attackerExtra[p];
+                    if (p === '攻击') return attackerStats.attack;
+                    if (p === '防御') return attackerStats.defense;
+                    if (p === '敏捷') return attackerStats.speed;
+                    if (p === '生命' || p === 'HP' || p === 'hp') {
+                        return attackerStats.hp?.max || 100;
                     }
-        
-                    // b. a_ / d_ 前缀版本
-                    for (const [k, v] of Object.entries(attackerExtra)) {
-                        ctx[`a_${k}`] = v;
+                    return 0;
+                }
+            });
+
+            // ============================================================
+            // 4. 求值
+            // ============================================================
+            let value;
+            let detail;
+            try {
+                value = DiceEngine.roll(f, ctx);
+
+                // 公式展示：把 {属性} 替换成实际值
+                detail = f.replace(/\{([^}]+)\}/g, (_, key) => {
+                    if (key.includes('.')) {
+                        const [side, attr] = key.split('.');
+                        const obj = side === '敌人' ? ctx['敌人'] : ctx['我方'];
+                        return `${attr}(${obj[attr]})`;
                     }
-                    for (const [k, v] of Object.entries(targetExtra)) {
-                        ctx[`d_${k}`] = v;
-                    }
-        
-                    // c. ★ 默认槽位最后写入，永不被覆盖
-                    ctx['攻击'] = attackerStats.attack;
-                    ctx['防御'] = targetStats.defense;
-                    ctx['敏捷'] = attackerStats.speed;
-                    ctx['生命'] = attackerStats.hp?.max || 100;
-                    ctx['attack']  = attackerStats.attack;
-                    ctx['defense'] = targetStats.defense;
-                    ctx['speed']   = attackerStats.speed;
-                    ctx['hp']      = attackerStats.hp?.max || 100;
-        
-                    // ============================================================
-                    // 3. 特殊命名空间
-                    // ============================================================
-                    ctx['敌人'] = new Proxy({}, {
-                        get(_, p) {
-                            if (p in targetExtra) return targetExtra[p];
-                            if (p === '攻击') return targetStats.attack;
-                            if (p === '防御') return targetStats.defense;
-                            if (p === '敏捷') return targetStats.speed;
-                            if (p === '生命' || p === 'HP' || p === 'hp') {
-                                return targetStats.hp?.max || 100;
-                            }
-                            return 0;
-                        }
-                    });
-                    ctx['我方'] = new Proxy({}, {
-                        get(_, p) {
-                            if (p in attackerExtra) return attackerExtra[p];
-                            if (p === '攻击') return attackerStats.attack;
-                            if (p === '防御') return attackerStats.defense;
-                            if (p === '敏捷') return attackerStats.speed;
-                            if (p === '生命' || p === 'HP' || p === 'hp') {
-                                return attackerStats.hp?.max || 100;
-                            }
-                            return 0;
-                        }
-                    });
-        
-                    // ============================================================
-                    // 4. 求值
-                    // ============================================================
-                    let value;
-                    let detail;
-                    try {
-                        value = DiceEngine.roll(f, ctx);
-        
-                        // 公式展示：把 {属性} 替换成实际值
-                        detail = f.replace(/\{([^}]+)\}/g, (_, key) => {
-                            if (key.includes('.')) {
-                                const [side, attr] = key.split('.');
-                                const obj = side === '敌人' ? ctx['敌人'] : ctx['我方'];
-                                return `${attr}(${obj[attr]})`;
-                            }
-                            const v = ctx[key];
-                            return `${key}(${v === undefined ? '?' : v})`;
-                        });
-                        detail = `${detail} = ${value}`;
-                    } catch (e) {
-                        console.warn('[Battle] 伤害公式失败:', f, e);
-                        value = Math.max(1, (attackerStats.attack || 10) - (targetStats.defense || 0));
-                        detail = `（公式错误，回退默认 ${value}）`;
-                    }
-        
-                    value = Math.max(1, Math.round(value));
-        
-                    if (isDefending) {
-                        value = Math.max(1, Math.round(value * 0.5));
-                        detail += ` → 防御减伤 50% → ${value}`;
-                    }
-        
-                    return { value, detail };
-                },
+                    const v = ctx[key];
+                    return `${key}(${v === undefined ? '?' : v})`;
+                });
+                detail = `${detail} = ${value}`;
+            } catch (e) {
+                console.warn('[Battle] 伤害公式失败:', f, e);
+                value = Math.max(1, (attackerStats.attack || 10) - (targetStats.defense || 0));
+                detail = `（公式错误，回退默认 ${value}）`;
+            }
+
+            value = Math.max(1, Math.round(value));
+
+            if (isDefending) {
+                value = Math.max(1, Math.round(value * 0.5));
+                detail += ` → 防御减伤 50% → ${value}`;
+            }
+
+            return { value, detail };
+        },
         // ★ 应用技能的附加效果（buff/debuff/状态/资源消耗）
         async _applyActionEffects(effects, playerStats, enemy, enemyStats) {
             for (const eff of effects) {
@@ -1994,10 +1996,10 @@
             return {
                 name: enemy.name,
                 hp: base.hp,
-                attack:  withMods.attack  ?? base.attack  ?? 10,
+                attack: withMods.attack ?? base.attack ?? 10,
                 defense: withMods.defense ?? base.defense ?? 5,
-                speed:   withMods.speed   ?? base.speed   ?? 10,
-                critRate:   base.critRate   || 0,
+                speed: withMods.speed ?? base.speed ?? 10,
+                critRate: base.critRate || 0,
                 critDamage: base.critDamage || 1.5,
                 extra: mergedExtra,
             };
@@ -2035,77 +2037,103 @@
 
         async _applyBattleRewards(rewardText) {
             if (!rewardText || !rewardText.trim()) return;
-
+        
+            console.log('[Battle] _applyBattleRewards 收到:', JSON.stringify(rewardText));
+        
             const lines = rewardText.split('\n');
-            const itemLines = [];
-            const effectLines = [];
+        
+            const numberLines = [];   // 数值行
+            const itemLines = [];     // 物品行
             let inItemSection = false;
-
+        
             for (const raw of lines) {
                 const line = raw.trim();
                 if (!line) continue;
-
-                if (/^物品[:：]?\s*$/.test(line)) {
+        
+                // ---------- 1. 数值行（同行带内容）----------
+                const numHeader = line.match(/^(数值行|数值变化|数值)\s*[:：]\s*(.+)$/);
+                if (numHeader) {
+                    inItemSection = false;
+                    numberLines.push(numHeader[2].trim());
+                    continue;
+                }
+        
+                // ---------- 2. 物品段标题 ----------
+                if (/^(物品行|物品)\s*[:：]?\s*(物品)?\s*[:：]?\s*$/.test(line)) {
                     inItemSection = true;
                     continue;
                 }
-
+        
+                // ---------- 3. 物品行 ----------
                 if (inItemSection) {
-                    if (line.startsWith('-') || line.startsWith('•')) {
+                    if (/^[-•]\s*【/.test(line)) {
                         itemLines.push(line.replace(/^[-•]\s*/, ''));
+                        continue;
                     }
-                    else if (/^[\u4e00-\u9fa5A-Za-z]+\s*[+\-]\s*\d+/.test(line)
-                          || /^(获得|移除)状态/.test(line)) {
+                    // 非物品行 → 退出物品模式
+                    if (!/^[-•]/.test(line)) {
                         inItemSection = false;
-                        effectLines.push(line);
                     }
+                }
+        
+                // ---------- 4. 兜底：以 - 开头且带 【】 的也当物品 ----------
+                if (!inItemSection && /^[-•]\s*【/.test(line)) {
+                    itemLines.push(line.replace(/^[-•]\s*/, ''));
                     continue;
                 }
-
-                effectLines.push(line);
-            }
-
-            for (const line of effectLines) {
-                const numMatch = line.match(/^(.+?)\s*([+\-＋－])\s*(\d+)\s*$/);
-                if (numMatch) {
-                    const sign = /[+＋]/.test(numMatch[2]) ? '+' : '-';
-                    const eff = `【效果】\n目标: 玩家\n数值变化: ${numMatch[1].trim()} ${sign}${numMatch[3]}`;
-                    const results = window.EffectSystem.applyFromNarrative(eff);
-                    const txt = window.EffectSystem.formatResults(results);
-                    if (txt) await window.UIManager.showText(txt, 2500);
-                    continue;
-                }
-
-                const gainItemMatch = line.match(/^获得\s+(.+?)(?:\s*[x×]\s*(\d+))?$/);
-                if (gainItemMatch) {
-                    const eff = `【效果】\n目标: 玩家\n实体变化: 获得 ${gainItemMatch[1].trim()} x${gainItemMatch[2] || 1}`;
-                    const results = window.EffectSystem.applyFromNarrative(eff);
-                    const txt = window.EffectSystem.formatResults(results);
-                    if (txt) await window.UIManager.showText(txt, 2500);
-                    continue;
-                }
-
-                const statusMatch = line.match(/^(获得状态|移除状态)\s+(.+)$/);
-                if (statusMatch) {
-                    const eff = `【效果】\n目标: 玩家\n实体变化: ${statusMatch[1]} ${statusMatch[2].trim()}`;
-                    const results = window.EffectSystem.applyFromNarrative(eff);
-                    const txt = window.EffectSystem.formatResults(results);
-                    if (txt) await window.UIManager.showText(txt, 2500);
+        
+                // ---------- 5. 兜底：裸数值行 ----------
+                if (/^[\u4e00-\u9fa5A-Za-z]+\s*[+\-＋－]\s*\d+/.test(line)) {
+                    numberLines.push(line);
                     continue;
                 }
             }
-
-            if (itemLines.length === 0) return;
-
+        
+            console.log('[Battle] numberLines:', numberLines);
+            console.log('[Battle] itemLines:', itemLines);
+        
+            // ============================================================
+            // 处理数值
+            // ============================================================
+            const appliedNumbers = [];   // ★ 收集实际应用的数值，用于 UI
+        
+            for (const line of numberLines) {
+                const parts = line.split(/[\/／、,，]/).map(s => s.trim()).filter(Boolean);
+                for (const part of parts) {
+                    const m = part.match(/^(.+?)\s*([+\-＋－])\s*(\d+)\s*$/);
+                    if (!m) continue;
+        
+                    const key = m[1].trim();
+                    const sign = /[+＋]/.test(m[2]) ? 1 : -1;
+                    const value = parseInt(m[3]) * sign;
+        
+                    // ★ 过滤 0 值
+                    if (value === 0) continue;
+        
+                    if (window.MapQuestManager?._applyNumberReward) {
+                        window.MapQuestManager._applyNumberReward(key, value);
+                    } else {
+                        this._addToExtraStats(key, value);
+                    }
+        
+                    appliedNumbers.push({ key, delta: value });
+                }
+            }
+        
+            // ============================================================
+            // 处理物品
+            // ============================================================
             const player = PlayerStateManager.player;
             player.inventory = player.inventory || [];
-
             const obtainedList = [];
-
+        
             for (const line of itemLines) {
                 const item = WorldManager.parseItemLine(line);
-                if (!item || !item.name) continue;
-
+                if (!item || !item.name) {
+                    console.warn('[Battle] 奖励物品解析失败:', line);
+                    continue;
+                }
+        
                 let count = 1;
                 const countFromName = item.name.match(/^(.*?)\s*[×xX]\s*(\d+)\s*$/);
                 if (countFromName) {
@@ -2116,13 +2144,7 @@
                     if (!isNaN(n) && n > 0) count = n;
                     delete item.fields['数量'];
                 }
-
-                const trailing = item.name.match(/^(.*?)\|([×xX]\d+)$/);
-                if (trailing) {
-                    item.name = trailing[1].trim();
-                    count = parseInt(trailing[2].replace(/[^\d]/g, '')) || count;
-                }
-
+        
                 const existing = player.inventory.find(i => i.name === item.name);
                 if (existing) {
                     existing.count = (existing.count || 1) + count;
@@ -2150,19 +2172,163 @@
                         maxStack: item.maxStack || null,
                     });
                 }
-
+        
                 obtainedList.push(`${item.icon || '📦'} ${item.name} ×${count}`);
             }
-
+        
+            // ============================================================
+            // ★ 统一 UI 提示：数值 + 物品
+            // ============================================================
+            const messages = [];
+        
+            if (appliedNumbers.length > 0) {
+                const numText = appliedNumbers
+                    .map(n => `${n.key} ${n.delta > 0 ? '+' : ''}${n.delta}`)
+                    .join('  ');
+                messages.push(`📊 ${numText}`);
+            }
+        
             if (obtainedList.length > 0) {
-                await window.UIManager.showText(
-                    `📦 获得战利品：\n${obtainedList.join('\n')}`,
-                    3500
-                );
-                PlayerStateManager.refreshAvatarArea();
+                messages.push(`📦 获得物品：\n${obtainedList.join('\n')}`);
+            }
+        
+            if (messages.length > 0) {
+                await window.UIManager.showText(messages.join('\n\n'), 3500);
+            }
+        
+            PlayerStateManager.refreshAvatarArea();
+        },
+        // ★ 兜底：MapQuestManager 不存在时，直接写 extraStats
+        _addToExtraStats(key, delta) {
+            const player = PlayerStateManager.player;
+            if (!player) return;
+
+            player.extraStats = player.extraStats || { _order: [], _raw: '' };
+            const extra = player.extraStats;
+
+            if (extra[key] === undefined) {
+                extra._order = extra._order || [];
+                if (!extra._order.includes(key)) extra._order.push(key);
+                extra[key] = String(delta);
+                console.log(`[Battle] 数值奖励 新建 ${key} = ${delta}`);
+                return;
+            }
+
+            const raw = String(extra[key]);
+            const m = raw.match(/^(-?\d+(?:\.\d+)?)(.*)$/);
+            if (m) {
+                const cur = parseFloat(m[1]);
+                const unit = m[2] || '';
+                extra[key] = `${cur + delta}${unit}`;
+                console.log(`[Battle] 数值奖励 ${key} ${cur}→${cur + delta}${unit}`);
+            } else {
+                extra[key] = String(delta);
+            }
+        },
+        _addToExtraStats(key, delta) {
+            const player = PlayerStateManager.player;
+            if (!player) return;
+
+            player.extraStats = player.extraStats || { _order: [], _raw: '' };
+            const extra = player.extraStats;
+
+            if (extra[key] === undefined) {
+                extra._order = extra._order || [];
+                if (!extra._order.includes(key)) extra._order.push(key);
+                extra[key] = String(delta);
+                return;
+            }
+
+            const raw = String(extra[key]);
+            const m = raw.match(/^(-?\d+(?:\.\d+)?)(.*)$/);
+            if (m) {
+                const cur = parseFloat(m[1]);
+                const unit = m[2] || '';
+                extra[key] = `${cur + delta}${unit}`;
+            } else {
+                extra[key] = String(delta);
+            }
+        },
+        // ============================================================
+        // ★ 战斗胜利后，消费敌人实体（地图 / 场景都处理）
+        // ============================================================
+        _consumeEnemyAfterVictory(combat) {
+            const item = combat?._enemyItemRef;
+            if (!item) {
+                console.log('[Battle] combat 没有 _enemyItemRef，跳过消费敌人');
+                return;
+            }
+
+            if (item._source === 'map') {
+                // ---------- 地图实体 ----------
+                // ★ 优先用 combat 里存的地图引用；没存就从世界仓库按名字恢复
+                let map = combat._mapRef;
+                if (!map && combat._mapName) {
+                    map = window.MapLauncher?.findMapInWorld?.(combat._mapName);
+                }
+                if (!map) {
+                    map = window.MapLauncher?.getMap?.();
+                }
+                if (!map) {
+                    console.warn('[Battle] 无法找到战斗所在的地图，跳过实体消费');
+                    return;
+                }
+
+                const idx = map.entities.findIndex(e => e.id === item._rawId);
+                if (idx === -1) return;
+
+                const raw = map.entities[idx];
+
+                if ((raw.count || 1) > 1) {
+                    raw.count -= 1;
+                } else {
+                    map.entities.splice(idx, 1);
+                }
+
+                combat._enemyItemRef = null;
+
+                // ★ 地图如果当前没打开，就不要 _render，只存档
+                if (window.MapLauncher?.getMap?.() === map) {
+                    if (window.MapCanvas?.canvas) window.MapCanvas._render();
+                }
+                window.MapLauncher?._saveMapToWorld?.(map);
+            } else if (item._source === 'scene') {
+                // ---------- 场景实体 ----------
+                const scene = window.LocationModalManager?.currentLocation;
+                if (!scene?.sceneItems) return;
+
+                const idx = scene.sceneItems.findIndex(i => i === item._rawRef);
+                if (idx === -1) return;
+
+                const raw = scene.sceneItems[idx];
+
+                if ((raw.count || 1) > 1) {
+                    raw.count -= 1;
+                    console.log(`[Battle] 场景实体 ${raw.name} 剩余 ${raw.count}`);
+                } else {
+                    scene.sceneItems.splice(idx, 1);
+                    console.log(`[Battle] 场景实体 ${raw.name} 已移除`);
+                }
+
+                combat._enemyItemRef = null;
+
+                // 重建 raw + 存档
+                if (window.SceneEditorManager?._rebuildRaw) {
+                    window.SceneEditorManager._rebuildRaw(scene);
+                }
+
+                // 场景物品浏览器可能在开着，刷新一下
+                if (window.SceneItemBrowserManager?.openBrowser) {
+                    try {
+                        window.SceneItemBrowserManager.openBrowser(true);
+                    } catch (e) { /* 忽略 */ }
+                }
             }
         },
 
+        // ============================================================
+        // ★ 战斗结束后的收尾
+        // ============================================================
         async _postBattle(combat) {
             const player = PlayerStateManager.player;
             const result = combat.result;
@@ -2170,13 +2336,15 @@
 
             BattleUIManager.close();
 
+            // ---------- 1. 战后音乐 ----------
             if (pkg.postMusic && pkg.postMusic !== '无') {
                 await MusicManager.setOverrideMusic(pkg.postMusic);
             }
 
+            // ---------- 2. 战后剧情 ----------
             const scriptText = result === 'victory' ? pkg.victoryScript
-                             : result === 'defeat'  ? pkg.defeatScript
-                             : '';
+                : result === 'defeat' ? pkg.defeatScript
+                    : '';
             if (scriptText) {
                 const dialogues = window.VisualNovelManager.parseScript(scriptText);
                 if (dialogues.length > 0) {
@@ -2186,23 +2354,52 @@
                 }
             }
 
+            // ---------- 3. 胜利处理 ----------
             if (result === 'victory') {
-                // ★ 先记录战斗摘要（此时敌人实体还在 scene.sceneItems 里）
-                //   如果放到 applySceneUpdate 之后，敌人可能已被移除，_findEnemyItem 会返回 null
-                await this._recordVictorySummary(combat, pkg);
-            
-                // 再应用奖励
-                if (pkg.rewards && pkg.rewards.trim() && pkg.rewards.trim() !== '无') {
-                    await this._applyBattleRewards(pkg.rewards);
+                // ---------- 3a. 记录胜利摘要（敌人实体还在） ----------
+                try {
+                    await this._recordVictorySummary(combat, pkg);
+                } catch (e) {
+                    console.warn('[Battle] 记录摘要失败:', e);
                 }
             
-                // 最后应用场景更新（可能会移除敌人实体）
-                if (pkg.sceneUpdate && pkg.sceneUpdate.trim()) {
-                    const update = window.StoryManager.parseSceneUpdate(`【场景更新】\n${pkg.sceneUpdate}`);
-                    if (update) await window.StoryManager.applySceneUpdate(update);
+                // ---------- 3b. ★ 先发奖励（不依赖消费敌人） ----------
+                try {
+                    if (pkg.rewards && pkg.rewards.trim() && pkg.rewards.trim() !== '无') {
+                        await this._applyBattleRewards(pkg.rewards);
+                    } else {
+                        console.log('[Battle] 无奖励文本，跳过发奖励');
+                    }
+                } catch (e) {
+                    console.warn('[Battle] 发奖励失败:', e);
+                }
+            
+                // ---------- 3c. 消费敌人实体 ----------
+                try {
+                    this._consumeEnemyAfterVictory(combat);
+                } catch (e) {
+                    console.warn('[Battle] 消费敌人失败:', e);
+                }
+            
+                // ---------- 3d. 场景更新 ----------
+                try {
+                    if (pkg.sceneUpdate && pkg.sceneUpdate.trim()) {
+                        let sceneUpdateText = pkg.sceneUpdate;
+            
+                        if (combat._enemyItemRef?._source === 'map') {
+                            const enemyName = combat.enemyItemName || combat._enemyItemRef.name;
+                            sceneUpdateText = this._stripRemoveEntity(sceneUpdateText, enemyName);
+                        }
+            
+                        const update = window.StoryManager.parseSceneUpdate(`【场景更新】\n${sceneUpdateText}`);
+                        if (update) await window.StoryManager.applySceneUpdate(update);
+                    }
+                } catch (e) {
+                    console.warn('[Battle] 场景更新失败:', e);
                 }
             }
 
+            // ---------- 4. 写历史 ----------
             CinemaWorld.worldState.combat.history = CinemaWorld.worldState.combat.history || [];
             CinemaWorld.worldState.combat.history.push({
                 id: combat.id,
@@ -2216,30 +2413,82 @@
                 CinemaWorld.worldState.combat.history = CinemaWorld.worldState.combat.history.slice(-50);
             }
 
+            // ---------- 5. 清 activeCombat ----------
             CinemaWorld.worldState.combat.activeCombat = null;
 
+            // ---------- 6. 清旧的整包缓存（骨架和叙事保留）----------
             if (result === 'victory' && combat.enemyItemName) {
                 const store = CinemaWorld.worldState.combat.battlePackages;
                 if (store && store[combat.enemyItemName]) {
                     delete store[combat.enemyItemName];
-                    console.log(`[Battle] 已清空战斗缓存: ${combat.enemyItemName}`);
                 }
             }
+
             this._runtime = { defending: false, playerCooldowns: {}, enemyCooldowns: {} };
 
+            // ---------- 7. 恢复音乐 ----------
             if (pkg.postMusic && pkg.postMusic !== '无') {
                 await MusicManager.clearOverrideMusic();
             }
 
             if (window.SaveManager) window.SaveManager.save();
-
+            // ★ 战斗结束 → 返回地图
+            if (window.EncounterManager?._returnToMap) {
+                setTimeout(() => window.EncounterManager._returnToMap(), 100);
+            }
+            // ---------- 8. 结束提示 ----------
             await window.UIManager.showText(
                 result === 'victory' ? '✅ 战斗胜利' :
-                result === 'defeat'  ? '💀 战斗失败' :
-                '🏃 逃离了战斗',
+                    result === 'defeat' ? '💀 战斗失败' :
+                        '🏃 逃离了战斗',
                 2000
             );
         },
+
+        // ============================================================
+        // ★ 从场景更新文本里，剔除"移除实体: 某名字"
+        // ============================================================
+        _stripRemoveEntity(text, nameToRemove) {
+            if (!text || !nameToRemove) return text;
+
+            const lines = text.split('\n');
+            const out = [];
+            let inRemoveBlock = false;
+
+            for (const raw of lines) {
+                const line = raw.trim();
+
+                // 进入"移除实体"块
+                if (/^移除(?:实体|物品)[:：]?/.test(line)) {
+                    // 如果同行就直接写了名字，尝试剔除
+                    const sameLineNames = line.replace(/^移除(?:实体|物品)[:：]?\s*/, '')
+                        .split(/[、,，]/).map(s => s.trim()).filter(Boolean)
+                        .filter(n => n !== nameToRemove);
+
+                    if (sameLineNames.length > 0) {
+                        out.push(`移除实体: ${sameLineNames.join('、')}`);
+                    }
+                    inRemoveBlock = true;
+                    continue;
+                }
+
+                // 退出"移除实体"块（遇到其它标题）
+                if (inRemoveBlock && /^[^\s\-•]/.test(line) && /[:：]/.test(line)) {
+                    inRemoveBlock = false;
+                }
+
+                // 块内的列表项：如果这一项是要剔除的名字，跳过
+                if (inRemoveBlock) {
+                    const clean = line.replace(/^[-•]\s*/, '').trim();
+                    if (clean === nameToRemove) continue;
+                }
+
+                out.push(raw);
+            }
+
+            return out.join('\n');
+        },
+
 
         async _recordVictorySummary(combat, pkg) {
             // 1. 检查敌人是否标记了"加入上下文"
@@ -2292,39 +2541,52 @@
 
             console.log(`[Battle] 已记录【${combat.enemyItemName}】的战斗摘要到上下文`);
         },
+
+        // ★ 根据敌人名字找场景实体
+        _findEnemyItem(enemyName) {
+            if (!enemyName) return null;
         
-                // ★ 根据敌人名字找场景实体
-                _findEnemyItem(enemyName) {
-                    if (!enemyName) return null;
-                    const scene = window.LocationModalManager?.currentLocation;
-                    if (!scene) return null;
-                    return scene.sceneItems?.find(i => i.name === enemyName) || null;
-                },
+            // 1. 场景实体
+            const scene = window.LocationModalManager?.currentLocation;
+            if (scene?.sceneItems) {
+                const item = scene.sceneItems.find(i => i.name === enemyName);
+                if (item) return item;
+            }
         
-                // ★ 清洗胜利摘要：去掉音乐提示块、代码块等
-                _cleanVictorySummary(raw) {
-                    if (!raw) return '';
-                    let text = String(raw).trim();
+            // 2. 地图实体
+            const map = window.MapLauncher?.getMap?.();
+            if (map?.entities) {
+                const ent = map.entities.find(e => e.name === enemyName);
+                if (ent) return ent;
+            }
         
-                    // 去掉【音乐提示】及其内容（到下一个【标签】或结尾）
-                    text = text.replace(/【音乐提示】[\s\S]*?(?=\n【|$)/g, '');
-        
-                    // 去掉代码块标记
-                    text = text.replace(/```[\s\S]*?```/g, '');
-        
-                    // 去掉可能残留的 "🎵 音乐: xxx" 行
-                    text = text.replace(/^\s*🎵\s*音乐[:：].*$/gm, '');
-        
-                    // 去掉单独一行的"战前音乐/战中音乐/战后音乐:"（如果 AI 漏了标题）
-                    text = text.replace(/^\s*(战前音乐|战中音乐|战后音乐)[:：].*$/gm, '');
-        
-                    // 去掉多余空行
-                    text = text.replace(/\n{3,}/g, '\n\n').trim();
-        
-                    return text;
-                },
+            return null;
+        },
+
+        // ★ 清洗胜利摘要：去掉音乐提示块、代码块等
+        _cleanVictorySummary(raw) {
+            if (!raw) return '';
+            let text = String(raw).trim();
+
+            // 去掉【音乐提示】及其内容（到下一个【标签】或结尾）
+            text = text.replace(/【音乐提示】[\s\S]*?(?=\n【|$)/g, '');
+
+            // 去掉代码块标记
+            text = text.replace(/```[\s\S]*?```/g, '');
+
+            // 去掉可能残留的 "🎵 音乐: xxx" 行
+            text = text.replace(/^\s*🎵\s*音乐[:：].*$/gm, '');
+
+            // 去掉单独一行的"战前音乐/战中音乐/战后音乐:"（如果 AI 漏了标题）
+            text = text.replace(/^\s*(战前音乐|战中音乐|战后音乐)[:：].*$/gm, '');
+
+            // 去掉多余空行
+            text = text.replace(/\n{3,}/g, '\n\n').trim();
+
+            return text;
+        },
     };
-    
+
     // ============================================================
     // 战斗界面
     // ============================================================
@@ -2378,10 +2640,10 @@
                         <div class="cw-battle-header-left">回合 ${combat.turn}</div>
                         <div class="cw-battle-header-center">
                             ${isPlayerTurn ? '🎯 你的回合'
-                                : isEnded ? (combat.result === 'victory' ? '✅ 战斗胜利'
-                                    : combat.result === 'defeat' ? '💀 战斗失败'
-                                    : '🏃 已逃离')
-                                : '⚔️ 敌人回合'}
+                    : isEnded ? (combat.result === 'victory' ? '✅ 战斗胜利'
+                        : combat.result === 'defeat' ? '💀 战斗失败'
+                            : '🏃 已逃离')
+                        : '⚔️ 敌人回合'}
                         </div>
                         <div class="cw-battle-header-right">
                             <button class="cw-battle-rule-btn" onclick="BattleUIManager.openRuleEditor()" title="查看战斗规则">⚙️</button>
@@ -2458,8 +2720,8 @@
                     </div>
 
                     ${otherBars.map(b => {
-                        const pct = b.max > 0 ? Math.max(0, (b.current / b.max) * 100) : 0;
-                        return `
+                const pct = b.max > 0 ? Math.max(0, (b.current / b.max) * 100) : 0;
+                return `
                             <div class="cw-battle-stat-row">
                                 <span class="cw-battle-stat-icon">${b.icon || '•'}</span>
                                 <div class="cw-battle-stat-bar">
@@ -2467,7 +2729,7 @@
                                 </div>
                                 <span class="cw-battle-stat-num">${b.current}/${b.max}</span>
                             </div>`;
-                    }).join('')}
+            }).join('')}
 
                     <div class="cw-battle-attrs">
                         <div class="cw-battle-attr">
@@ -2537,9 +2799,8 @@
             const attrsHTML = cells.map(c => `
                 <div class="cw-battle-attr">
                     <span class="cw-battle-attr-label">${c.label}</span>
-                    <span class="cw-battle-attr-value">${
-                        typeof c.value === 'number' ? Math.round(c.value) : c.value
-                    }</span>
+                    <span class="cw-battle-attr-value">${typeof c.value === 'number' ? Math.round(c.value) : c.value
+                }</span>
                 </div>
             `).join('');
 
@@ -2636,13 +2897,13 @@
                 // 类型标签
                 const typeLabels = {
                     attack: '攻击',
-                    heal:   '治疗',
+                    heal: '治疗',
                     defend: '防御',
-                    buff:   '强化',
+                    buff: '强化',
                     debuff: '削弱',
-                    drain:  '吸血',
-                    magic:  '法术',
-                    skill:  '技能',
+                    drain: '吸血',
+                    magic: '法术',
+                    skill: '技能',
                 };
                 if (typeLabels[s.type]) {
                     tipLines.push(`类型：${typeLabels[s.type]}`);
@@ -2686,7 +2947,7 @@
                 actionsHTML = `
                     <div class="cw-battle-end-text">
                         ${combat.result === 'victory' ? '✅ 战斗胜利'
-                            : combat.result === 'defeat' ? '💀 战斗失败'
+                        : combat.result === 'defeat' ? '💀 战斗失败'
                             : '🏃 已逃离'}
                     </div>`;
             } else if (isPlayerTurn) {
@@ -2787,7 +3048,7 @@
         },
         // ★ 单个行动按钮（默认简洁，悬浮显示详情）
         _renderOneAction(a, enemy, playerStats, enemyStats) {
-            const combat = BattleManager.getActive();  
+            const combat = BattleManager.getActive();
             const cd = BattleManager._runtime.playerCooldowns[a.id] || 0;
             const used = a.usesLeft !== null && a.usesLeft <= 0;
             const disabled = cd > 0 || used;
@@ -2902,8 +3163,8 @@
             if (a.effects && a.effects.length > 0) {
                 const effText = a.effects.map(e => {
                     if (e.type === 'debuff_enemy') return `敌人获得「${e.name}」`;
-                    if (e.type === 'buff_self')   return `自身获得「${e.name}」`;
-                    if (e.type === 'drain')       return `吸取生命`;
+                    if (e.type === 'buff_self') return `自身获得「${e.name}」`;
+                    if (e.type === 'drain') return `吸取生命`;
                     return e.name || e.type;
                 }).join('；');
                 lines.push(`
@@ -2967,76 +3228,76 @@
         },
 
         // ★ 构建公式上下文（把玩家的所有属性塞进去）
-                // ★ 构建公式上下文（与 BattleManager._calcDamageDetailed 完全一致的顺序）
-                _buildFormulaContext(formula, playerStats, enemyStats, diceMin) {
-                    const attackerExtra = playerStats.extra || {};
-                    const targetExtra   = enemyStats?.extra || {};
-        
-                    // ============================================================
-                    // 顺序（后面的覆盖前面的）：
-                    //   a. 攻击方额外属性（裸名）
-                    //   b. 防御方额外属性（裸名，不覆盖攻击方同名）
-                    //   c. a_ / d_ 前缀版本
-                    //   d. ★ 默认槽位（最优先，绝不被覆盖）
-                    // ============================================================
-                    const ctx = {};
-        
-                    // a. 攻击方额外属性（裸名）
-                    for (const [k, v] of Object.entries(attackerExtra)) {
-                        ctx[k] = v;
+        // ★ 构建公式上下文（与 BattleManager._calcDamageDetailed 完全一致的顺序）
+        _buildFormulaContext(formula, playerStats, enemyStats, diceMin) {
+            const attackerExtra = playerStats.extra || {};
+            const targetExtra = enemyStats?.extra || {};
+
+            // ============================================================
+            // 顺序（后面的覆盖前面的）：
+            //   a. 攻击方额外属性（裸名）
+            //   b. 防御方额外属性（裸名，不覆盖攻击方同名）
+            //   c. a_ / d_ 前缀版本
+            //   d. ★ 默认槽位（最优先，绝不被覆盖）
+            // ============================================================
+            const ctx = {};
+
+            // a. 攻击方额外属性（裸名）
+            for (const [k, v] of Object.entries(attackerExtra)) {
+                ctx[k] = v;
+            }
+            // b. 防御方额外属性（裸名，被攻击方同名覆盖则跳过）
+            for (const [k, v] of Object.entries(targetExtra)) {
+                if (ctx[k] === undefined) ctx[k] = v;
+            }
+            // c. 前缀版本
+            for (const [k, v] of Object.entries(attackerExtra)) {
+                ctx[`a_${k}`] = v;
+            }
+            for (const [k, v] of Object.entries(targetExtra)) {
+                ctx[`d_${k}`] = v;
+            }
+
+            // d. ★ 默认槽位最后写入
+            ctx['攻击'] = playerStats.attack;
+            ctx['防御'] = playerStats.defense;
+            ctx['敏捷'] = playerStats.speed;
+            ctx['速度'] = playerStats.speed;
+            ctx['生命'] = playerStats.hp?.max || 100;
+            ctx['attack'] = playerStats.attack;
+            ctx['defense'] = playerStats.defense;
+            ctx['speed'] = playerStats.speed;
+            ctx['hp'] = playerStats.hp?.max || 100;
+
+            // ---------- 命名空间 ----------
+            ctx['敌人'] = new Proxy({}, {
+                get(_, p) {
+                    if (!enemyStats) return 0;
+                    if (p in targetExtra) return targetExtra[p];
+                    if (p === '攻击') return enemyStats.attack;
+                    if (p === '防御') return enemyStats.defense;
+                    if (p === '敏捷' || p === '速度') return enemyStats.speed;
+                    if (p === '生命' || p === 'HP' || p === 'hp') {
+                        return enemyStats.hp?.max || 100;
                     }
-                    // b. 防御方额外属性（裸名，被攻击方同名覆盖则跳过）
-                    for (const [k, v] of Object.entries(targetExtra)) {
-                        if (ctx[k] === undefined) ctx[k] = v;
+                    return 0;
+                }
+            });
+            ctx['我方'] = new Proxy({}, {
+                get(_, p) {
+                    if (p in attackerExtra) return attackerExtra[p];
+                    if (p === '攻击') return playerStats.attack;
+                    if (p === '防御') return playerStats.defense;
+                    if (p === '敏捷' || p === '速度') return playerStats.speed;
+                    if (p === '生命' || p === 'HP' || p === 'hp') {
+                        return playerStats.hp?.max || 100;
                     }
-                    // c. 前缀版本
-                    for (const [k, v] of Object.entries(attackerExtra)) {
-                        ctx[`a_${k}`] = v;
-                    }
-                    for (const [k, v] of Object.entries(targetExtra)) {
-                        ctx[`d_${k}`] = v;
-                    }
-        
-                    // d. ★ 默认槽位最后写入
-                    ctx['攻击'] = playerStats.attack;
-                    ctx['防御'] = playerStats.defense;
-                    ctx['敏捷'] = playerStats.speed;
-                    ctx['速度'] = playerStats.speed;
-                    ctx['生命'] = playerStats.hp?.max || 100;
-                    ctx['attack']  = playerStats.attack;
-                    ctx['defense'] = playerStats.defense;
-                    ctx['speed']   = playerStats.speed;
-                    ctx['hp']      = playerStats.hp?.max || 100;
-        
-                    // ---------- 命名空间 ----------
-                    ctx['敌人'] = new Proxy({}, {
-                        get(_, p) {
-                            if (!enemyStats) return 0;
-                            if (p in targetExtra) return targetExtra[p];
-                            if (p === '攻击') return enemyStats.attack;
-                            if (p === '防御') return enemyStats.defense;
-                            if (p === '敏捷' || p === '速度') return enemyStats.speed;
-                            if (p === '生命' || p === 'HP' || p === 'hp') {
-                                return enemyStats.hp?.max || 100;
-                            }
-                            return 0;
-                        }
-                    });
-                    ctx['我方'] = new Proxy({}, {
-                        get(_, p) {
-                            if (p in attackerExtra) return attackerExtra[p];
-                            if (p === '攻击') return playerStats.attack;
-                            if (p === '防御') return playerStats.defense;
-                            if (p === '敏捷' || p === '速度') return playerStats.speed;
-                            if (p === '生命' || p === 'HP' || p === 'hp') {
-                                return playerStats.hp?.max || 100;
-                            }
-                            return 0;
-                        }
-                    });
-        
-                    return ctx;
-                },
+                    return 0;
+                }
+            });
+
+            return ctx;
+        },
 
         async _chooseAction(actionId, targetId) {
             const combat = BattleManager.getActive();

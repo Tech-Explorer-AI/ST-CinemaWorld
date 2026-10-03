@@ -228,6 +228,16 @@
                 levelUp: rules.levelUp.length,
                 triggers: rules.triggers.length,
             });
+
+            // ★ 顺带解析时间规则
+            if (typeof TimeRuleEngine !== 'undefined') {
+                try {
+                    TimeRuleEngine.parse(text);
+                } catch (e) {
+                    console.error('[RuleEngine] 时间规则解析失败:', e);
+                }
+            }
+
             return rules;
         },
 
@@ -880,7 +890,7 @@ ${playerBlock}
 4. 场景人物：${scene?.sceneCharacters?.map(c => c.name).join('、') || '（无）'}
 
 实体变化:
-- 获得【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 获得【物品名|图标】：描述，[类型|状态|功能|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 - 失去【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
 - 获得状态 状态名（可选效果，| 分隔：攻击-20%|持续3回合）
 - 移除状态 状态名
@@ -889,11 +899,26 @@ ${playerBlock}
 ★ 可装备物品：写明属性字段，如 [类型:武器|攻击:+5|暴击:+10%]
 ★ 可消耗物品：写明功能，如 [类型:消耗品|功能:回复 50 点生命|可堆叠]
 ★ 普通物品：至少写 [类型:物品] 和图标
+效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
 
 示例：
-- 获得【生锈的铁剑|⚔️】：锈迹斑斑的短剑，[类型:武器|攻击:+3|图标:⚔️]
-- 获得【红药水|🧪】：一瓶红色药剂，[类型:消耗品|功能:回复 30 点生命|可堆叠]
-- 获得【黑面包|🍞】：还热乎，[类型:食物|功能:回复 10 点体力|可堆叠]
+- 【生锈的铁剑|⚔️】：斜靠在墙角，[类型:武器|可拾取:是|货币种类:金钱|买价:X|卖价:X|攻击:+X]
+- 【红药水|🧪】：一瓶红色药剂，[类型:消耗品|可拾取:是|功能:回复生命|效果:回复生命 X|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【野花|🌸】：路边的小花，[类型:材料|可拾取:是|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【守卫的盾牌|🛡️】：靠在门边的圆盾，[类型:护甲|可拾取:是|货币种类:金钱|买价:X|卖价:X|防御:+X|体力:+Y]
 
 【场景更新】（可选，只有需要改场景时才写）
 场景: (场景名)
@@ -905,7 +930,7 @@ ${playerBlock}
 新增实体：
 - 【实体名|图标】：描述，[类型|状态|功能|交互方式|其他]
 如果是物品则是（物品也是一种实体）:
-- 【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【物品名|图标】：描述，[类型|状态|功能|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 - 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
 新增遭遇实体：
 - 【敌人名|图标】：描述，[类型:遭遇|HP:当前/最大|攻击:X|防御:X|敏捷:X|技能:X|掉落:X]
@@ -1089,12 +1114,18 @@ ${playerBlock}
                     .join('、');
                 if (extraText) ctxParts.push(`额外数据：${extraText}`);
             }
+            const sceneCtx = InventoryManager.buildSceneContext(scene);
 
             const prompt = `你正在为一个视觉小说 RPG 游戏生成"运行规则"。
 这些规则会作为整个游戏的系统基础，贯穿始终。
 
 【世界与玩家上下文】
 ${ctxParts.join('\n')}
+
+【场景上下文】
+${sceneCtx}
+
+★ 环境数据：${WorldManager.getEnvDataText(scene)}
 
 ${guide ? `【玩家希望的规则方向】\n${guide}\n` : ''}
 
@@ -1180,8 +1211,51 @@ ${guide ? `【玩家希望的规则方向】\n${guide}\n` : ''}
     特殊判定: 魅力说服: d20 + {魅力} >= 敌人.意志
 ）
 
+【时间规则】
+名称: (世界观下的纪年名，如"蓬莱历"、"星海纪")
+时间结构: 1年=12月, 1月=30天, 1天=24小时
+基准流速: 1现实秒 = 1游戏分钟
+起始时间: X年X月X日 HH:MM
+时段划分:
+- 清晨: 5-8
+- 白天: 8-16
+- 黄昏: 16-19
+- 夜晚: 19-23
+- 深夜: 23-5
+季节系统: 春(3-5)、夏(6-8)、秋(9-11)、冬(12-2)
+派生规则:
+- 温度 = 季节基础 + 时段修正 + 天气修正
+- 湿度 = 天气基础 + 时段修正
+- 风力 = 天气基础 + 随机
+节日:
+- 1月1日 元日（全城庆祝，商店关闭）
+- 3月15日 花祭（樱花开，NPC 白天外出）
+- 7月7日 星祭（夜晚放灯，NPC 夜里活动）
+- 12月30日 岁末（年终结算，NPC 盘点）
+特殊日期:
+- 每月15日：月圆之夜（事件可触发）
+- 每季最后一天：季节交替（天气更剧烈）
+天气池:
+春: 晴、多云、小雨、雾
+夏: 晴、雷阵雨、大雨
+秋: 晴、多云、小雨
+冬: 晴、小雪、大雪
+时段影响:
+- 夜晚（19-5）：NPC 不外出，商店关闭
+- 深夜（23-5）：玩家理智缓慢下降
+- 黄昏（16-19）：NPC 归家，好感度对话更易触发
+事件钩子:
+- 每日 6:00 → 触发事件 日出
+- 每月1日 8:00 → 触发事件 月初
+- 节日当天 0:00 → 触发事件 节日
+叙述提示: (一段话描述这个世界的时间氛围)
+
+规则要符合当前世界观和剧情背景。
+时间流速、节日、季节、时段都可以自由设计。
+如果世界观没有明确的时间体系（如现代都市），可以用简化版：
+1年=12月, 1月=30天, 1天=24小时, 1现实秒=1游戏分钟。
+
 【约束】
-1. 规则要服务于"背景和剧情设定"的游戏形态
 2. 派生表达式只能使用【属性定义】里列出的属性名、常数、四则运算
 3. 不要生成未定义的属性
 4. 机制不要过于复杂，每一条都要可用
@@ -1272,12 +1346,467 @@ ${guide ? `【玩家希望的规则方向】\n${guide}\n` : ''}
             this.showCreationModal(null);
         },
     };
-
+        // ==================== 时间规则引擎 ====================
+        const TimeRuleEngine = {
+            rules: {
+                name: '',
+                structure: {
+                    hoursPerDay: 24,
+                    daysPerMonth: 30,
+                    monthsPerYear: 12,
+                    startDate: { year: 1, month: 1, day: 1, hour: 6, minute: 0 },
+                },
+                speed: { minutesPerRealSecond: 1 },
+                phases: [],
+                seasons: [],
+                derived: [],
+                festivals: [],
+                specialDates: [],
+                weatherPool: {},
+                phaseEffects: [],
+                eventHooks: [],
+                narrative: '',
+                raw: '',
+            },
+    
+            // ---------- 解析 ----------
+            parse(text) {
+                if (!text || typeof text !== 'string') {
+                    this._reset();
+                    return this.rules;
+                }
+    
+                const rules = {
+                    name: '',
+                    structure: {
+                        hoursPerDay: 24,
+                        daysPerMonth: 30,
+                        monthsPerYear: 12,
+                        startDate: { year: 1, month: 1, day: 1, hour: 6, minute: 0 },
+                    },
+                    speed: { minutesPerRealSecond: 1 },
+                    phases: [],
+                    seasons: [],
+                    derived: [],
+                    festivals: [],
+                    specialDates: [],
+                    weatherPool: {},
+                    phaseEffects: [],
+                    eventHooks: [],
+                    narrative: '',
+                    raw: text,
+                };
+    
+                // 只解析【时间规则】这一段
+                const re = /【时间规则】\s*([\s\S]*?)(?=\n【|$)/;
+                const m = text.match(re);
+                if (!m) {
+                    this.rules = rules;
+                    console.log('[TimeRuleEngine] 未找到【时间规则】段，使用默认');
+                    return rules;
+                }
+                const block = m[1];
+    
+                // 辅助：抽取子段
+                const sub = (title) => {
+                    const r = new RegExp(`${title}\\s*[:：]?\\s*([\\s\\S]*?)(?=\\n\\S+\\s*[:：]|\\n-\\s*\\S+\\s*[:：]|$)`);
+                    const mm = block.match(r);
+                    return mm ? mm[1].trim() : '';
+                };
+    
+                // ---------- 名称 ----------
+                const nameM = block.match(/^名称\s*[:：]\s*(.+)$/m);
+                if (nameM) rules.name = nameM[1].trim();
+    
+                // ---------- 时间结构 ----------
+                const structM = block.match(/^时间结构\s*[:：]\s*(.+)$/m);
+                if (structM) {
+                    const s = structM[1];
+                    const yearM = s.match(/1\s*年\s*=\s*(\d+)\s*月/);
+                    const monthM = s.match(/1\s*月\s*=\s*(\d+)\s*天/);
+                    const dayM = s.match(/1\s*天\s*=\s*(\d+)\s*小时/);
+                    if (yearM) rules.structure.monthsPerYear = parseInt(yearM[1]);
+                    if (monthM) rules.structure.daysPerMonth = parseInt(monthM[1]);
+                    if (dayM) rules.structure.hoursPerDay = parseInt(dayM[1]);
+                }
+    
+                // ---------- 起始时间 ----------
+                const startM = block.match(/^起始时间\s*[:：]\s*(.+)$/m);
+                if (startM) {
+                    const sm = startM[1].match(/(\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日\s*(\d+)\s*[:：]\s*(\d+)/);
+                    if (sm) {
+                        rules.structure.startDate = {
+                            year: parseInt(sm[1]),
+                            month: parseInt(sm[2]),
+                            day: parseInt(sm[3]),
+                            hour: parseInt(sm[4]),
+                            minute: parseInt(sm[5]),
+                        };
+                    }
+                }
+    
+                // ---------- 流速 ----------
+                const speedM = block.match(/^基准流速\s*[:：]\s*(.+)$/m);
+                if (speedM) {
+                    const s = speedM[1];
+                    // 支持：1现实秒 = 1游戏分钟
+                    const m1 = s.match(/1\s*现实秒\s*=\s*(\d+(?:\.\d+)?)\s*游戏分钟/);
+                    if (m1) {
+                        rules.speed.minutesPerRealSecond = parseFloat(m1[1]);
+                    } else {
+                        // 兜底：X现实分钟 = Y游戏小时/天
+                        const m2 = s.match(/(\d+(?:\.\d+)?)\s*现实(分钟|小时|秒)\s*=\s*(\d+(?:\.\d+)?)\s*游戏(分钟|小时|天)/);
+                        if (m2) {
+                            const realUnit = m2[2];
+                            const gameUnit = m2[4];
+                            let realSec = parseFloat(m2[1]);
+                            if (realUnit === '分钟') realSec *= 60;
+                            if (realUnit === '小时') realSec *= 3600;
+    
+                            let gameMin = parseFloat(m2[3]);
+                            if (gameUnit === '小时') gameMin *= 60;
+                            if (gameUnit === '天') gameMin *= 1440;
+    
+                            rules.speed.minutesPerRealSecond = gameMin / realSec;
+                        }
+                    }
+                }
+    
+                // ---------- 时段划分 ----------
+                const phaseM = block.match(/时段划分\s*[:：]?\s*\n([\s\S]*?)(?=\n\S+\s*[:：]|\n【|$)/);
+                if (phaseM) {
+                    for (const line of phaseM[1].split('\n')) {
+                        const clean = line.replace(/^[-•*]\s*/, '').trim();
+                        if (!clean) continue;
+                        const pm = clean.match(/^([^:：]+?)\s*[:：]\s*(\d+)\s*[-~到至]\s*(\d+)/);
+                        if (pm) {
+                            rules.phases.push({
+                                name: pm[1].trim(),
+                                start: parseInt(pm[2]),
+                                end: parseInt(pm[3]),
+                            });
+                        }
+                    }
+                }
+    
+                // ---------- 季节系统 ----------
+                const seasonM = block.match(/季节系统\s*[:：]\s*(.+)$/m);
+                if (seasonM) {
+                    const s = seasonM[1];
+                    // 春(3-5)、夏(6-8) 或 春（3、4、5）
+                    const re2 = /([春夏秋冬])\s*[（(]([^）)]+)[）)]/g;
+                    let sm2;
+                    while ((sm2 = re2.exec(s)) !== null) {
+                        const name = sm2[1];
+                        const inner = sm2[2];
+                        const months = [];
+                        // 支持 "3-5" 和 "3、4、5" 两种写法
+                        if (/-/.test(inner)) {
+                            const rangeM = inner.match(/(\d+)\s*[-~]\s*(\d+)/);
+                            if (rangeM) {
+                                const a = parseInt(rangeM[1]);
+                                const b = parseInt(rangeM[2]);
+                                for (let i = a; i <= b; i++) months.push(i);
+                            }
+                        } else {
+                            inner.split(/[,，、]/).forEach(x => {
+                                const n = parseInt(x.trim());
+                                if (!isNaN(n)) months.push(n);
+                            });
+                        }
+                        if (months.length > 0) {
+                            rules.seasons.push({ name, months });
+                        }
+                    }
+                }
+                // 兜底：如果 AI 没写季节系统，用默认四季
+                if (rules.seasons.length === 0) {
+                    rules.seasons = [
+                        { name: '春', months: [3, 4, 5] },
+                        { name: '夏', months: [6, 7, 8] },
+                        { name: '秋', months: [9, 10, 11] },
+                        { name: '冬', months: [12, 1, 2] },
+                    ];
+                }
+    
+                // ---------- 派生规则 ----------
+                const derivedM = block.match(/派生规则\s*[:：]?\s*\n([\s\S]*?)(?=\n\S+\s*[:：]|\n【|$)/);
+                if (derivedM) {
+                    for (const line of derivedM[1].split('\n')) {
+                        const clean = line.replace(/^[-•*]\s*/, '').trim();
+                        if (!clean) continue;
+                        const dm = clean.match(/^(.+?)\s*[=＝]\s*(.+)$/);
+                        if (dm) {
+                            rules.derived.push({
+                                name: dm[1].trim(),
+                                expr: dm[2].trim(),
+                            });
+                        }
+                    }
+                }
+    
+                // ---------- 节日 ----------
+                const festivalM = block.match(/节日\s*[:：]?\s*\n([\s\S]*?)(?=\n\S+\s*[:：]|\n【|$)/);
+                if (festivalM) {
+                    for (const line of festivalM[1].split('\n')) {
+                        const clean = line.replace(/^[-•*]\s*/, '').trim();
+                        if (!clean) continue;
+                        // 支持：1月1日 元日（全城庆祝，商店关闭）
+                        //      1月1日 元日：全城庆祝，商店关闭
+                        const fm = clean.match(/^(\d+)\s*月\s*(\d+)\s*日\s+([^（(：:]+?)\s*[（(：:]\s*(.+?)[）)]?\s*$/);
+                        if (fm) {
+                            let effectsStr = fm[4].trim();
+                            // 去掉尾部可能残留的 ）
+                            effectsStr = effectsStr.replace(/[)）]\s*$/, '').trim();
+                            rules.festivals.push({
+                                month: parseInt(fm[1]),
+                                day: parseInt(fm[2]),
+                                name: fm[3].trim(),
+                                effects: effectsStr.split(/[、,，]/).map(x => x.trim()).filter(Boolean),
+                            });
+                        }
+                    }
+                }
+    
+                // ---------- 特殊日期 ----------
+                const specialM = block.match(/特殊日期\s*[:：]?\s*\n([\s\S]*?)(?=\n\S+\s*[:：]|\n【|$)/);
+                if (specialM) {
+                    for (const line of specialM[1].split('\n')) {
+                        const clean = line.replace(/^[-•*]\s*/, '').trim();
+                        if (!clean) continue;
+    
+                        // 每月X日：名称（事件）
+                        const mm = clean.match(/^每?月\s*(\d+)\s*日\s*[:：]\s*(.+?)\s*[（(]\s*(.+?)[）)]/);
+                        if (mm) {
+                            rules.specialDates.push({
+                                rule: 'monthly',
+                                day: parseInt(mm[1]),
+                                name: mm[2].trim(),
+                                event: mm[3].trim(),
+                            });
+                            continue;
+                        }
+                        // 每季最后一天：名称（事件）
+                        const em = clean.match(/^每季(?:最后一天|末)\s*[:：]\s*(.+?)\s*[（(]\s*(.+?)[）)]/);
+                        if (em) {
+                            rules.specialDates.push({
+                                rule: 'seasonEnd',
+                                name: em[1].trim(),
+                                event: em[2].trim(),
+                            });
+                        }
+                    }
+                }
+    
+                // ---------- 天气池 ----------
+                const weatherM = block.match(/天气池\s*[:：]?\s*\n([\s\S]*?)(?=\n\S+\s*[:：]|\n【|$)/);
+                if (weatherM) {
+                    for (const line of weatherM[1].split('\n')) {
+                        const clean = line.replace(/^[-•*]\s*/, '').trim();
+                        if (!clean) continue;
+                        const wm = clean.match(/^([春夏秋冬])\s*[:：]\s*(.+)$/);
+                        if (wm) {
+                            rules.weatherPool[wm[1]] = wm[2].split(/[、,，]/).map(x => x.trim()).filter(Boolean);
+                        }
+                    }
+                }
+    
+                // ---------- 时段影响 ----------
+                const phaseEffM = block.match(/时段影响\s*[:：]?\s*\n([\s\S]*?)(?=\n\S+\s*[:：]|\n【|$)/);
+                if (phaseEffM) {
+                    for (const line of phaseEffM[1].split('\n')) {
+                        const clean = line.replace(/^[-•*]\s*/, '').trim();
+                        if (!clean) continue;
+                        // 夜晚（19-5）：NPC 不外出，商店关闭
+                        const pm = clean.match(/^([^\s（(]+)\s*[（(]\s*([^）)]+)[）)]\s*[:：]\s*(.+)$/);
+                        if (pm) {
+                            rules.phaseEffects.push({
+                                phase: pm[1].trim(),
+                                timeRange: pm[2].trim(),
+                                effects: pm[3].split(/[、,，]/).map(x => x.trim()).filter(Boolean),
+                            });
+                        }
+                    }
+                }
+    
+                // ---------- 事件钩子 ----------
+                const hookM = block.match(/事件钩子\s*[:：]?\s*\n([\s\S]*?)(?=\n\S+\s*[:：]|\n【|$)/);
+                if (hookM) {
+                    for (const line of hookM[1].split('\n')) {
+                        const clean = line.replace(/^[-•*]\s*/, '').trim();
+                        if (!clean) continue;
+                        // 每日 6:00 → 触发事件 日出
+                        // 每月1日 8:00 → 触发事件 月初
+                        // 节日当天 0:00 → 触发事件 节日
+                        const hm = clean.match(/^(每日|每月\d*日|每周\d|节日当天|季节交替)\s*(\d+)?\s*[:：]\s*(\d+)?\s*→\s*触发事件\s*(.+)$/);
+                        if (hm) {
+                            rules.eventHooks.push({
+                                when: hm[1].trim(),
+                                hour: hm[2] !== undefined ? parseInt(hm[2]) : 0,
+                                minute: hm[3] !== undefined ? parseInt(hm[3]) : 0,
+                                event: hm[4].trim(),
+                            });
+                        } else {
+                            // 兜底：不带时间
+                            const hm2 = clean.match(/^(每日|每月\d*日|节日当天|季节交替)\s*→\s*触发事件\s*(.+)$/);
+                            if (hm2) {
+                                rules.eventHooks.push({
+                                    when: hm2[1].trim(),
+                                    hour: 0,
+                                    minute: 0,
+                                    event: hm2[2].trim(),
+                                });
+                            }
+                        }
+                    }
+                }
+    
+                // ---------- 叙述提示 ----------
+                const narrM = block.match(/叙述提示\s*[:：]\s*([\s\S]*?)$/);
+                if (narrM) rules.narrative = narrM[1].trim();
+    
+                this.rules = rules;
+                console.log('[TimeRuleEngine] 时间规则已解析:', {
+                    name: rules.name,
+                    speed: rules.speed.minutesPerRealSecond,
+                    phases: rules.phases.length,
+                    seasons: rules.seasons.length,
+                    festivals: rules.festivals.length,
+                    specialDates: rules.specialDates.length,
+                    weatherPool: Object.keys(rules.weatherPool).length,
+                    phaseEffects: rules.phaseEffects.length,
+                    eventHooks: rules.eventHooks.length,
+                });
+                return rules;
+            },
+    
+            _reset() {
+                this.rules = {
+                    name: '',
+                    structure: {
+                        hoursPerDay: 24,
+                        daysPerMonth: 30,
+                        monthsPerYear: 12,
+                        startDate: { year: 1, month: 1, day: 1, hour: 6, minute: 0 },
+                    },
+                    speed: { minutesPerRealSecond: 1 },
+                    phases: [],
+                    seasons: [],
+                    derived: [],
+                    festivals: [],
+                    specialDates: [],
+                    weatherPool: {},
+                    phaseEffects: [],
+                    eventHooks: [],
+                    narrative: '',
+                    raw: '',
+                };
+            },
+    
+            // ---------- 查询接口 ----------
+    
+            // 根据小时返回时段
+            getPhase(hour) {
+                for (const p of this.rules.phases) {
+                    if (p.start < p.end) {
+                        if (hour >= p.start && hour < p.end) return p;
+                    } else {
+                        if (hour >= p.start || hour < p.end) return p;
+                    }
+                }
+                return null;
+            },
+    
+            // 根据月份返回季节
+            getSeason(month) {
+                for (const s of this.rules.seasons) {
+                    if (s.months.includes(month)) return s;
+                }
+                return null;
+            },
+    
+            // 是否是节日
+            getFestival(month, day) {
+                return this.rules.festivals.find(f => f.month === month && f.day === day) || null;
+            },
+    
+            // 特殊日期
+            getSpecialDates(month, day) {
+                const out = [];
+                for (const sd of this.rules.specialDates) {
+                    if (sd.rule === 'monthly' && sd.day === day) {
+                        out.push(sd);
+                    }
+                    if (sd.rule === 'seasonEnd') {
+                        const season = this.getSeason(month);
+                        if (season) {
+                            const lastMonth = season.months[season.months.length - 1];
+                            const daysInMonth = this.rules.structure.daysPerMonth;
+                            if (month === lastMonth && day === daysInMonth) {
+                                out.push(sd);
+                            }
+                        }
+                    }
+                }
+                return out;
+            },
+    
+            // 天气池
+            getWeatherPool(seasonName) {
+                return this.rules.weatherPool[seasonName] || null;
+            },
+    
+            // 事件钩子检查
+            // hour, minute: 当前时间
+            // date: { year, month, day }
+            checkEventHooks(hour, minute, date) {
+                const out = [];
+                for (const h of this.rules.eventHooks) {
+                    if (h.hour !== hour) continue;
+                    if (h.minute && h.minute !== minute) continue;
+    
+                    if (h.when === '每日') {
+                        out.push(h);
+                    } else if (h.when.startsWith('每月')) {
+                        const dayM = h.when.match(/每月(\d*)日/);
+                        const targetDay = dayM && dayM[1] ? parseInt(dayM[1]) : 1;
+                        if (date.day === targetDay) out.push(h);
+                    } else if (h.when.startsWith('每周')) {
+                        // 简化：每 7 天
+                        const dayInWeek = ((date.day - 1) % 7) + 1;
+                        if (dayInWeek === 1) out.push(h);
+                    } else if (h.when === '节日当天') {
+                        const fest = this.getFestival(date.month, date.day);
+                        if (fest) out.push({ ...h, festival: fest });
+                    } else if (h.when === '季节交替') {
+                        const specials = this.getSpecialDates(date.month, date.day);
+                        if (specials.some(s => s.rule === 'seasonEnd')) out.push(h);
+                    }
+                }
+                return out;
+            },
+    
+            // 给 AI 用的文本
+            getPromptText() {
+                if (!this.rules.name) return '';
+                const r = this.rules;
+                const lines = [];
+                lines.push(`【时间规则：${r.name}】`);
+                if (r.narrative) lines.push(r.narrative);
+                if (r.phases.length) {
+                    lines.push('时段：' + r.phases.map(p => `${p.name}(${p.start}-${p.end})`).join('、'));
+                }
+                if (r.festivals.length) {
+                    lines.push('节日：' + r.festivals.map(f => `${f.month}月${f.day}日${f.name}`).join('、'));
+                }
+                return lines.join('\n');
+            },
+        };
     // ==================== 挂载到 window ====================
     window.RuleEngine = RuleEngine;
     window.GameplayHooks = GameplayHooks;
     window.TriggerExecutor = TriggerExecutor;
     window.RuleCreationManager = RuleCreationManager;
-
+    window.TimeRuleEngine = TimeRuleEngine;   // ★ 新增
     console.log('[CinemaWorld] rules.js 已加载');
 })();

@@ -17,12 +17,16 @@
             interactions: [],
             spriteAssignments: {},
             worldHistory: { summary: '', updatedAt: null, eraCount: 0 },
+            mainQuest: null,
+            playMode: 'scene',
             // ★ 新增
             combat: {
                 activeCombat: null,
                 battleRules: null,
+                battlePackages: {},      // 旧：整包缓存（保留兼容）
+                battleSkeletons: {},     // ★ 新：战斗骨架缓存（按敌人名字）
                 history: [],
-            },
+            }
         },
         ui: {
             currentLocation: null, // 当前所在场景名（唯一权威来源）
@@ -33,11 +37,93 @@
     };
 
     // ==================== 人物档案管理器 ====================
+    // ==================== 人物档案管理器 ====================
     const CharacterRegistry = {
+        // ★ 名字归一化：去掉所有空白、全角空格、零宽字符
+        normalizeName(name) {
+            return String(name || '')
+                .replace(/[\s\u3000\u200b\u200c\u200d\ufeff]/g, '')
+                .trim();
+        },
+
+        // ★ 内部：用归一化名字拿记录
+        _getRecord(name) {
+            const norm = this.normalizeName(name);
+            if (!norm) return null;
+            return CinemaWorld.worldState.characters?.[norm] || null;
+        },
+        // ============================================================
+        // ★ 全量同步：进入/离开地图时调一次
+        //   - 新 NPC 注册
+        //   - 已存在 NPC 补充字段
+        //   - 从地图上被删掉的 NPC → 标记 isPresent = false
+        // ============================================================
+        syncFromMap(map) {
+            if (!map?.entities) return { added: 0, updated: 0, left: 0 };
+
+            const mapName = map.name || '';
+            const inMap = new Set();     // 归一化名字
+            let added = 0;
+            let updated = 0;
+
+            // 1. 遍历地图上的 NPC
+            for (const ent of map.entities) {
+                if (!ent || ent.isPlayer) continue;
+                if (ent.kind !== 'npc') continue;
+                if (!ent.name) continue;
+
+                const normName = this.normalizeName(ent.name);
+                if (!normName) continue;
+                inMap.add(normName);
+
+                const existed = !!CinemaWorld.worldState.characters[normName];
+                const record = this.registerFromMapEntity(ent, mapName);
+
+                if (record) {
+                    // ★ 覆盖式更新：地图上的这些字段就是"当前真相"
+                    record.gender = record.gender || ent.meta?.gender || ent.fields?.['性别'] || '';
+                    record.mood = ent.meta?.mood || ent.fields?.['心情'] || record.mood || '';
+                    record.status = ent.status || record.status || '';
+                    record.favorability = ent.fields?.['好感度'] || record.favorability || '';
+                    if (ent.description) record.description = ent.description;
+                    if (ent.tags?.length) record.tags = ent.tags;
+
+                    // 标记来源和位置
+                    record.lastScene = mapName;
+                    record.lastSeenAt = Date.now();
+                    record.isPresent = true;
+                    record.source = record.source || 'map';
+
+                    if (existed) updated++;
+                    else added++;
+                }
+            }
+
+            // 2. 反向清理：档案里标着 source='map'、lastScene=当前地图、但地图上已没了的
+            let left = 0;
+            for (const record of Object.values(CinemaWorld.worldState.characters || {})) {
+                if (record.source !== 'map') continue;
+                if (record.lastScene !== mapName) continue;
+
+                const normName = this.normalizeName(record.name);
+                if (!normName) continue;
+                if (inMap.has(normName)) continue;
+
+                // 地图上没了 → 标记离开
+                record.isPresent = false;
+                record.lastSeenAt = Date.now();
+                left++;
+            }
+
+            if (added || updated || left) {
+                console.log(`[CharacterRegistry] syncFromMap(${mapName}): +${added} ~${updated} -${left}`);
+            }
+
+            return { added, updated, left };
+        },
         // 从场景同步角色到档案
         syncFromScene(scene) {
-            if (!scene.sceneCharacters) return;
-
+            if (!scene?.sceneCharacters) return;
             for (const ch of scene.sceneCharacters) {
                 if (!ch.name) continue;
                 this.upsert(ch, scene.name, true);
@@ -46,19 +132,21 @@
 
         // 人物离开场景
         markLeft(name, sceneName) {
-            const record = CinemaWorld.worldState.characters[name];
+            const record = this._getRecord(name);
             if (!record) return;
             record.isPresent = false;
             record.lastSeenAt = Date.now();
             const stillInScene = CinemaWorld.worldState.entities.some(
-                s => s.type === 'location' && s.sceneCharacters?.some(c => c.name === name)
+                s => s.type === 'location' && s.sceneCharacters?.some(
+                    c => this.normalizeName(c.name) === this.normalizeName(name)
+                )
             );
             record.isPresent = stillInScene;
         },
 
         // 人物加入场景
         markJoined(name, sceneName) {
-            const record = CinemaWorld.worldState.characters[name];
+            const record = this._getRecord(name);
             if (!record) return;
             record.isPresent = true;
             record.lastScene = sceneName;
@@ -70,12 +158,21 @@
 
         // 创建或更新档案
         upsert(ch, sceneName, isPresent) {
-            const existing = CinemaWorld.worldState.characters[ch.name];
+            if (!ch?.name) return null;
+
+            const normName = this.normalizeName(ch.name);
+            if (!normName) return null;
+
+            const chars = CinemaWorld.worldState.characters;
+            const existing = chars[normName];
 
             if (!existing) {
-                // 新档案
-                CinemaWorld.worldState.characters[ch.name] = {
+                // ★ 新档案：key 用归一化名字，name 保留原始
+                chars[normName] = {
                     name: ch.name,
+                    _normalizedName: normName,
+                    _aliases: [ch.name],
+
                     gender: ch.gender || '',
                     mood: ch.mood || '',
                     favorability: ch.favorability || '',
@@ -89,37 +186,46 @@
                     lastScene: sceneName,
                     appearances: [sceneName],
                     isPresent: isPresent,
-                    extraStats: { _order: [], _raw: '' },   // ★ 新增
+                    extraStats: { _order: [], _raw: '' },
                 };
-            } else {
-                // 更新已有档案
-                if (ch.gender) existing.gender = ch.gender;
-                if (ch.mood) existing.mood = ch.mood;
-                if (ch.favorability) existing.favorability = ch.favorability;
-                if (ch.status) existing.status = ch.status;
-                if (ch.tags?.length) existing.tags = ch.tags;
-                if (ch.description) existing.description = ch.description;
-                existing.lastSeenAt = Date.now();
+                return chars[normName];
+            }
 
-                // ★ 兼容旧存档：没有 extraStats 就补上
-                if (!existing.extraStats) {
-                    existing.extraStats = { _order: [], _raw: '' };
-                }
+            // ---------- 已有档案：合并 ----------
+            if (ch.gender) existing.gender = ch.gender;
+            if (ch.mood) existing.mood = ch.mood;
+            if (ch.favorability) existing.favorability = ch.favorability;
+            if (ch.status) existing.status = ch.status;
+            if (ch.tags?.length) existing.tags = ch.tags;
+            if (ch.description) existing.description = ch.description;
+            existing.lastSeenAt = Date.now();
 
-                // ★ role：只在玩家没手动改过时，才被 AI 覆盖
-                if (ch.role && existing.roleChangedBy !== 'player') {
-                    existing.role = ch.role;
-                    existing.roleChangedBy = 'auto';
-                }
+            if (!existing.extraStats) {
+                existing.extraStats = { _order: [], _raw: '' };
+            }
 
-                if (isPresent) {
-                    existing.isPresent = true;
-                    existing.lastScene = sceneName;
-                    if (!existing.appearances.includes(sceneName)) {
-                        existing.appearances.push(sceneName);
-                    }
+            // role：只在玩家没手动改过时被 AI 覆盖
+            if (ch.role && existing.roleChangedBy !== 'player') {
+                existing.role = ch.role;
+                existing.roleChangedBy = 'auto';
+            }
+
+            if (isPresent) {
+                existing.isPresent = true;
+                existing.lastScene = sceneName;
+                if (!existing.appearances.includes(sceneName)) {
+                    existing.appearances.push(sceneName);
                 }
             }
+
+            // ★ 记录别名
+            existing._aliases = existing._aliases || [];
+            if (!existing._aliases.includes(ch.name)) {
+                existing._aliases.push(ch.name);
+            }
+            if (!existing._normalizedName) existing._normalizedName = normName;
+
+            return existing;
         },
 
         // 获取全部
@@ -127,9 +233,23 @@
             return Object.values(CinemaWorld.worldState.characters || {});
         },
 
-        // 获取某个人物
+        // ★ 按归一化名字查
         get(name) {
-            return CinemaWorld.worldState.characters?.[name] || null;
+            return this._getRecord(name);
+        },
+
+        // ★ 查找别名（给立绘/显示用）
+        findByAlias(name) {
+            const norm = this.normalizeName(name);
+            const chars = CinemaWorld.worldState.characters || {};
+            if (chars[norm]) return chars[norm];
+            // 兜底：遍历 _aliases
+            for (const rec of Object.values(chars)) {
+                if (rec._aliases?.some(a => this.normalizeName(a) === norm)) {
+                    return rec;
+                }
+            }
+            return null;
         },
 
         // 获取主要角色
@@ -149,7 +269,7 @@
 
         // ★ 玩家手动设置角色定位
         setRole(name, role) {
-            const record = this.get(name);
+            const record = this._getRecord(name);
             if (!record) return false;
             if (!['main', 'minor', 'npc'].includes(role)) return false;
             record.role = role;
@@ -159,7 +279,11 @@
 
         // 从场景移除时同步
         removeFromScene(scene, name) {
-            const idx = scene.sceneCharacters.findIndex(c => c.name === name);
+            if (!scene?.sceneCharacters) return;
+            const norm = this.normalizeName(name);
+            const idx = scene.sceneCharacters.findIndex(
+                c => this.normalizeName(c.name) === norm
+            );
             if (idx > -1) scene.sceneCharacters.splice(idx, 1);
             this.markLeft(name, scene.name);
         },
@@ -170,10 +294,184 @@
             for (const scene of scenes) {
                 if (scene.sceneCharacters) {
                     for (const ch of scene.sceneCharacters) {
-                        if (ch.name) this.upsert(ch, scene.name, scene.name === CinemaWorld.ui.currentLocation);
+                        if (ch.name) {
+                            this.upsert(
+                                ch,
+                                scene.name,
+                                scene.name === CinemaWorld.ui.currentLocation
+                            );
+                        }
                     }
                 }
             }
+        },
+
+        // ============================================================
+        // ★ 新增：从地图实体注册
+        // ============================================================
+        registerFromMapEntity(ent, mapName) {
+            if (!ent?.name) return null;
+            if (ent.isPlayer) return null;
+            if (ent.kind !== 'npc') return null;
+
+            const normName = this.normalizeName(ent.name);
+            if (!normName) return null;
+
+            const chars = CinemaWorld.worldState.characters;
+            const existing = chars[normName];
+
+            // ---------- 已有 → 补充缺失字段 ----------
+            if (existing) {
+                if (!existing.gender && ent.meta?.gender) existing.gender = ent.meta.gender;
+                if (!existing.mood && ent.meta?.mood) existing.mood = ent.meta.mood;
+                if (!existing.status && ent.status) existing.status = ent.status;
+                if (!existing.description && ent.description) existing.description = ent.description;
+                if ((!existing.tags || existing.tags.length === 0) && ent.tags?.length) {
+                    existing.tags = ent.tags;
+                }
+                if (!existing.lastScene && mapName) existing.lastScene = mapName;
+
+                // 记录别名
+                existing._aliases = existing._aliases || [];
+                if (!existing._aliases.includes(ent.name)) {
+                    existing._aliases.push(ent.name);
+                }
+
+                return existing;
+            }
+
+            // ---------- 新建 ----------
+            chars[normName] = {
+                name: ent.name,
+                _normalizedName: normName,
+                _aliases: [ent.name],
+
+                gender: ent.meta?.gender || ent.fields?.['性别'] || '',
+                mood: ent.meta?.mood || ent.fields?.['心情'] || '',
+                favorability: ent.fields?.['好感度'] || '',
+                status: ent.status || '',
+                tags: ent.tags || [],
+                description: ent.description || '',
+                role: ent.meta?.role || 'minor',
+                roleChangedBy: 'auto',
+
+                firstSeenAt: Date.now(),
+                lastSeenAt: Date.now(),
+                lastScene: mapName || '',
+                appearances: mapName ? [mapName] : [],
+                isPresent: true,
+
+                source: 'map',
+                extraStats: { _order: [], _raw: '' },
+            };
+
+            return chars[normName];
+        },
+
+        // ★ 扫一张地图，把所有 NPC 注册进来
+        registerMapEntities(map) {
+            if (!map?.entities) return 0;
+
+            let count = 0;
+            for (const ent of map.entities) {
+                if (!ent || ent.isPlayer) continue;
+                if (ent.kind !== 'npc') continue;
+                if (!ent.name) continue;
+
+                const normName = this.normalizeName(ent.name);
+                const existed = !!CinemaWorld.worldState.characters[normName];
+
+                this.registerFromMapEntity(ent, map.name);
+
+                if (!existed) count++;
+            }
+
+            if (count > 0) {
+                console.log(`[CharacterRegistry] 从【${map.name}】注册了 ${count} 个新角色`);
+            }
+            return count;
+        },
+
+        // ★ 按名字注册（通用）
+        registerByName(name, extra = {}) {
+            const normName = this.normalizeName(name);
+            if (!normName) return null;
+
+            const chars = CinemaWorld.worldState.characters;
+            const existing = chars[normName];
+
+            if (existing) {
+                for (const [k, v] of Object.entries(extra)) {
+                    if (v === undefined || v === null || v === '') continue;
+                    if (existing[k] === undefined || existing[k] === '' ||
+                        (Array.isArray(existing[k]) && existing[k].length === 0)) {
+                        existing[k] = v;
+                    }
+                }
+                existing._aliases = existing._aliases || [];
+                if (!existing._aliases.includes(name)) {
+                    existing._aliases.push(name);
+                }
+                return existing;
+            }
+
+            chars[normName] = {
+                name,
+                _normalizedName: normName,
+                _aliases: [name],
+                gender: extra.gender || '',
+                mood: extra.mood || '',
+                favorability: extra.favorability || '',
+                status: extra.status || '',
+                tags: extra.tags || [],
+                description: extra.description || '',
+                role: extra.role || 'minor',
+                roleChangedBy: 'auto',
+                firstSeenAt: Date.now(),
+                lastSeenAt: Date.now(),
+                lastScene: extra.lastScene || '',
+                appearances: extra.lastScene ? [extra.lastScene] : [],
+                isPresent: true,
+                extraStats: { _order: [], _raw: '' },
+            };
+            return chars[normName];
+        },
+
+        // ============================================================
+        // ★ 迁移：把旧存档里"原始名字做 key"的数据，转成"归一化名字做 key"
+        // ============================================================
+        migrateOldData() {
+            const chars = CinemaWorld.worldState.characters || {};
+            const migrated = {};
+
+            for (const [oldKey, record] of Object.entries(chars)) {
+                const normName = this.normalizeName(record.name || oldKey);
+                if (!normName) continue;
+
+                if (migrated[normName]) {
+                    // 合并重复的
+                    const existing = migrated[normName];
+                    existing._aliases = existing._aliases || [];
+                    if (!existing._aliases.includes(record.name)) {
+                        existing._aliases.push(record.name);
+                    }
+                    // 补缺
+                    for (const [k, v] of Object.entries(record)) {
+                        if (k === 'name' || k === '_aliases') continue;
+                        if (v === undefined || v === null || v === '') continue;
+                        if (existing[k] === undefined || existing[k] === '') {
+                            existing[k] = v;
+                        }
+                    }
+                } else {
+                    record._normalizedName = normName;
+                    record._aliases = record._aliases || [record.name || oldKey];
+                    migrated[normName] = record;
+                }
+            }
+
+            CinemaWorld.worldState.characters = migrated;
+            console.log('[CharacterRegistry] 旧数据迁移完成，共', Object.keys(migrated).length, '个角色');
         },
     };
 
@@ -219,7 +517,7 @@
     const DiceEngine = {
         // 求值一个可能包含骰子的表达式
         // context: { 属性名: 数值, 派生名: 数值, 常数... }
-                // 求值一个可能包含骰子的表达式
+        // 求值一个可能包含骰子的表达式
         // context: { 属性名: 数值, 派生名: 数值, 敌人: Proxy, 我方: Proxy, ... }
         roll(expr, context = {}) {
             if (!expr) return 0;
@@ -310,7 +608,7 @@
                 .replace(/[÷]/g, '/')
                 .replace(/（/g, '(')
                 .replace(/）/g, ')');
-                
+
             safe = safe.replace(/(\d+(?:\.\d+)?)\s*%/g, '($1/100)');
             // ============================================================
             // 1. 白名单函数名（不允许被当属性替换）
@@ -459,11 +757,11 @@
     // 把玩家数据里"通用语义"的属性识别出来，供引擎消费
     const SemanticTagger = {
         patterns: {
-            hp:     /生命|血量|气血|生命值|HP|hp/,
+            hp: /生命|血量|气血|生命值|HP|hp/,
             energy: /体力|精力|气力|耐力|行动力/,
-            exp:    /经验|EXP|exp|历练/,
-            level:  /等级|Lv|LV|lv|级别/,
-            gold:   /金币|金钱|铜钱|银两|金/,
+            exp: /经验|EXP|exp|历练/,
+            level: /等级|Lv|LV|lv|级别/,
+            gold: /金币|金钱|铜钱|银两|金/,
             hunger: /饥饿|饱食|食欲|饱腹/,
         },
 
@@ -534,6 +832,6 @@
     window.DiceEngine = DiceEngine;
     window.SemanticTagger = SemanticTagger;
     window.BackgroundGenerator = window.BackgroundGenerator || null;
-    
+
     console.log('[CinemaWorld] core.js 已加载');
 })();

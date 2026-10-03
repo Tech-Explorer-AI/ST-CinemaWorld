@@ -19,464 +19,542 @@
     const MusicManager = window.MusicManager;
     const VisualNovelManager = window.VisualNovelManager;
 
-        // ==================== 效果系统 ====================
-        const EffectSystem = {
-            // 应用叙事文本中的效果
-            applyFromNarrative(text) {
-                const effects = this.parseEffects(text);
-                if (effects.length === 0) return [];
-                console.log('[CinemaWorld] 解析到效果:', effects);
-                const results = this.applyEffects(effects);
-                console.log('[CinemaWorld] 应用结果:', results);
-                return results;
-            },
-    
-            parseEffects(text) {
-                const effects = [];
-                const blocks = text.match(/【效果】([\s\S]*?)(?=【(?:效果|场景更新|场景切换|选项|摘要|音乐提示|规则|对话|剧情)】|$)/g);
-                if (!blocks) return effects;
-            
-                for (const block of blocks) {
-                    const lines = block.replace(/【效果】/, '').trim().split('\n');
-                    const effect = { target: '玩家', numberChanges: [], itemChanges: [], statusChanges: [] };
-            
-                    let currentKey = null;
-                    let currentValue = [];
-            
-                    const flush = () => {
-                        if (!currentKey) return;
-                        const value = currentValue.join('\n').trim();
-                        currentValue = [];
-            
-                        if (currentKey === 'target') {
-                            if (value) effect.target = value;
-                        } else if (currentKey === 'number') {
-                            this._parseNumberChanges(value, effect);
-                        } else if (currentKey === 'entity') {
-                            this._parseEntityChanges(value, effect);
-                        }
-                        currentKey = null;
-                    };
-            
-                    // ★ 标题行 → 字段名的映射
-                    const TITLE_KEYS = {
-                        '目标': 'target',
-                        'target': 'target',
-                        '数值变化': 'number',
-                        '数值': 'number',
-                        '实体变化': 'entity',
-                        '物品变化': 'entity',
-                    };
-            
-                    for (let raw of lines) {
-                        const line = raw.trim();
-                        if (!line) continue;
-            
-                        // ---------- 1. 先判断是不是标题行 ----------
-                        //    标题行 = `字段名:` 或 `字段名：`，冒号后为空
-                        const isTitle = /^(目标|target|数值变化|数值|实体变化|物品变化)\s*[:：]\s*$/.test(line);
-            
-                        if (isTitle) {
-                            flush();
-                            const titleKey = line.replace(/[:：]\s*$/, '').trim();
-                            currentKey = TITLE_KEYS[titleKey] || null;
-                            continue;                       // ★ 标题行不 push 任何值
-                        }
-            
-                        // ---------- 2. 带值的键值行 ----------
-                        //    必须不是列表项（- 开头），且冒号后有内容
-                        const isListItem = /^[-•*]\s/.test(line);
-                        const kv = !isListItem ? line.match(/^(.+?)\s*[:：]\s*(.+)$/) : null;
-            
-                        if (kv && TITLE_KEYS[kv[1].trim()]) {
-                            flush();
-                            const key = TITLE_KEYS[kv[1].trim()];
-                            currentKey = key;
-                            currentValue.push(kv[2].trim());   // 同行值
-                            continue;
-                        }
-            
-                        // ---------- 3. 其他情况：续行 ----------
-                        if (currentKey) {
-                            currentValue.push(line);
-                        }
+    // ==================== 效果系统 ====================
+    const EffectSystem = {
+        // 应用叙事文本中的效果
+        applyFromNarrative(text) {
+            const effects = this.parseEffects(text);
+            if (effects.length === 0) return [];
+            console.log('[CinemaWorld] 解析到效果:', effects);
+            const results = this.applyEffects(effects);
+            console.log('[CinemaWorld] 应用结果:', results);
+            return results;
+        },
+
+        parseEffects(text) {
+            const effects = [];
+            const blocks = text.match(/【效果】([\s\S]*?)(?=【(?:效果|场景更新|场景切换|选项|摘要|音乐提示|规则|对话|剧情)】|$)/g);
+            if (!blocks) return effects;
+
+            for (const block of blocks) {
+                const lines = block.replace(/【效果】/, '').trim().split('\n');
+                const effect = { target: '玩家', numberChanges: [], itemChanges: [], statusChanges: [] };
+
+                let currentKey = null;
+                let currentValue = [];
+
+                const flush = () => {
+                    if (!currentKey) return;
+                    const value = currentValue.join('\n').trim();
+                    currentValue = [];
+
+                    if (currentKey === 'target') {
+                        if (value) effect.target = value;
+                    } else if (currentKey === 'number') {
+                        this._parseNumberChanges(value, effect);
+                    } else if (currentKey === 'entity') {
+                        this._parseEntityChanges(value, effect);
                     }
-                    flush();
-            
-                    effects.push(effect);
+                    currentKey = null;
+                };
+
+                // ★ 标题行 → 字段名的映射
+                const TITLE_KEYS = {
+                    '目标': 'target',
+                    'target': 'target',
+                    '数值变化': 'number',
+                    '数值': 'number',
+                    '实体变化': 'entity',
+                    '物品变化': 'entity',
+                };
+
+                for (let raw of lines) {
+                    const line = raw.trim();
+                    if (!line) continue;
+
+                    // ---------- 1. 先判断是不是标题行 ----------
+                    //    标题行 = `字段名:` 或 `字段名：`，冒号后为空
+                    const isTitle = /^(目标|target|数值变化|数值|实体变化|物品变化)\s*[:：]\s*$/.test(line);
+
+                    if (isTitle) {
+                        flush();
+                        const titleKey = line.replace(/[:：]\s*$/, '').trim();
+                        currentKey = TITLE_KEYS[titleKey] || null;
+                        continue;                       // ★ 标题行不 push 任何值
+                    }
+
+                    // ---------- 2. 带值的键值行 ----------
+                    //    必须不是列表项（- 开头），且冒号后有内容
+                    const isListItem = /^[-•*]\s/.test(line);
+                    const kv = !isListItem ? line.match(/^(.+?)\s*[:：]\s*(.+)$/) : null;
+
+                    if (kv && TITLE_KEYS[kv[1].trim()]) {
+                        flush();
+                        const key = TITLE_KEYS[kv[1].trim()];
+                        currentKey = key;
+                        currentValue.push(kv[2].trim());   // 同行值
+                        continue;
+                    }
+
+                    // ---------- 3. 其他情况：续行 ----------
+                    if (currentKey) {
+                        currentValue.push(line);
+                    }
                 }
-                return effects;
-            },
-            
-            // ★ 解析数值变化块（按行 + 顿号混合切分）
-            _parseNumberChanges(value, effect) {
-                if (!value) return;
-            
-                // 先按行切，再对每行按 、,， 切
-                const parts = value.split('\n')
-                    .flatMap(line => line.split(/[、,，]/))
-                    .map(v => v.trim())
+                flush();
+
+                effects.push(effect);
+            }
+            return effects;
+        },
+
+        // ★ 解析数值变化块（按行 + 顿号混合切分）
+        _parseNumberChanges(value, effect) {
+            if (!value) return;
+
+            // 先按行切，再对每行按 、,， 切
+            const parts = value.split('\n')
+                .flatMap(line => line.split(/[、,，]/))
+                .map(v => v.trim())
+                .filter(Boolean);
+
+            for (const c of parts) {
+                const p = this.parseNumberChange(c);
+                if (p) effect.numberChanges.push(p);
+            }
+        },
+
+        // ★ 解析实体变化块（★ 严格按行切分，不被中文逗号切碎）
+        _parseEntityChanges(value, effect) {
+            console.log('[DEBUG] _parseEntityChanges 收到的 value =', JSON.stringify(value));
+            if (!value) return;
+            // ★ 关键：按行切分，只保留以 - / • / * 开头的行
+            const lines = value.split('\n')
+                .map(l => l.trim())
+                .filter(Boolean);
+
+            // 如果整块没有任何列表前缀，就退化成一个整体去解析
+            const hasListPrefix = lines.some(l => /^[-•*]\s/.test(l));
+
+            let candidates;
+            if (hasListPrefix) {
+                candidates = lines
+                    .filter(l => /^[-•*]\s/.test(l))
+                    .map(l => l.replace(/^[-•*]\s*/, '').trim())
                     .filter(Boolean);
-            
-                for (const c of parts) {
-                    const p = this.parseNumberChange(c);
-                    if (p) effect.numberChanges.push(p);
+            } else {
+                // 没有列表前缀 → 可能是 AI 偷懒写了单行
+                candidates = [value.replace(/\n/g, ' ').trim()];
+            }
+
+            let lastType = null;
+
+            for (const c of candidates) {
+                let p = this.parseEntityChange(c);
+
+                // ★ 续行兜底：本行没识别出动词，但上一行有 → 补动词再试
+                if (!p && lastType) {
+                    const verbMap = {
+                        'obtain': '获得',
+                        'lose': '失去',
+                        'addStatus': '获得状态',
+                        'removeStatus': '移除状态',
+                    };
+                    const verb = verbMap[lastType];
+                    if (verb) {
+                        p = this.parseEntityChange(`${verb} ${c}`);
+                    }
                 }
-            },
-            
-            // ★ 解析实体变化块（★ 严格按行切分，不被中文逗号切碎）
-            _parseEntityChanges(value, effect) {
-                console.log('[DEBUG] _parseEntityChanges 收到的 value =', JSON.stringify(value));
-                if (!value) return;
-                // ★ 关键：按行切分，只保留以 - / • / * 开头的行
-                const lines = value.split('\n')
-                    .map(l => l.trim())
-                    .filter(Boolean);
-            
-                // 如果整块没有任何列表前缀，就退化成一个整体去解析
-                const hasListPrefix = lines.some(l => /^[-•*]\s/.test(l));
-            
-                let candidates;
-                if (hasListPrefix) {
-                    candidates = lines
-                        .filter(l => /^[-•*]\s/.test(l))
-                        .map(l => l.replace(/^[-•*]\s*/, '').trim())
-                        .filter(Boolean);
-                } else {
-                    // 没有列表前缀 → 可能是 AI 偷懒写了单行
-                    candidates = [value.replace(/\n/g, ' ').trim()];
+
+                if (p) {
+                    lastType = p.type;
+                    if (p.type === 'obtain' || p.type === 'lose') {
+                        effect.itemChanges.push(p);
+                    } else {
+                        effect.statusChanges.push(p);
+                    }
                 }
-            
-                let lastType = null;
-            
-                for (const c of candidates) {
-                    let p = this.parseEntityChange(c);
-            
-                    // ★ 续行兜底：本行没识别出动词，但上一行有 → 补动词再试
-                    if (!p && lastType) {
-                        const verbMap = {
-                            'obtain': '获得',
-                            'lose': '失去',
-                            'addStatus': '获得状态',
-                            'removeStatus': '移除状态',
+            }
+        },
+
+        parseNumberChange(text) {
+            let m = text.match(/^(.+?)\s*([+\-])\s*(\d+)$/);
+            if (m) return { key: m[1].trim(), operation: m[2] === '+' ? 'add' : 'subtract', value: parseInt(m[3]) };
+            m = text.match(/^(.+?)\s*=\s*(\d+)$/);
+            if (m) return { key: m[1].trim(), operation: 'set', value: parseInt(m[2]) };
+            return null;
+        },
+
+        parseEntityChange(text) {
+            let m;
+
+            // ============================================================
+            // ★ 新格式优先：完整的物品行
+            //   获得【铁剑|⚔️】：锋利的短剑，[类型:武器|攻击:+5]
+            //   失去【铁剑|⚔️】：...
+            // ============================================================
+            const fullMatch = text.match(/^(获得|失去|丢弃|消耗|拾取|拿到)\s*(【[\s\S]+)$/);
+            if (fullMatch) {
+                const verb = fullMatch[1];
+                const itemLine = fullMatch[2].trim();
+
+                const parsed = window.WorldManager.parseItemLine(itemLine);
+                if (parsed && parsed.name) {
+                    const count = parsed.count || 1;
+
+                    if (/^(获得|拾取|拿到)$/.test(verb)) {
+                        return {
+                            type: 'obtain',
+                            name: parsed.name,
+                            count,
+                            icon: parsed.icon || '📦',
+                            description: parsed.description || '',
+                            fields: parsed.fields || {},
+                            interactions: parsed.interactions || [],
+                            status: parsed.status || '',
+                            effect: parsed.effect || '',
+                            stackable: parsed.stackable,
+                            maxStack: parsed.maxStack,
+                            raw: itemLine,
                         };
-                        const verb = verbMap[lastType];
-                        if (verb) {
-                            p = this.parseEntityChange(`${verb} ${c}`);
-                        }
-                    }
-            
-                    if (p) {
-                        lastType = p.type;
-                        if (p.type === 'obtain' || p.type === 'lose') {
-                            effect.itemChanges.push(p);
-                        } else {
-                            effect.statusChanges.push(p);
-                        }
+                    } else {
+                        return {
+                            type: 'lose',
+                            name: parsed.name,
+                            count,
+                            raw: itemLine,
+                        };
                     }
                 }
-            },
-    
-            parseNumberChange(text) {
-                let m = text.match(/^(.+?)\s*([+\-])\s*(\d+)$/);
-                if (m) return { key: m[1].trim(), operation: m[2] === '+' ? 'add' : 'subtract', value: parseInt(m[3]) };
-                m = text.match(/^(.+?)\s*=\s*(\d+)$/);
-                if (m) return { key: m[1].trim(), operation: 'set', value: parseInt(m[2]) };
-                return null;
-            },
-    
-            parseEntityChange(text) {
-                let m;
+                // 完整行解析失败 → 继续走旧格式
+            }
 
-                // ============================================================
-                // ★ 新格式优先：完整的物品行
-                //   获得【铁剑|⚔️】：锋利的短剑，[类型:武器|攻击:+5]
-                //   失去【铁剑|⚔️】：...
-                // ============================================================
-                const fullMatch = text.match(/^(获得|失去|丢弃|消耗|拾取|拿到)\s*(【[\s\S]+)$/);
-                if (fullMatch) {
-                    const verb = fullMatch[1];
-                    const itemLine = fullMatch[2].trim();
+            // ============================================================
+            // 状态类
+            // ============================================================
+            m = text.match(/^(?:获得状态|附加状态|附加)\s*(.+?)(?:\s*[x×]\s*\d+)?$/);
+            if (m) {
+                const parsed = this._parseTagWithEffect(m[1].trim());
+                return { type: 'addStatus', name: parsed.name, effect: parsed.effect };
+            }
 
-                    const parsed = window.WorldManager.parseItemLine(itemLine);
-                    if (parsed && parsed.name) {
-                        const count = parsed.count || 1;
+            m = text.match(/^(?:移除状态|解除状态|解除)\s*(.+?)(?:\s*[x×]\s*\d+)?$/);
+            if (m) {
+                const name = m[1].trim().replace(/[（(].*?[)）]\s*$/, '');
+                return { type: 'removeStatus', name };
+            }
 
-                        if (/^(获得|拾取|拿到)$/.test(verb)) {
-                            return {
-                                type: 'obtain',
-                                name: parsed.name,
-                                count,
-                                icon: parsed.icon || '📦',
-                                description: parsed.description || '',
-                                fields: parsed.fields || {},
-                                interactions: parsed.interactions || [],
-                                status: parsed.status || '',
-                                effect: parsed.effect || '',
-                                stackable: parsed.stackable,
-                                maxStack: parsed.maxStack,
-                                raw: itemLine,
-                            };
-                        } else {
-                            return {
-                                type: 'lose',
-                                name: parsed.name,
-                                count,
-                                raw: itemLine,
-                            };
-                        }
-                    }
-                    // 完整行解析失败 → 继续走旧格式
+            // ============================================================
+            // 旧格式：只有名字和数量
+            // ============================================================
+            m = text.match(/^(?:获得|拾取|拿到)\s*(.+?)\s*(?:[x×个]\s*)?(\d+)?$/);
+            if (m) {
+                let name = m[1].trim();
+                let icon = '📦';
+                const iconMatch = name.match(/^(.+?)\s*[（(]([^）)]+)[)）]\s*$/);
+                if (iconMatch) {
+                    name = iconMatch[1].trim();
+                    const emoji = iconMatch[2].match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+                    if (emoji) icon = emoji[0];
                 }
+                return {
+                    type: 'obtain',
+                    name,
+                    count: parseInt(m[2]) || 1,
+                    icon,
+                    description: '',
+                    fields: {},
+                    interactions: [],
+                    status: '',
+                    effect: '',
+                };
+            }
 
-                // ============================================================
-                // 状态类
-                // ============================================================
-                m = text.match(/^(?:获得状态|附加状态|附加)\s*(.+?)(?:\s*[x×]\s*\d+)?$/);
-                if (m) {
-                    const parsed = this._parseTagWithEffect(m[1].trim());
-                    return { type: 'addStatus', name: parsed.name, effect: parsed.effect };
-                }
+            m = text.match(/^(?:失去|丢弃|消耗)\s*(.+?)\s*(?:[x×个]\s*)?(\d+)?$/);
+            if (m) {
+                return { type: 'lose', name: m[1].trim(), count: parseInt(m[2]) || 1 };
+            }
 
-                m = text.match(/^(?:移除状态|解除状态|解除)\s*(.+?)(?:\s*[x×]\s*\d+)?$/);
-                if (m) {
-                    const name = m[1].trim().replace(/[（(].*?[)）]\s*$/, '');
-                    return { type: 'removeStatus', name };
-                }
+            return null;
+        },
 
-                // ============================================================
-                // 旧格式：只有名字和数量
-                // ============================================================
-                m = text.match(/^(?:获得|拾取|拿到)\s*(.+?)\s*(?:[x×个]\s*)?(\d+)?$/);
-                if (m) {
-                    let name = m[1].trim();
-                    let icon = '📦';
-                    const iconMatch = name.match(/^(.+?)\s*[（(]([^）)]+)[)）]\s*$/);
-                    if (iconMatch) {
-                        name = iconMatch[1].trim();
-                        const emoji = iconMatch[2].match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
-                        if (emoji) icon = emoji[0];
-                    }
-                    return {
-                        type: 'obtain',
-                        name,
-                        count: parseInt(m[2]) || 1,
-                        icon,
-                        description: '',
-                        fields: {},
-                        interactions: [],
-                        status: '',
-                        effect: '',
-                    };
+        // ★ 解析 "名字（效果1|效果2）"
+        _parseTagWithEffect(raw) {
+            const m = String(raw).match(/^(.+?)\s*[（(](.+?)[)）]\s*$/);
+            if (!m) {
+                return { name: String(raw).trim(), effect: null };
+            }
+            const name = m[1].trim();
+            const effectText = m[2].trim();
+            const effect = this._parseEffectText(effectText);
+            return { name, effect };
+        },
+
+        // ★ 解析效果文本（用 | 分隔）
+        _parseEffectText(text) {
+            const effect = {};
+            const parts = String(text).split('|').map(s => s.trim()).filter(Boolean);
+
+            for (const part of parts) {
+                if (/^跳过回合/.test(part)) { effect.跳过回合 = true; continue; }
+
+                const durMatch = part.match(/^持续\s*(\d+)\s*回合/);
+                if (durMatch) { effect.持续 = parseInt(durMatch[1]); continue; }
+
+                const ptMatch = part.match(/^每回合\s*([\u4e00-\u9fa5A-Za-z]+)\s*([+\-]?\d+(?:\.\d+)?)$/);
+                if (ptMatch) {
+                    if (!effect.每回合) effect.每回合 = {};
+                    effect.每回合[ptMatch[1].trim()] = parseFloat(ptMatch[2]);
+                    continue;
                 }
 
-                m = text.match(/^(?:失去|丢弃|消耗)\s*(.+?)\s*(?:[x×个]\s*)?(\d+)?$/);
-                if (m) {
-                    return { type: 'lose', name: m[1].trim(), count: parseInt(m[2]) || 1 };
+                const attrMatch = part.match(/^([\u4e00-\u9fa5A-Za-z]+)\s*([+\-])\s*(\d+(?:\.\d+)?)\s*(%|％)?$/);
+                if (attrMatch) {
+                    const attr = attrMatch[1].trim();
+                    const sign = attrMatch[2] === '-' ? -1 : 1;
+                    let value = parseFloat(attrMatch[3]);
+                    if (attrMatch[4]) value = value / 100;
+                    else if (value >= 2) value = value / 100;
+                    if (!effect.属性) effect.属性 = {};
+                    effect.属性[attr] = (effect.属性[attr] || 0) + sign * value;
+                    continue;
                 }
+            }
 
-                return null;
-            },
-    
-            // ★ 解析 "名字（效果1|效果2）"
-            _parseTagWithEffect(raw) {
-                const m = String(raw).match(/^(.+?)\s*[（(](.+?)[)）]\s*$/);
-                if (!m) {
-                    return { name: String(raw).trim(), effect: null };
+            return Object.keys(effect).length > 0 ? effect : null;
+        },
+
+        applyEffects(effects) {
+            const results = [];
+            for (const effect of effects) {
+                const target = this.resolveTarget(effect.target);
+                if (!target) {
+                    results.push({ success: false, reason: `找不到目标: ${effect.target}` });
+                    continue;
                 }
-                const name = m[1].trim();
-                const effectText = m[2].trim();
-                const effect = this._parseEffectText(effectText);
-                return { name, effect };
-            },
-    
-            // ★ 解析效果文本（用 | 分隔）
-            _parseEffectText(text) {
-                const effect = {};
-                const parts = String(text).split('|').map(s => s.trim()).filter(Boolean);
-    
-                for (const part of parts) {
-                    if (/^跳过回合/.test(part)) { effect.跳过回合 = true; continue; }
-    
-                    const durMatch = part.match(/^持续\s*(\d+)\s*回合/);
-                    if (durMatch) { effect.持续 = parseInt(durMatch[1]); continue; }
-    
-                    const ptMatch = part.match(/^每回合\s*([\u4e00-\u9fa5A-Za-z]+)\s*([+\-]?\d+(?:\.\d+)?)$/);
-                    if (ptMatch) {
-                        if (!effect.每回合) effect.每回合 = {};
-                        effect.每回合[ptMatch[1].trim()] = parseFloat(ptMatch[2]);
-                        continue;
-                    }
-    
-                    const attrMatch = part.match(/^([\u4e00-\u9fa5A-Za-z]+)\s*([+\-])\s*(\d+(?:\.\d+)?)\s*(%|％)?$/);
-                    if (attrMatch) {
-                        const attr = attrMatch[1].trim();
-                        const sign = attrMatch[2] === '-' ? -1 : 1;
-                        let value = parseFloat(attrMatch[3]);
-                        if (attrMatch[4]) value = value / 100;
-                        else if (value >= 2) value = value / 100;
-                        if (!effect.属性) effect.属性 = {};
-                        effect.属性[attr] = (effect.属性[attr] || 0) + sign * value;
-                        continue;
-                    }
-                }
-    
-                return Object.keys(effect).length > 0 ? effect : null;
-            },
-    
-            applyEffects(effects) {
-                const results = [];
-                for (const effect of effects) {
-                    const target = this.resolveTarget(effect.target);
-                    if (!target) {
-                        results.push({ success: false, reason: `找不到目标: ${effect.target}` });
-                        continue;
-                    }
-                    effect.numberChanges.forEach(c => results.push(this.applyNumberChange(target, c)));
-                    effect.itemChanges.forEach(c => results.push(this.applyItemChange(target, c)));
-                    effect.statusChanges.forEach(c => results.push(this.applyStatusChange(target, c)));
-                }
-                return results;
-            },
-    
-            resolveTarget(name) {
-                if (!name) return null;
-                
-                // ★ 兼容玩家名字、AI 名字
-                const playerName = PlayerStateManager.player?.name;
-                const userName = CinemaWorld.currentUserName;
-                const aiName = CinemaWorld.currentAIChatName;
-                
-                if (['玩家', '我', 'player', '自己', '自身'].includes(name)
-                    || name === playerName
-                    || name === userName
-                    || name === aiName) {
-                    return { type: 'player', ref: PlayerStateManager.player };
-                }
-                
-                const scene = window.LocationModalManager.currentLocation;
-                if (scene && scene.sceneCharacters) {
-                    const ch = scene.sceneCharacters.find(c => c.name === name || name.includes(c.name));
-                    if (ch) return { type: 'character', ref: ch };
-                }
-                return null;
-            },
-    
-            applyNumberChange(target, change) {
-                const result = { success: false, type: 'number', barName: change.key };
-    
-                // ★ 场景角色
-                if (target.type === 'character') {
-                    const keyMap = {
-                        '好感度': 'favorability',
-                        '好感': 'favorability',
-                        '心情': 'mood',
-                        '状态': 'status',
-                    };
-                    const field = keyMap[change.key] || null;
-    
-                    // ---------- 1. 已知字段 ----------
-                    if (field) {
-                        if (field === 'mood' || field === 'status') {
-                            if (change.operation !== 'set') {
-                                result.reason = `${change.key} 是文本字段，只支持赋值`;
-                                return result;
-                            }
-                            result.before = { current: target.ref[field] };
-                            target.ref[field] = String(change.value);
-                            result.after = { current: target.ref[field] };
-                            result.success = true;
+                effect.numberChanges.forEach(c => results.push(this.applyNumberChange(target, c)));
+                effect.itemChanges.forEach(c => results.push(this.applyItemChange(target, c)));
+                effect.statusChanges.forEach(c => results.push(this.applyStatusChange(target, c)));
+            }
+            return results;
+        },
+
+        resolveTarget(name) {
+            if (!name) return null;
         
-                            // ★ 新增：mood 变化 → 刷立绘
-                            if (field === 'mood') {
-                                window.SpriteManager?.notifySceneSpriteUpdate(target.ref.name);
-                            }
+            // ---------- 1. 玩家 ----------
+            const playerName = PlayerStateManager.player?.name;
+            const userName = CinemaWorld.currentUserName;
+            const aiName = CinemaWorld.currentAIChatName;
+            if (['玩家', '我', 'player', '自己', '自身'].includes(name)
+                || name === playerName
+                || name === userName
+                || name === aiName) {
+                return { type: 'player', ref: PlayerStateManager.player };
+            }
+        
+            // ---------- 2. 场景角色 ----------
+            const scene = window.LocationModalManager?.currentLocation;
+            if (scene && scene.sceneCharacters) {
+                const ch = scene.sceneCharacters.find(c => c.name === name || name.includes(c.name));
+                if (ch) return { type: 'character', ref: ch };
+            }
+        
+            // ---------- 3. 地图实体兜底 ----------
+            const map = window.MapLauncher?.getMap?.();
+            if (map) {
+                const ent = map.entities.find(e => e.name === name || name.includes(e.name));
+                if (ent) {
+                    // ★ 规范化实体结构，让它能复用 character 分支
+                    if (!ent.extraStats) {
+                        ent.extraStats = { _order: [], _raw: '' };
+                    }
+                    if (!ent.tags) ent.tags = [];
+        
+                    // ★ 把 fields 里的关键字段提到顶层，供 applyNumberChange / applyStatusChange 用
+                    if (ent.fields) {
+                        if (ent.favorability === undefined && ent.fields['好感度'] !== undefined) {
+                            ent.favorability = ent.fields['好感度'];
+                        }
+                        if (ent.mood === undefined && ent.fields['心情'] !== undefined) {
+                            ent.mood = ent.fields['心情'];
+                        }
+                        if (ent.status === undefined && ent.fields['状态'] !== undefined) {
+                            ent.status = ent.fields['状态'];
+                        }
+                    }
+                    // meta 里也兜底一层
+                    if (ent.meta) {
+                        if (ent.favorability === undefined && ent.meta.favorability !== undefined) {
+                            ent.favorability = ent.meta.favorability;
+                        }
+                        if (ent.mood === undefined && ent.meta.mood !== undefined) {
+                            ent.mood = ent.meta.mood;
+                        }
+                    }
+        
+                    // ★ 标记来源，便于后续区分
+                    ent._source = 'map';
+        
+                    // ★ 返回 type: 'character'，复用 character 分支
+                    return { type: 'character', ref: ent, _isMapEntity: true };
+                }
+            }
+        
+            return null;
+        },
+
+        applyNumberChange(target, change) {
+            const result = { success: false, type: 'number', barName: change.key };
+
+            // ★ 场景角色
+            if (target.type === 'character') {
+                const keyMap = {
+                    '好感度': 'favorability',
+                    '好感': 'favorability',
+                    '心情': 'mood',
+                    '状态': 'status',
+                };
+                const field = keyMap[change.key] || null;
+
+                // ---------- 1. 已知字段 ----------
+                if (field) {
+                    if (field === 'mood' || field === 'status') {
+                        if (change.operation !== 'set') {
+                            result.reason = `${change.key} 是文本字段，只支持赋值`;
                             return result;
                         }
-    
-                        const raw = target.ref.favorability;
-                        let cur = parseInt(raw);
-                        if (isNaN(cur)) cur = 0;
-                        const before = cur;
-    
-                        switch (change.operation) {
-                            case 'add':      cur += change.value; break;
-                            case 'subtract': cur -= change.value; break;
-                            case 'set':      cur = change.value;  break;
+                        result.before = { current: target.ref[field] };
+                        target.ref[field] = String(change.value);
+                        result.after = { current: target.ref[field] };
+                        result.success = true;
+
+                        // ★ 新增：mood 变化 → 刷立绘
+                        if (field === 'mood') {
+                            window.SpriteManager?.notifySceneSpriteUpdate(target.ref.name);
                         }
-                        cur = Math.max(0, cur);
-    
-                        result.before = { current: before };
-                        target.ref.favorability = String(cur);
-                        result.after = { current: cur };
-                        result.success = true;
-                        result.barName = '好感度';
-                        // 好感度变化不影响立绘，不刷
                         return result;
                     }
-    
-                    // ---------- 2. 未知字段 → extraStats ----------
-                    if (!target.ref.extraStats) {
-                        target.ref.extraStats = { _order: [], _raw: '' };
+
+                    const raw = target.ref.favorability;
+                    let cur = parseInt(raw);
+                    if (isNaN(cur)) cur = 0;
+                    const before = cur;
+
+                    switch (change.operation) {
+                        case 'add': cur += change.value; break;
+                        case 'subtract': cur -= change.value; break;
+                        case 'set': cur = change.value; break;
                     }
-                    const extra = target.ref.extraStats;
-    
-                    if (extra[change.key] === undefined) {
-                        extra._order = extra._order || [];
-                        extra._order.push(change.key);
-                        extra[change.key] = String(change.value);
-                        result.before = { current: 0 };
-                        result.after = { current: change.value };
-                        result.success = true;
-                        result.barName = change.key;
-                        return result;
+                    cur = Math.max(0, cur);
+
+                    result.before = { current: before };
+                    target.ref.favorability = String(cur);
+                    result.after = { current: cur };
+                    result.success = true;
+                    result.barName = '好感度';
+                    // 好感度变化不影响立绘，不刷
+                    return result;
+                }
+
+                // ---------- 2. 未知字段 → extraStats ----------
+                if (!target.ref.extraStats) {
+                    target.ref.extraStats = { _order: [], _raw: '' };
+                }
+                const extra = target.ref.extraStats;
+
+                if (extra[change.key] === undefined) {
+                    extra._order = extra._order || [];
+                    extra._order.push(change.key);
+                    extra[change.key] = String(change.value);
+                    result.before = { current: 0 };
+                    result.after = { current: change.value };
+                    result.success = true;
+                    result.barName = change.key;
+                    return result;
+                }
+
+                const raw = String(extra[change.key]);
+
+                const barMatch = raw.match(/^(\d+)\s*\/\s*(\d+)([\s\S]*)$/);
+                if (barMatch) {
+                    let cur = parseInt(barMatch[1]);
+                    const max = parseInt(barMatch[2]);
+                    const tail = barMatch[3] || '';
+                    const before = cur;
+
+                    switch (change.operation) {
+                        case 'add': cur += change.value; break;
+                        case 'subtract': cur -= change.value; break;
+                        case 'set': cur = change.value; break;
                     }
-    
-                    const raw = String(extra[change.key]);
-    
-                    const barMatch = raw.match(/^(\d+)\s*\/\s*(\d+)([\s\S]*)$/);
-                    if (barMatch) {
-                        let cur = parseInt(barMatch[1]);
-                        const max = parseInt(barMatch[2]);
-                        const tail = barMatch[3] || '';
-                        const before = cur;
-    
-                        switch (change.operation) {
-                            case 'add':      cur += change.value; break;
-                            case 'subtract': cur -= change.value; break;
-                            case 'set':      cur = change.value;  break;
-                        }
-                        cur = Math.max(0, Math.min(max, cur));
-    
-                        extra[change.key] = `${cur}/${max}${tail}`;
-                        result.before = { current: before, max };
-                        result.after = { current: cur, max };
-                        result.success = true;
-                        result.barName = change.key;
-                        return result;
+                    cur = Math.max(0, Math.min(max, cur));
+
+                    extra[change.key] = `${cur}/${max}${tail}`;
+                    result.before = { current: before, max };
+                    result.after = { current: cur, max };
+                    result.success = true;
+                    result.barName = change.key;
+                    return result;
+                }
+
+                const numMatch = raw.match(/^(-?\d+(?:\.\d+)?)([\s\S]*)$/);
+                if (numMatch) {
+                    let cur = parseFloat(numMatch[1]);
+                    const unit = numMatch[2] || '';
+                    const before = cur;
+
+                    switch (change.operation) {
+                        case 'add': cur += change.value; break;
+                        case 'subtract': cur -= change.value; break;
+                        case 'set': cur = change.value; break;
                     }
-    
-                    const numMatch = raw.match(/^(-?\d+(?:\.\d+)?)([\s\S]*)$/);
-                    if (numMatch) {
-                        let cur = parseFloat(numMatch[1]);
-                        const unit = numMatch[2] || '';
-                        const before = cur;
-    
-                        switch (change.operation) {
-                            case 'add':      cur += change.value; break;
-                            case 'subtract': cur -= change.value; break;
-                            case 'set':      cur = change.value;  break;
-                        }
-                        cur = Math.max(0, cur);
-    
-                        extra[change.key] = `${cur}${unit}`;
-                        result.before = { current: before };
-                        result.after = { current: cur };
-                        result.success = true;
-                        result.barName = change.key;
-                        return result;
+                    cur = Math.max(0, cur);
+
+                    extra[change.key] = `${cur}${unit}`;
+                    result.before = { current: before };
+                    result.after = { current: cur };
+                    result.success = true;
+                    result.barName = change.key;
+                    return result;
+                }
+
+                if (change.operation === 'set') {
+                    result.before = { current: raw };
+                    extra[change.key] = String(change.value);
+                    result.after = { current: change.value };
+                    result.success = true;
+                    result.barName = change.key;
+                    return result;
+                }
+
+                result.reason = `${change.key} 是文本字段，只支持赋值`;
+                return result;
+            }
+
+            // ==================== 玩家 ====================
+
+            const extra = target.ref.extraStats;
+            if (extra && extra[change.key] !== undefined) {
+                const raw = String(extra[change.key]);
+                const numMatch = raw.match(/^(-?\d+(?:\.\d+)?)(.*)$/);
+                if (numMatch) {
+                    let cur = parseFloat(numMatch[1]);
+                    const unit = numMatch[2] || '';
+                    const before = cur;
+                    switch (change.operation) {
+                        case 'add': cur += change.value; break;
+                        case 'subtract': cur -= change.value; break;
+                        case 'set': cur = change.value; break;
                     }
-    
+                    result.before = { current: before };
+                    extra[change.key] = `${cur}${unit}`;
+                    result.after = { current: cur };
+                    result.success = true;
+                    result.barName = change.key;
+                    if (target.type === 'player') PlayerStateManager.refreshAvatarArea();
+                    return result;
+                } else {
                     if (change.operation === 'set') {
                         result.before = { current: raw };
                         extra[change.key] = String(change.value);
@@ -485,347 +563,332 @@
                         result.barName = change.key;
                         return result;
                     }
-    
                     result.reason = `${change.key} 是文本字段，只支持赋值`;
                     return result;
                 }
-    
-                // ==================== 玩家 ====================
-    
-                const extra = target.ref.extraStats;
-                if (extra && extra[change.key] !== undefined) {
-                    const raw = String(extra[change.key]);
-                    const numMatch = raw.match(/^(-?\d+(?:\.\d+)?)(.*)$/);
-                    if (numMatch) {
-                        let cur = parseFloat(numMatch[1]);
-                        const unit = numMatch[2] || '';
-                        const before = cur;
-                        switch (change.operation) {
-                            case 'add':      cur += change.value; break;
-                            case 'subtract': cur -= change.value; break;
-                            case 'set':      cur = change.value;  break;
-                        }
-                        result.before = { current: before };
-                        extra[change.key] = `${cur}${unit}`;
-                        result.after = { current: cur };
-                        result.success = true;
-                        result.barName = change.key;
-                        if (target.type === 'player') PlayerStateManager.refreshAvatarArea();
-                        return result;
-                    } else {
-                        if (change.operation === 'set') {
-                            result.before = { current: raw };
-                            extra[change.key] = String(change.value);
-                            result.after = { current: change.value };
-                            result.success = true;
-                            result.barName = change.key;
-                            return result;
-                        }
-                        result.reason = `${change.key} 是文本字段，只支持赋值`;
-                        return result;
-                    }
-                }
-    
-                const derived = target.ref.derivedStats?.computed;
-                if (derived && derived[change.key]) {
-                    const d = derived[change.key];
-                    const before = d.current;
-                    switch (change.operation) {
-                        case 'add':      d.current = d.max !== undefined ? Math.min(d.max, d.current + change.value) : d.current + change.value; break;
-                        case 'subtract': d.current = Math.max(0, d.current - change.value); break;
-                        case 'set':      d.current = change.value; break;
-                    }
-                    result.before = { current: before };
-                    result.after = { current: d.current, max: d.max };
-                    result.success = true;
-                    result.barName = change.key;
-                    if (target.type === 'player') PlayerStateManager.refreshAvatarArea();
-                    return result;
-                }
-    
-                const bars = target.ref.statusBars || [];
-                const bar = bars.find(b => b.key === change.key || b.key.includes(change.key) || change.key.includes(b.key));
-                if (!bar) {
-                    result.reason = `找不到数值条: ${change.key}`;
-                    return result;
-                }
-                result.before = { current: bar.current, max: bar.max };
-                result.barName = bar.key;
+            }
+
+            const derived = target.ref.derivedStats?.computed;
+            if (derived && derived[change.key]) {
+                const d = derived[change.key];
+                const before = d.current;
                 switch (change.operation) {
-                    case 'add': bar.current = Math.min(bar.max, bar.current + change.value); break;
-                    case 'subtract': bar.current = Math.max(0, bar.current - change.value); break;
-                    case 'set': bar.current = Math.min(bar.max, Math.max(0, change.value)); break;
+                    case 'add': d.current = d.max !== undefined ? Math.min(d.max, d.current + change.value) : d.current + change.value; break;
+                    case 'subtract': d.current = Math.max(0, d.current - change.value); break;
+                    case 'set': d.current = change.value; break;
                 }
-                result.after = { current: bar.current, max: bar.max };
+                result.before = { current: before };
+                result.after = { current: d.current, max: d.max };
                 result.success = true;
-    
-                if (target.type === 'player') {
-                    PlayerStateManager.refreshAvatarArea();
-    
-                    window.GameplayHooks.afterNumberChange(target.ref, bar).catch(e =>
-                        console.error('[GameplayHooks] 执行失败:', e)
-                    );
-    
-                    window.TriggerExecutor.processTriggers(bar, target.ref).catch(e =>
-                        console.error('[TriggerExecutor] 执行失败:', e)
-                    );
-                }
+                result.barName = change.key;
+                if (target.type === 'player') PlayerStateManager.refreshAvatarArea();
                 return result;
-            },
-    
-            applyItemChange(target, change) {
-                const result = {
-                    success: false,
-                    type: 'item',
-                    item: change.name,
-                    operation: change.type,
-                    count: change.count,
-                };
-    
-                if (change.type === 'obtain') {
-                    if (target.type !== 'player') {
-                        result.reason = '只有玩家有物品栏';
-                        return result;
-                    }
+            }
 
-                    const curScene = window.LocationModalManager.currentLocation;
-                    let sceneItem = null;
-                    if (curScene && curScene.sceneItems) {
-                        const idx = curScene.sceneItems.findIndex(i => i.name === change.name);
-                        if (idx > -1) {
-                            sceneItem = curScene.sceneItems[idx];
-                            curScene.sceneItems.splice(idx, 1);
-                            console.log(`[CinemaWorld] 从场景移除: ${change.name}`);
-                        }
-                    }
+            const bars = target.ref.statusBars || [];
+            const bar = bars.find(b => b.key === change.key || b.key.includes(change.key) || change.key.includes(b.key));
+            if (!bar) {
+                result.reason = `找不到数值条: ${change.key}`;
+                return result;
+            }
+            result.before = { current: bar.current, max: bar.max };
+            result.barName = bar.key;
+            switch (change.operation) {
+                case 'add': bar.current = Math.min(bar.max, bar.current + change.value); break;
+                case 'subtract': bar.current = Math.max(0, bar.current - change.value); break;
+                case 'set': bar.current = Math.min(bar.max, Math.max(0, change.value)); break;
+            }
+            result.after = { current: bar.current, max: bar.max };
+            result.success = true;
 
-                    const inv = target.ref.inventory || [];
-                    const ex = inv.find(i => i.name === change.name);
+            if (target.type === 'player') {
+                PlayerStateManager.refreshAvatarArea();
 
-                    // ★ 字段优先级：change 自带 > 场景物品 > 空
-                    const finalFields = (change.fields && Object.keys(change.fields).length > 0)
-                        ? change.fields
-                        : (sceneItem?.fields || {});
+                window.GameplayHooks.afterNumberChange(target.ref, bar).catch(e =>
+                    console.error('[GameplayHooks] 执行失败:', e)
+                );
 
-                    const finalInteractions = (change.interactions && change.interactions.length > 0)
-                        ? change.interactions
-                        : (sceneItem?.interactions || []);
+                window.TriggerExecutor.processTriggers(bar, target.ref).catch(e =>
+                    console.error('[TriggerExecutor] 执行失败:', e)
+                );
+            }
+            return result;
+        },
 
-                    const finalIcon = change.icon || sceneItem?.icon || '📦';
-                    const finalDesc = change.description || sceneItem?.description || '';
-                    const finalStatus = change.status || sceneItem?.status || '';
-                    const finalEffect = change.effect || sceneItem?.effect || '';
-                    const finalStackable = change.stackable ?? sceneItem?.stackable ?? false;
-                    const finalMaxStack = change.maxStack ?? sceneItem?.maxStack ?? null;
-                    const finalType = sceneItem?.type || change.type || 'item';
+        applyItemChange(target, change) {
+            const result = {
+                success: false,
+                type: 'item',
+                item: change.name,
+                operation: change.type,
+                count: change.count,
+            };
 
-                    if (ex) {
-                        ex.count += change.count;
-                        result.before = ex.count - change.count;
-                        result.after = ex.count;
-
-                        // ★ 已有物品但字段空 → 用新字段补上
-                        if (Object.keys(ex.fields || {}).length === 0 && Object.keys(finalFields).length > 0) {
-                            ex.fields = finalFields;
-                        }
-                        if ((!ex.interactions || ex.interactions.length === 0) && finalInteractions.length > 0) {
-                            ex.interactions = finalInteractions;
-                        }
-                        if ((!ex.icon || ex.icon === '📦') && finalIcon !== '📦') {
-                            ex.icon = finalIcon;
-                        }
-                        if (!ex.description && finalDesc) {
-                            ex.description = finalDesc;
-                        }
-                        if (!ex.status && finalStatus) ex.status = finalStatus;
-                        if (!ex.effect && finalEffect) ex.effect = finalEffect;
-                    } else {
-                        inv.push({
-                            name: change.name,
-                            count: change.count,
-                            description: finalDesc,
-                            icon: finalIcon,
-                            fields: { ...finalFields },
-                            interactions: [...finalInteractions],
-                            status: finalStatus,
-                            effect: finalEffect,
-                            stackable: finalStackable,
-                            maxStack: finalMaxStack,
-                            type: finalType,
-                        });
-                        result.before = 0;
-                        result.after = change.count;
-                    }
-                    result.success = true;
-                    result.from = sceneItem ? 'scene→inventory' : 'effect→inventory';
+            if (change.type === 'obtain') {
+                if (target.type !== 'player') {
+                    result.reason = '只有玩家有物品栏';
                     return result;
                 }
-    
-                if (change.type === 'lose') {
-                    const consumed = this._loseFromInventory(target, change);
-                    if (consumed) {
-                        result.success = true;
-                        result.from = 'inventory';
-                        result.before = consumed.before;
-                        result.after = consumed.after;
-                        return result;
+
+                const curScene = window.LocationModalManager.currentLocation;
+                let sceneItem = null;
+                if (curScene && curScene.sceneItems) {
+                    const idx = curScene.sceneItems.findIndex(i => i.name === change.name);
+                    if (idx > -1) {
+                        sceneItem = curScene.sceneItems[idx];
+                        curScene.sceneItems.splice(idx, 1);
+                        console.log(`[CinemaWorld] 从场景移除: ${change.name}`);
                     }
-    
-                    const sceneResult = this._loseFromScene(change);
-                    if (sceneResult) {
-                        result.success = true;
-                        result.from = 'scene';
-                        result.sceneName = sceneResult.sceneName;
-                        result.before = sceneResult.before;
-                        result.after = sceneResult.after;
-                        return result;
-                    }
-    
-                    result.reason = `背包和场景中都没有物品: ${change.name}`;
-                    return result;
                 }
-    
-                return result;
-            },
-    
-            _loseFromInventory(target, change) {
-                if (target.type !== 'player') return null;
+
                 const inv = target.ref.inventory || [];
-                const ex = inv.find(i => i.name === change.name || i.name.includes(change.name));
-                if (!ex) return null;
-    
-                const before = ex.count;
-                ex.count -= change.count;
-                if (ex.count <= 0) {
-                    inv.splice(inv.indexOf(ex), 1);
-                }
-                return { before, after: Math.max(0, ex.count) };
-            },
-    
-            _loseFromScene(change) {
-                const scenes = [];
-                const cur = window.LocationModalManager.currentLocation;
-                if (cur) scenes.push(cur);
-                for (const s of WorldManager.getLocations()) {
-                    if (s !== cur) scenes.push(s);
-                }
-    
-                for (const scene of scenes) {
-                    const items = scene.sceneItems || [];
-                    const idx = items.findIndex(i => i.name === change.name || i.name.includes(change.name));
-                    if (idx > -1) {
-                        const item = items[idx];
-                        const before = item.count || 1;
-                        const after = before - change.count;
-    
-                        if (after <= 0) {
-                            items.splice(idx, 1);
-                        } else {
-                            item.count = after;
-                        }
-    
-                        if (scene === cur) {
-                            window.SceneItemBrowserManager.openBrowser?.();
-                        }
-                        return { before, after: Math.max(0, after), sceneName: scene.name };
+                const ex = inv.find(i => i.name === change.name);
+
+                // ★ 字段优先级：change 自带 > 场景物品 > 空
+                const finalFields = (change.fields && Object.keys(change.fields).length > 0)
+                    ? change.fields
+                    : (sceneItem?.fields || {});
+
+                const finalInteractions = (change.interactions && change.interactions.length > 0)
+                    ? change.interactions
+                    : (sceneItem?.interactions || []);
+
+                const finalIcon = change.icon || sceneItem?.icon || '📦';
+                const finalDesc = change.description || sceneItem?.description || '';
+                const finalStatus = change.status || sceneItem?.status || '';
+                const finalEffect = change.effect || sceneItem?.effect || '';
+                const finalStackable = change.stackable ?? sceneItem?.stackable ?? false;
+                const finalMaxStack = change.maxStack ?? sceneItem?.maxStack ?? null;
+                const finalType = sceneItem?.type || change.type || 'item';
+
+                if (ex) {
+                    ex.count += change.count;
+                    result.before = ex.count - change.count;
+                    result.after = ex.count;
+
+                    // ★ 已有物品但字段空 → 用新字段补上
+                    if (Object.keys(ex.fields || {}).length === 0 && Object.keys(finalFields).length > 0) {
+                        ex.fields = finalFields;
                     }
-                }
-                return null;
-            },
-    
-            applyStatusChange(target, change) {
-                const result = {
-                    success: false,
-                    type: 'status',
-                    status: change.name,
-                    operation: change.type,
-                };
-    
-                const tags = target.ref.tags || (target.ref.tags = []);
-                const getName = (t) => typeof t === 'string' ? t : t.name;
-    
-                if (change.type === 'addStatus') {
-                    const exists = tags.some(t => getName(t) === change.name);
-                    if (exists) {
-                        result.reason = '状态已存在';
-                        return result;
+                    if ((!ex.interactions || ex.interactions.length === 0) && finalInteractions.length > 0) {
+                        ex.interactions = finalInteractions;
                     }
-    
-                    let effect = change.effect;
-                    if (!effect && typeof window.TagEffectManager !== 'undefined') {
-                        effect = window.TagEffectManager.getEffect(change.name);
+                    if ((!ex.icon || ex.icon === '📦') && finalIcon !== '📦') {
+                        ex.icon = finalIcon;
                     }
-    
-                    const duration = effect?.持续 ?? null;
-    
-                    tags.push({
+                    if (!ex.description && finalDesc) {
+                        ex.description = finalDesc;
+                    }
+                    if (!ex.status && finalStatus) ex.status = finalStatus;
+                    if (!ex.effect && finalEffect) ex.effect = finalEffect;
+                } else {
+                    inv.push({
                         name: change.name,
-                        effect: effect || null,
-                        duration: duration,
+                        count: change.count,
+                        description: finalDesc,
+                        icon: finalIcon,
+                        fields: { ...finalFields },
+                        interactions: [...finalInteractions],
+                        status: finalStatus,
+                        effect: finalEffect,
+                        stackable: finalStackable,
+                        maxStack: finalMaxStack,
+                        type: finalType,
                     });
-    
-                    result.success = true;
-                    result.effect = effect;
-                    result.duration = duration;
-    
-                } else if (change.type === 'removeStatus') {
-                    const idx = tags.findIndex(t => getName(t) === change.name);
-                    if (idx > -1) {
-                        tags.splice(idx, 1);
-                        result.success = true;
-                    } else {
-                        result.reason = '状态不存在';
-                    }
+                    result.before = 0;
+                    result.after = change.count;
                 }
-    
-                if (target.type === 'character' && typeof CharacterRegistry !== 'undefined') {
-                    CharacterRegistry.upsert(target.ref, window.LocationModalManager.currentLocation?.name || '', true);
-    
-                // ★ 新增：状态变化 → 刷立绘
-                if (result.success) {
-                    window.SpriteManager?.notifySceneSpriteUpdate(target.ref.name);
-                }
-                }
-    
-                if (target.type === 'player' && typeof PlayerStateManager !== 'undefined') {
-                    PlayerStateManager.refreshAvatarArea();
-                    // ★ 新增：玩家状态变化 → 刷玩家场景立绘（如有）
-                    window.SpriteManager?.notifySceneSpriteUpdate(PlayerStateManager.player.name);
-                }
-    
+                result.success = true;
+                result.from = sceneItem ? 'scene→inventory' : 'effect→inventory';
                 return result;
-            },
-    
-            formatResults(results) {
-                if (!results || results.length === 0) return '';
-                let text = '\n\n【数据变化】\n';
-                let hasContent = false;
-                for (const r of results) {
-                    if (!r.success) continue;
-                    hasContent = true;
-                    if (r.type === 'number') {
-                        const diff = r.after.current - r.before.current;
-                        const sign = diff >= 0 ? '+' : '';
-                        if (r.after.max !== undefined) {
-                            text += `📊 ${r.barName}: ${r.before.current} → ${r.after.current} (${sign}${diff})\n`;
-                        } else {
-                            text += `📊 ${r.barName}: ${r.before.current} → ${r.after.current} (${sign}${diff})\n`;
-                        }
-                    } else if (r.type === 'item') {
-                        text += `📦 ${r.operation === 'obtain' ? '获得' : '失去'} ${r.item} × ${r.count}\n`;
-                    } else if (r.type === 'status') {
-                        if (r.operation === 'addStatus') {
-                            let line = `✨ 获得状态: ${r.status}`;
-                            if (r.duration) line += `（${r.duration}回合）`;
-                            text += line + '\n';
-                        } else {
-                            text += `✨ 移除状态: ${r.status}\n`;
-                        }
+            }
+
+            if (change.type === 'lose') {
+                const consumed = this._loseFromInventory(target, change);
+                if (consumed) {
+                    result.success = true;
+                    result.from = 'inventory';
+                    result.before = consumed.before;
+                    result.after = consumed.after;
+                    return result;
+                }
+
+                const sceneResult = this._loseFromScene(change);
+                if (sceneResult) {
+                    result.success = true;
+                    result.from = 'scene';
+                    result.sceneName = sceneResult.sceneName;
+                    result.before = sceneResult.before;
+                    result.after = sceneResult.after;
+                    return result;
+                }
+
+                result.reason = `背包和场景中都没有物品: ${change.name}`;
+                return result;
+            }
+
+            return result;
+        },
+
+        _loseFromInventory(target, change) {
+            if (target.type !== 'player') return null;
+            const inv = target.ref.inventory || [];
+            const ex = inv.find(i => i.name === change.name || i.name.includes(change.name));
+            if (!ex) return null;
+
+            const before = ex.count;
+            ex.count -= change.count;
+            if (ex.count <= 0) {
+                inv.splice(inv.indexOf(ex), 1);
+            }
+            return { before, after: Math.max(0, ex.count) };
+        },
+
+        _loseFromScene(change) {
+            const scenes = [];
+            const cur = window.LocationModalManager.currentLocation;
+            if (cur) scenes.push(cur);
+            for (const s of WorldManager.getLocations()) {
+                if (s !== cur) scenes.push(s);
+            }
+
+            for (const scene of scenes) {
+                const items = scene.sceneItems || [];
+                const idx = items.findIndex(i => i.name === change.name || i.name.includes(change.name));
+                if (idx > -1) {
+                    const item = items[idx];
+                    const before = item.count || 1;
+                    const after = before - change.count;
+
+                    if (after <= 0) {
+                        items.splice(idx, 1);
+                    } else {
+                        item.count = after;
+                    }
+
+                    if (scene === cur) {
+                        window.SceneItemBrowserManager.openBrowser?.();
+                    }
+                    return { before, after: Math.max(0, after), sceneName: scene.name };
+                }
+            }
+            return null;
+        },
+
+        applyStatusChange(target, change) {
+            const result = {
+                success: false,
+                type: 'status',
+                status: change.name,
+                operation: change.type,
+            };
+        
+            const tags = target.ref.tags || (target.ref.tags = []);
+            const getName = (t) => typeof t === 'string' ? t : t.name;
+        
+            if (change.type === 'addStatus') {
+                const exists = tags.some(t => getName(t) === change.name);
+                if (exists) {
+                    result.reason = '状态已存在';
+                    return result;
+                }
+        
+                let effect = change.effect;
+                if (!effect && typeof window.TagEffectManager !== 'undefined') {
+                    effect = window.TagEffectManager.getEffect(change.name);
+                }
+        
+                const duration = effect?.持续 ?? null;
+        
+                tags.push({
+                    name: change.name,
+                    effect: effect || null,
+                    duration: duration,
+                });
+        
+                result.success = true;
+                result.effect = effect;
+                result.duration = duration;
+        
+            } else if (change.type === 'removeStatus') {
+                const idx = tags.findIndex(t => getName(t) === change.name);
+                if (idx > -1) {
+                    tags.splice(idx, 1);
+                    result.success = true;
+                } else {
+                    result.reason = '状态不存在';
+                }
+            }
+        
+            // ---------- 同步到 CharacterRegistry ----------
+            if (target.type === 'character' && typeof CharacterRegistry !== 'undefined') {
+                // ★ sceneName 兜底：优先场景，其次地图
+                let sceneName = window.LocationModalManager?.currentLocation?.name || '';
+                if (!sceneName) {
+                    const map = window.MapLauncher?.getMap?.();
+                    sceneName = map?.name || '';
+                }
+        
+                try {
+                    CharacterRegistry.upsert(target.ref, sceneName, true);
+                } catch (e) {
+                    console.warn('[EffectSystem] CharacterRegistry.upsert 失败:', e);
+                }
+        
+                // ★ 状态变化 → 刷立绘（场景模式才有立绘）
+                window.SpriteManager?.notifySceneSpriteUpdate?.(target.ref.name);
+        
+                // ★ 地图模式：刷新地图渲染 + 头像栏
+                const playMode = window.CinemaWorld?.worldState?.playMode;
+                if (playMode === 'map') {
+                    if (window.MapCanvas?.canvas) {
+                        window.MapCanvas._render();
+                    }
+                    if (window.MapCanvas?._refreshAvatarBar) {
+                        window.MapCanvas._refreshAvatarBar();
                     }
                 }
-                return hasContent ? text : '';
-            },
-        };
+            }
+        
+            // ---------- 玩家 ----------
+            if (target.type === 'player' && typeof PlayerStateManager !== 'undefined') {
+                PlayerStateManager.refreshAvatarArea();
+                window.SpriteManager?.notifySceneSpriteUpdate?.(PlayerStateManager.player.name);
+            }
+        
+            return result;
+        },
+
+        formatResults(results) {
+            if (!results || results.length === 0) return '';
+            let text = '\n\n【数据变化】\n';
+            let hasContent = false;
+            for (const r of results) {
+                if (!r.success) continue;
+                hasContent = true;
+                if (r.type === 'number') {
+                    const diff = r.after.current - r.before.current;
+                    const sign = diff >= 0 ? '+' : '';
+                    if (r.after.max !== undefined) {
+                        text += `📊 ${r.barName}: ${r.before.current} → ${r.after.current} (${sign}${diff})\n`;
+                    } else {
+                        text += `📊 ${r.barName}: ${r.before.current} → ${r.after.current} (${sign}${diff})\n`;
+                    }
+                } else if (r.type === 'item') {
+                    text += `📦 ${r.operation === 'obtain' ? '获得' : '失去'} ${r.item} × ${r.count}\n`;
+                } else if (r.type === 'status') {
+                    if (r.operation === 'addStatus') {
+                        let line = `✨ 获得状态: ${r.status}`;
+                        if (r.duration) line += `（${r.duration}回合）`;
+                        text += line + '\n';
+                    } else {
+                        text += `✨ 移除状态: ${r.status}\n`;
+                    }
+                }
+            }
+            return hasContent ? text : '';
+        },
+    };
 
     // ==================== 人物交互 ====================
     const CharacterInteractionManager = {
@@ -913,21 +976,37 @@ ${action}
 目标: ${ch.name} 或 玩家
 数值变化: 键名 +N  或  键名 -N
 实体变化:
-- 获得【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 获得【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠:是|货币种类:X|买价:X|卖价:X|其他]
 - 失去【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
-- 获得状态 状态名（可选效果，| 分隔：攻击-20%|持续3回合）
+- 获得状态 状态名（可选效果，| 分隔：攻击-X%|持续3回合）
 - 移除状态 状态名
 
 ★ 关键：获得物品时必须写完整格式（方括号内 键:值），否则玩家拿到的是空壳。
-★ 可装备物品：写明属性字段，如 [类型:武器|攻击:+5|暴击:+10%]
-★ 可消耗物品：写明功能，如 [类型:消耗品|功能:回复 50 点生命|可堆叠]
+★ 可装备物品：写明属性字段，如 [类型:武器|攻击:+X|暴击:+X%]
 ★ 普通物品：至少写 [类型:物品] 和图标
 
+说明：效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
+
+
 示例：
-- 获得【生锈的铁剑|⚔️】：锈迹斑斑的短剑，[类型:武器|攻击:+3|图标:⚔️]
-- 获得【红药水|🧪】：一瓶红色药剂，[类型:消耗品|功能:回复 30 点生命|可堆叠]
-- 获得【黑面包|🍞】：还热乎，[类型:食物|功能:回复 10 点体力|可堆叠]
-- 获得【金币|🪙】：[类型:货币|货币种类:金币]
+- 【生锈的铁剑|⚔️】：斜靠在墙角，[类型:武器|可拾取:是|货币种类:金钱|买价:X|卖价:X|攻击:+X]
+- 【红药水|🧪】：一瓶红色药剂，[类型:消耗品|可拾取:是|功能:回复生命|效果:回复生命 X|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【野花|🌸】：路边的小花，[类型:材料|可拾取:是|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【守卫的盾牌|🛡️】：靠在门边的圆盾，[类型:护甲|可拾取:是|货币种类:金钱|买价:X|卖价:X|防御:+X|体力:+Y]
 
 【场景更新】（可选，行动改变场景才写）
 场景: 场景名
@@ -1080,8 +1159,8 @@ ${worldCtx}
         cardHTML(char, index) {
             const state = SpriteManager.pickSpriteState(char);
             const spriteUrl = SpriteManager.getCachedSpriteWithState(char.name, state)
-                           || SpriteManager.getCachedSprite(char.name)
-                           || SpriteManager.getFromMapping(char.name);
+                || SpriteManager.getCachedSprite(char.name)
+                || SpriteManager.getFromMapping(char.name);
             const avatarInner = spriteUrl
                 ? `<img src="${spriteUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="${char.name}">`
                 : char.name.charAt(0);
@@ -1155,8 +1234,8 @@ ${worldCtx}
 
             const state = SpriteManager.pickSpriteState(char);
             const spriteUrl = SpriteManager.getCachedSpriteWithState(char.name, state)
-                           || SpriteManager.getCachedSprite(char.name)
-                           || SpriteManager.getFromMapping(char.name);
+                || SpriteManager.getCachedSprite(char.name)
+                || SpriteManager.getFromMapping(char.name);
             const avatarInner = spriteUrl
                 ? `<img src="${spriteUrl}" style="width:100%;height:100%;object-fit:cover;" alt="${char.name}">`
                 : char.name.charAt(0);
@@ -1290,8 +1369,8 @@ ${worldCtx}
         },
     };
 
-        // ==================== 场景物品浏览器 ====================
-            // ==================== 场景物品浏览器 ====================
+    // ==================== 场景物品浏览器 ====================
+    // ==================== 场景物品浏览器 ====================
     const SceneItemBrowserManager = {
         _selectedIndex: 0,
 
@@ -1399,8 +1478,8 @@ ${worldCtx}
                 const inContext = item.fields?.['加入上下文'] === '是';
 
                 const extraClass = isEncounter ? 'cw-scene-item-encounter'
-                                 : isSimulation ? 'cw-scene-item-sim'
-                                 : '';
+                    : isSimulation ? 'cw-scene-item-sim'
+                        : '';
 
                 let badge = '';
                 if (isEncounter) {
@@ -1511,10 +1590,19 @@ ${worldCtx}
                     🏭 经营
                 </button>`;
             } else {
-                primaryBtn = `<button class="cw-inv-action-btn primary"
-                    onclick="SceneItemBrowserManager.useItem(${index})">
-                    ✨ 交互
-                </button>`;
+                // ★ 加一个"可拾取"判定
+                const canPickup = String(item.fields?.['可拾取'] || '') === '是';
+                if (canPickup) {
+                    primaryBtn = `<button class="cw-inv-action-btn primary"
+                        onclick="MapPickup.pickupFromScene(${index})">
+                        🖐️ 拾取
+                    </button>`;
+                } else {
+                    primaryBtn = `<button class="cw-inv-action-btn primary"
+                        onclick="SceneItemBrowserManager.useItem(${index})">
+                        ✨ 交互
+                    </button>`;
+                }
             }
             // ★ 新增：遭遇实体的"加入上下文"开关
             const inContext = item.fields?.['加入上下文'] === '是';
@@ -1773,22 +1861,38 @@ ${input ? `玩家补充：${input}` : ''}
 【效果】（可选，交互造成数据变化才写）
 目标: 玩家
 数值变化: 键名 +N  或  键名 -N
+
 实体变化:
-- 获得【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 获得【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠:是|货币种类:X|买价:X|卖价:X|其他]
 - 失去【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
-- 获得状态 状态名（可选效果，| 分隔：攻击-20%|持续3回合）
+- 获得状态 状态名（可选效果，| 分隔：攻击-X%|持续3回合）
 - 移除状态 状态名
 
 ★ 关键：获得物品时必须写完整格式（方括号内 键:值），否则玩家拿到的是空壳。
-★ 可装备物品：写明属性字段，如 [类型:武器|攻击:+5|暴击:+10%]
-★ 可消耗物品：写明功能，如 [类型:消耗品|功能:回复 50 点生命|可堆叠]
+★ 可装备物品：写明属性字段，如 [类型:武器|攻击:+X|暴击:+X%]
 ★ 普通物品：至少写 [类型:物品] 和图标
 
+说明：效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
+
 示例：
-- 获得【生锈的铁剑|⚔️】：锈迹斑斑的短剑，[类型:武器|攻击:+3|图标:⚔️]
-- 获得【红药水|🧪】：一瓶红色药剂，[类型:消耗品|功能:回复 30 点生命|可堆叠]
-- 获得【黑面包|🍞】：还热乎，[类型:食物|功能:回复 10 点体力|可堆叠]
-- 获得【金币|🪙】：[类型:货币|货币种类:金币]
+- 【生锈的铁剑|⚔️】：斜靠在墙角，[类型:武器|可拾取:是|货币种类:金钱|买价:X|卖价:X|攻击:+X]
+- 【红药水|🧪】：一瓶红色药剂，[类型:消耗品|可拾取:是|功能:回复生命|效果:回复生命 X|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【野花|🌸】：路边的小花，[类型:材料|可拾取:是|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【守卫的盾牌|🛡️】：靠在门边的圆盾，[类型:护甲|可拾取:是|货币种类:金钱|买价:X|卖价:X|防御:+X|体力:+Y]
 
 状态效果(可选，| 分隔)：攻击-20% / 防御+30% / 每回合:生命-5 / 持续:3回合 / 跳过回合
 示例：获得状态 中毒（生命-5|持续3回合）
@@ -2316,103 +2420,227 @@ ${guide || '根据当前场景和剧情，生成一个合理的敌人。'}
                 .replace(/>/g, '&gt;');
         },
     };
-    
-        // ==================== 遭遇管理器（战斗包生成） ====================
-        const EncounterManager = {
-            isGenerating: false,
-    
-            // ---------- 判断一个场景实体是否是遭遇实体 ----------
-            isEncounter(item) {
-                if (!item?.fields) return false;
-                const t = String(item.fields['类型'] || '').trim();
-                return /遭遇|encounter|enemy|敌人|敌对/i.test(t);
-            },
-    
-            // ---------- 生成战斗包 ----------
-            async generateBattlePackage(enemyItem) {
-                if (this.isGenerating) {
-                    console.log('[EncounterManager] 正在生成中，请稍后');
-                    return null;
-                }
-                this.isGenerating = true;
-    
-                try {
-                    const scene = window.LocationModalManager.currentLocation;
-                    const player = PlayerStateManager.player;
-    
-                    const worldCtx = StoryManager.buildContext(null, {
-                        parentStory: false,
-                        mainChars: false,
-                        scene: false,
-                        interactionDigests: true,
-                        volumes: true,
-                        chapters: true,
-                        pendingEvents: false,
-                    });
-    
-                    const playerBlock = PlayerStateManager.formatForPrompt();
-                    const sceneCtx = InventoryManager.buildSceneContext(scene);
-                    const envLine = WorldManager.getEnvDataText(scene);
-    
-                    const enemyBlock = this._buildEnemyBlock(enemyItem);
-    
-                    const existingRules = window.BattleRuleManager.getCurrent();
-                    const rulesBlock = existingRules
-                        ? `【已有战斗规则】（战斗规则已由游戏规则统一定义，本次不需要生成）\n${existingRules.raw || '(默认规则)'}`
-                        : `【战斗规则】\n（暂无战斗规则，将使用系统默认规则）`;
-    
-                    const equippedItems = (player.equipment?.slots || []).filter(Boolean);
-                    const equipBlock = equippedItems.length > 0
-                        ? equippedItems.map(item => {
-                            const f = item.fields || {};
-                            const fieldLines = Object.entries(f)
-                                .filter(([k]) => !k.startsWith('_pos'))
-                                .filter(([k]) => !['图标', 'icon', '货币种类'].includes(k))
-                                .map(([k, v]) => `${k}:${v}`)
-                                .join(' | ');
-                            return `- ${item.icon || '⚔️'} ${item.name}${item.description ? `（${item.description}）` : ''}${fieldLines ? `\n  [${fieldLines}]` : ''}`;
-                        }).join('\n')
-                        : '（玩家没有装备任何物品）';
-    
-                    // ★ 动态收集玩家属性
-                    const playerAttrs = Object.keys(player.attributes || {});
-                    const playerBars = (player.statusBars || []).map(b => b.key);
-                    const playerDerived = Object.keys(player.derivedStats?.computed || {});
-                    const allKnownAttrs = [...new Set([
-                        ...playerAttrs,
-                        ...playerBars,
-                        ...playerDerived,
-                    ])];
 
-                    const attrHint = `
+    // ==================== 遭遇管理器（战斗包生成） ====================
+    const EncounterManager = {
+        isGenerating: false,
+
+        // ---------- 判断一个场景实体是否是遭遇实体 ----------
+        isEncounter(item) {
+            if (!item?.fields) return false;
+            const t = String(item.fields['类型'] || '').trim();
+            return /遭遇|encounter|enemy|敌人|敌对/i.test(t);
+        },
+        // ============================================================
+        // ★ HTML 属性转义（供 _openBattleChoice 等使用）
+        // ============================================================
+        _escapeAttr(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        },
+        // ============================================================
+        // ★ 生成战斗包（入口）
+        //   mode:
+        //     'full'                 - 首次：AI 生成完整包（骨架+叙事）
+        //     'narrative'            - 复用缓存叙事，不调 AI
+        //     'fast'                 - 只用骨架，不调 AI
+        //     'regenerateNarrative'  - 只重新生成叙事，调 AI
+        // ============================================================
+        async generateBattlePackage(enemyItem, options = {}) {
+            const mode = options.mode || 'full';
+            const enemyName = enemyItem.name;
+
+            if (this.isGenerating) {
+                console.log('[EncounterManager] 正在生成中，请稍后');
+                return null;
+            }
+            this.isGenerating = true;
+
+            try {
+                // ---------- fast：只用骨架 ----------
+                if (mode === 'fast') {
+                    const skeleton = this._getSkeleton(enemyName);
+                    if (!skeleton) {
+                        console.warn('[EncounterManager] 骨架不存在，退回 full');
+                        return this.generateBattlePackage(enemyItem, { mode: 'full' });
+                    }
+                    return this._packFromSkeleton(skeleton, enemyName);
+                }
+
+                // ---------- narrative：复用已缓存叙事 ----------
+                if (mode === 'narrative') {
+                    const skeleton = this._getSkeleton(enemyName);
+                    const narrative = this._getNarrative(enemyName);
+
+                    if (!skeleton) {
+                        return this.generateBattlePackage(enemyItem, { mode: 'full' });
+                    }
+                    if (!narrative) {
+                        return this.generateBattlePackage(enemyItem, { mode: 'regenerateNarrative' });
+                    }
+
+                    // ★ 深拷贝敌人
+                    const enemyCopy = JSON.parse(JSON.stringify(skeleton.enemy));
+                    if (enemyCopy.stats?.hp) {
+                        enemyCopy.stats.hp.current = enemyCopy.stats.hp.max;
+                    }
+                    enemyCopy.isAlive = true;
+                    enemyCopy.statusTags = [];
+
+                    const sections = {
+                        ...narrative.sections,
+                        __music: skeleton.music || {},
+                    };
+                    return {
+                        raw: narrative.raw || '',
+                        sections,
+                        enemy: enemyCopy,          // ★ 用拷贝
+                        actionPool: JSON.parse(JSON.stringify(skeleton.actionPool || [])),
+                        rules: skeleton.rules,
+                        enemyItemName: enemyName,
+                        fromSkeleton: true,
+                    };
+                }
+
+                // ---------- regenerateNarrative：只重新生成叙事 ----------
+                if (mode === 'regenerateNarrative') {
+                    const skeleton = this._getSkeleton(enemyName);
+                    if (!skeleton) {
+                        return this.generateBattlePackage(enemyItem, { mode: 'full' });
+                    }
+
+                    const narrative = await this._generateNarrative(enemyItem);
+                    if (!narrative) {
+                        return this._packFromSkeleton(skeleton, enemyName);
+                    }
+
+                    const narrativeData = {
+                        raw: narrative.raw,
+                        sections: {
+                            '战前剧情': narrative.sections['战前剧情'] || '',
+                            '战后剧情·胜利': narrative.sections['战后剧情·胜利'] || '',
+                            '战后剧情·失败': narrative.sections['战后剧情·失败'] || '',
+                            '战斗奖励': narrative.sections['战斗奖励'] || '',
+                            '场景更新': narrative.sections['场景更新'] || '',
+                            '胜利摘要': narrative.sections['胜利摘要'] || '',
+                        },
+                    };
+                    this._setNarrative(enemyName, narrativeData);
+
+                    const sections = {
+                        ...narrativeData.sections,
+                        __music: skeleton.music || {},
+                    };
+                    return {
+                        raw: narrative.raw,
+                        sections,
+                        enemy: skeleton.enemy,
+                        actionPool: skeleton.actionPool,
+                        rules: skeleton.rules,
+                        enemyItemName: enemyName,
+                        fromSkeleton: true,
+                    };
+                }
+
+                // ---------- full：AI 生成完整包 ----------
+                const full = await this._generateFullPackage(enemyItem);
+                if (!full) return null;
+
+                // 存骨架（不含叙事）
+                this._setSkeleton(enemyName, {
+                    enemy: full.enemy,
+                    actionPool: full.actionPool,
+                    rules: full.rules,
+                    music: full.sections.__music || {},
+                });
+
+                // 存叙事
+                this._setNarrative(enemyName, {
+                    raw: full.raw,
+                    sections: {
+                        '战前剧情': full.sections['战前剧情'] || '',
+                        '战后剧情·胜利': full.sections['战后剧情·胜利'] || '',
+                        '战后剧情·失败': full.sections['战后剧情·失败'] || '',
+                        '战斗奖励': full.sections['战斗奖励'] || '',
+                        '场景更新': full.sections['场景更新'] || '',
+                        '胜利摘要': full.sections['胜利摘要'] || '',
+                    },
+                });
+
+                // 顺手清掉旧的整包缓存
+                const oldStore = CinemaWorld.worldState.combat?.battlePackages;
+                if (oldStore && oldStore[enemyName]) delete oldStore[enemyName];
+
+                return full;
+
+            } catch (e) {
+                console.error('[EncounterManager] 生成失败:', e);
+                return null;
+            } finally {
+                this.isGenerating = false;
+            }
+        },
+
+        // ============================================================
+        // ★ 生成完整包（首次）
+        // ============================================================
+        async _generateFullPackage(enemyItem) {
+            const scene = window.LocationModalManager.currentLocation;
+            const player = PlayerStateManager.player;
+
+            const worldCtx = StoryManager.buildContext(null, {
+                parentStory: false,
+                mainChars: false,
+                scene: false,
+                interactionDigests: true,
+                volumes: true,
+                chapters: true,
+                pendingEvents: false,
+            });
+
+            const playerBlock = PlayerStateManager.formatForPrompt();
+            const sceneCtx = InventoryManager.buildSceneContext(scene);
+            const envLine = WorldManager.getEnvDataText(scene);
+            const enemyBlock = this._buildEnemyBlock(enemyItem);
+
+            const existingRules = window.BattleRuleManager.getCurrent();
+            const rulesBlock = existingRules
+                ? `【已有战斗规则】（战斗规则已由游戏规则统一定义，本次不需要生成）\n${existingRules.raw || '(默认规则)'}`
+                : `【战斗规则】\n（暂无战斗规则，将使用系统默认规则）`;
+
+            const equippedItems = (player.equipment?.slots || []).filter(Boolean);
+            const equipBlock = equippedItems.length > 0
+                ? equippedItems.map(item => {
+                    const f = item.fields || {};
+                    const fieldLines = Object.entries(f)
+                        .filter(([k]) => !k.startsWith('_pos'))
+                        .filter(([k]) => !['图标', 'icon', '货币种类'].includes(k))
+                        .map(([k, v]) => `${k}:${v}`)
+                        .join(' | ');
+                    return `- ${item.icon || '⚔️'} ${item.name}${item.description ? `（${item.description}）` : ''}${fieldLines ? `\n  [${fieldLines}]` : ''}`;
+                }).join('\n')
+                : '（玩家没有装备任何物品）';
+
+            const playerAttrs = Object.keys(player.attributes || {});
+            const playerBars = (player.statusBars || []).map(b => b.key);
+            const playerDerived = Object.keys(player.derivedStats?.computed || {});
+
+            const attrHint = `
 【玩家可用属性名】
 - 基础属性：${playerAttrs.join('、') || '（无）'}
 - 数值条：${playerBars.join('、') || '（无）'}
 - 派生属性：${playerDerived.join('、') || '（无）'}
-（以上是系统识别到的所有属性，战斗公式里可以引用它们）
 
 【重要·敌人属性设计】
 你不必局限于 HP/攻击/防御/敏捷。
-你可以为敌人定义任何符合它本质的属性字段，系统会自动把它们传给战斗公式。
-
-建议根据敌人类型选择：
-- 战士类：攻击、防御、敏捷、力量、体质
-- 法师/幽灵类：灵力、抗性、意志、恐惧、精神
-- 社交/权谋类：魅力、威严、意志、洞察、贿赂
-- 野兽类：敏捷、撕咬、皮糙、兽性
-- 机械类：装甲、过载、火力、稳定
-
-【示例·传统战士】
-- 【山贼头目|🗡️】：...，[类型:遭遇|HP:120/120|攻击:18|防御:12|敏捷:8|意志:15|技能:重劈|掉落:金币×50]
-
-【示例·精神系敌人】
-- 【低语者|👁️】：一个不可名状的存在，[类型:遭遇|HP:80/80|攻击:5|防御:3|敏捷:15|恐惧:25|理智伤害:10|技能:精神冲击|掉落:破碎的记忆×1]
-
-【示例·社交系敌人】
-- 【傲慢的贵族|🎩】：...，[类型:遭遇|HP:60/60|攻击:8|防御:15|敏捷:12|魅力:30|社交值:50|技能:嘲讽、贿赂|掉落:金币×100]
+可以定义任何符合它本质的属性字段，系统会自动传给战斗公式。
 `;
 
-                const prompt = `你正在为视觉小说 RPG 游戏生成一场完整的战斗。
+            const prompt = `你正在为视觉小说 RPG 游戏生成一场完整的战斗（首次遭遇）。
 
 【世界背景】
 ${worldCtx}
@@ -2435,72 +2663,76 @@ ${rulesBlock}
 - 伤害公式：${(window.BattleRuleManager.getCurrent()?.damageFormula) || '{攻击} - {防御}'}
 - 命中判定：${(window.BattleRuleManager.getCurrent()?.hitFormula) || '（无，必中）'}
 - 先攻：${(window.BattleRuleManager.getCurrent()?.initiativeFormula) || 'd20 + {敏捷}'}
-- 属性映射：${JSON.stringify(window.BattleRuleManager.getCurrent()?.attrMap || {})}
 
 【任务】
 生成一场完整战斗包：战前剧情、战斗行动、战后剧情、战斗奖励、场景更新、胜利摘要。
 
-【输出格式】（严格遵守，标签独占一行，标签内不能含 | 符号）
+【输出格式】（严格遵守，标签独占一行）
 
 【战前剧情】
 【旁白】: 环境描写或战斗开场
 【敌人名|显示|中|性别|状态】: 敌人的台词
 【玩家|显示|中|性别|状态】: 玩家的台词
-（3-6 行。状态可以是心情或状态列表中的内容）
+（3-6 行）
 
 【玩家当前装备】
 ${equipBlock}
-
-★ 主动装备（武器/法器/召唤物）→ 额外生成 1 个行动，字段加"来源:装备名"
-★ 被动装备（护甲/饰品/背包）→ 不生成行动
+★ 主动装备（武器/法器）→ 额外生成 1 个行动，字段加"来源:装备名"
 
 【战斗行动】
 - 【行动名|图标】：描述，[类型:技能|冷却:X|次数:X|公式:...|效果:...]
-
 （3-6 个）
 
-公式写法：
-- 可用玩家任意属性、敌人属性 {敌人.防御}
-- 支持骰子/四则运算/括号：2d6 + {攻击} * 1.5 - {敌人.防御}
-- 支持 max/min：max(1, {攻击} - {防御})
-
-效果(可选，; 分隔)：自身攻击+30%;持续:2回合 / 敌人防御-50%;持续:3回合
-类型(可选)：attack / skill / heal / defend / flee
-
-行动设计（冷却/次数/倍率三选二）：
-- 大招：高倍率 + 高冷却 + 不限次
-- 小技能：低倍率 + 低冷却 + 不限次
-- 装备技能：高倍率 + 无冷却 + 限次
-- 角色自带技能 → 冷却型；装备带来的行动 → 次数型
-- 攻击倍率必须 >= 1.0（低于 1.0 不如普攻）
-- 治疗公式：{体质/智力/感知} * N，小治疗 N=1.5~2.5，大治疗 N=3.0~5.0
+公式写法：可用玩家任意属性、敌人属性 {敌人.防御}
+支持骰子/四则运算：2d6 + {攻击} * 1.5 - {敌人.防御}
 
 【战后剧情·胜利】
 【旁白】: 敌人倒下的描写
-【玩家|显示|中|性别】: 胜利的台词
 （2-5 行）
 
 【战后剧情·失败】
 【旁白】: 玩家倒下的描写
-【敌人名|显示|中|性别】: 嘲讽或收尾
 （2-5 行）
 
 【战斗奖励】（仅胜利时应用，无则写"无"）
-数值行：金币 +X / 经验 +X / 声望 -X
-状态行：获得状态 轻伤 / 移除状态 中毒
+数值行：金币 +X / 经验 +X
 物品行：物品:
-- 【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|卖价:X|其他]
-- 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|卖价:X|属性:X|属性:Y]
+- 【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠:是|货币种类:X|买价:X|卖价:X|其他:X]
+- 【装备名|图标】：描述，[类型:武器/护甲/饰品/工具|可拾取:是|区域:区域id|位置:锚点名|货币种类:X|买价:X|卖价:X|属性:X|属性:Y|其他:X]
 
-状态效果(可选，| 分隔)：攻击-20% / 防御+30% / 每回合:生命-5 / 持续:3回合 / 跳过回合
-示例：获得状态 中毒（生命-5|持续3回合）
+说明：
+物品：用于消耗、食用、携带、交互的普通物品。
+装备：能给玩家提供属性加成的物品（武器、护甲、饰品、工具等）。
+在物品字段基础上，额外写属性字段，格式为 键:值，根据玩家有的属性来写。
+例如 攻击:+X|防御:+Y|暴击:+X%|幸运:+X。
+玩家装备后属性会生效，脱下后失效
+
+效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
+
+示例：
+- 【生锈的铁剑|⚔️】：斜靠在墙角，[类型:武器|可拾取:是|货币种类:金钱|买价:X|卖价:X|攻击:+X]
+- 【红药水|🧪】：一瓶红色药剂，[类型:消耗品|可拾取:是|功能:回复生命|效果:回复生命 X|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【野花|🌸】：路边的小花，[类型:材料|可拾取:是|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【守卫的盾牌|🛡️】：靠在门边的圆盾，[类型:护甲|可拾取:是|货币种类:金钱|买价:X|卖价:X|防御:+X|体力:+Y]
 
 【场景更新】（可选，战斗改变了场景才写）
 移除实体: ${enemyItem.name}
-新增实体: - 【山贼的尸首|💀】：倒在血泊中，[类型:实体|状态:已死亡]
 
 【胜利摘要】
-（2-3 句。玩家如何获胜、获得什么、有什么后果。仅胜利时录入）
+（2-3 句）
 
 【音乐提示】
 战前音乐: (曲名，无则写"无")
@@ -2509,120 +2741,569 @@ ${equipBlock}
 
 请开始生成：
 `;
-    
-                    console.log('[EncounterManager] 开始生成战斗包...');
-                    const raw = await window.generateFunctionalReply(prompt, 'battle-package');
-                    if (!raw) {
-                        console.error('[EncounterManager] AI 返回为空');
-                        return null;
+
+            console.log('[EncounterManager] 开始生成完整战斗包...');
+            const raw = await window.generateFunctionalReply(prompt, 'battle-package');
+            if (!raw) return null;
+
+            const sections = window.BattlePackageSlicer.slice(raw);
+            const enemy = window.EnemyBuilder.fromSceneItem(enemyItem);
+            if (!enemy) return null;
+
+            const actionPool = this.parseActions(sections['战斗行动'] || '');
+            let rules = window.BattleRuleManager.getCurrent() || { ...window.BattleRuleManager.DEFAULT_RULES };
+
+            return {
+                raw,
+                sections,
+                enemy,
+                actionPool,
+                rules,
+                enemyItemName: enemyItem.name,
+                fromSkeleton: false,
+            };
+        },
+
+        // ============================================================
+        // ★ 只生成叙事层（玩家主动重生成时才调）
+        // ============================================================
+        async _generateNarrative(enemyItem) {
+            const scene = window.LocationModalManager.currentLocation;
+            const player = PlayerStateManager.player;
+
+            const worldCtx = StoryManager.buildContext(null, {
+                parentStory: false,
+                mainChars: false,
+                scene: false,
+                interactionDigests: true,
+                volumes: true,
+                chapters: true,
+                pendingEvents: false,
+            });
+
+            const playerBlock = PlayerStateManager.formatForPrompt();
+            const sceneCtx = InventoryManager.buildSceneContext(scene);
+            const envLine = WorldManager.getEnvDataText(scene);
+            const enemyBlock = this._buildEnemyBlock(enemyItem);
+
+            const prompt = `你正在为视觉小说 RPG 游戏生成一段"再遇战斗"的叙事。
+
+【背景】
+玩家之前已经遇到过【${enemyItem.name}】并打过一次。
+这次是再次遭遇，请生成**有变化但简洁**的剧情，避免重复上次的套路。
+
+【世界背景】
+${worldCtx}
+
+【当前场景】
+${sceneCtx}
+
+★ 环境数据：${envLine}
+
+${playerBlock}
+
+【敌人数据】
+${enemyBlock}
+
+【任务】
+生成：战前剧情、战后剧情、战斗奖励、胜利摘要、音乐提示。
+
+【输出格式】（严格遵守）
+
+【战前剧情】
+【旁白】: ...
+【敌人名|显示|中|性别|状态】: ...
+（2-4 行）
+
+【战后剧情·胜利】
+【旁白】: ...
+（2-3 行）
+
+【战后剧情·失败】
+【旁白】: ...
+（2-3 行）
+
+【战斗奖励】（无则写"无"）
+数值行：金币 +X / 经验 +X
+物品行：物品:
+- 【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【装备名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y|其他]
+
+说明：
+物品：用于消耗、食用、携带、交互的普通物品。
+装备：能给玩家提供属性加成的物品（武器、护甲、饰品、工具等）。
+在物品字段基础上，额外写属性字段，格式为 键:值，根据玩家有的属性来写。
+例如 攻击:+X|防御:+Y|暴击:+X%|幸运:+X。
+玩家装备后属性会生效，脱下后失效
+
+效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
+
+★ "功能"是给人看的介绍，模糊、简短，不带具体数字：
+- 恢复生命 / 回复体力 / 解除中毒 / 增加攻击 / 提供照明
+
+
+【胜利摘要】
+（2-3 句）
+
+【音乐提示】
+战前音乐: (曲名，无则写"无")
+战中音乐: (曲名，无则写"无")
+战后音乐: (曲名，无则写"无")
+
+请开始生成：
+`;
+
+            console.log('[EncounterManager] 开始生成再遇叙事层...');
+            const raw = await window.generateFunctionalReply(prompt, 'battle-narrative');
+            if (!raw) return null;
+
+            const sections = window.BattlePackageSlicer.slice(raw);
+            return { raw, sections };
+        },
+
+        // ============================================================
+        // ★ 从骨架打包成完整 pkg（无叙事）
+        // ============================================================
+        _packFromSkeleton(skeleton, enemyName) {
+            // ★ 深拷贝敌人，避免污染骨架
+            const enemyCopy = JSON.parse(JSON.stringify(skeleton.enemy));
+
+            if (enemyCopy.stats?.hp) {
+                enemyCopy.stats.hp.current = enemyCopy.stats.hp.max;
+            }
+            enemyCopy.isAlive = true;
+            enemyCopy.statusTags = [];
+
+            // ★ 从叙事缓存里取奖励/场景更新/胜利摘要
+            const narrative = this._getNarrative(enemyName);
+            const narrativeSections = narrative?.sections || {};
+
+            // ★ 兜底：没有叙事缓存时，生成默认奖励
+            let rewardText = narrativeSections['战斗奖励'] || '';
+            if (!rewardText) {
+                rewardText = this._generateDefaultReward(skeleton.enemy);
+                console.log('[EncounterManager] 无叙事缓存，生成默认奖励:', rewardText);
+            }
+
+            return {
+                raw: '',
+                sections: {
+                    __music: skeleton.music || { 战前音乐: '', 战中音乐: '', 战后音乐: '' },
+                    // ★ 快速战斗不播剧情
+                    '战前剧情': '',
+                    '战后剧情·胜利': '',
+                    '战后剧情·失败': '',
+                    // ★ 但奖励、场景更新、胜利摘要要保留
+                    '战斗奖励': rewardText,
+                    '场景更新': narrativeSections['场景更新'] || '',
+                    '胜利摘要': narrativeSections['胜利摘要'] || '',
+                },
+                enemy: enemyCopy,
+                actionPool: JSON.parse(JSON.stringify(skeleton.actionPool || [])),
+                rules: skeleton.rules,
+                enemyItemName: enemyName,
+                fromSkeleton: true,
+                noNarrative: true,
+            };
+        },
+
+        // ★ 兜底：根据敌人属性生成默认奖励
+        _generateDefaultReward(enemy) {
+            if (!enemy?.stats) return '';
+
+            const hp = enemy.stats.hp?.max || 100;
+            const attack = enemy.stats.attack || 10;
+            const defense = enemy.stats.defense || 5;
+
+            // 简单规则：HP 越高、攻击越强，奖励越多
+            const money = Math.max(5, Math.round(hp / 10 + attack * 2 + defense));
+            const exp = Math.max(3, Math.round(hp / 5 + attack));
+
+            return `数值行：金币 +${money} / 经验 +${exp}`;
+        },
+        // ============================================================
+        // ★ 返回地图（如果战斗前是从地图进来的）
+        // ============================================================
+        _returnToMap() {
+            // 只有从地图进来的战斗才需要返回
+            if (!this._fromMap) return;
+
+            // 地图对象还在（世界仓库有），就重新渲染
+            const map = window.MapLauncher?.getMap?.();
+            if (!map) {
+                // 尝试从世界仓库恢复
+                const mapName = window.CinemaWorld?.worldState?.currentMapName;
+                if (mapName) {
+                    const restored = window.MapLauncher?.findMapInWorld?.(mapName);
+                    if (restored) {
+                        window.MapLauncher._map = restored;
+                        window.MapLauncher._renderMapModal(document.getElementById('cinemaworld-modal'));
+                        return;
                     }
-    
-                    const sections = window.BattlePackageSlicer.slice(raw);
-                    console.log('[EncounterManager] 切片结果:', Object.keys(sections));
-    
-                    const enemy = window.EnemyBuilder.fromSceneItem(enemyItem);
-                    if (!enemy) {
-                        console.error('[EncounterManager] 敌人构建失败');
-                        return null;
-                    }
-    
-                    const actionPool = this.parseActions(sections['战斗行动'] || '');
-    
-                    let rules = window.BattleRuleManager.getCurrent() || { ...window.BattleRuleManager.DEFAULT_RULES };
-    
-                    return {
-                        raw,
-                        sections,
-                        enemy,
-                        actionPool,
-                        rules,
-                        enemyItemName: enemyItem.name,
-                    };
-    
-                } catch (e) {
-                    console.error('[EncounterManager] 生成失败:', e);
-                    return null;
-                } finally {
-                    this.isGenerating = false;
                 }
-            },
-    
-            // ---------- 构建敌人数据块 ----------
-            _buildEnemyBlock(item) {
-                const f = item.fields || {};
-                const lines = [];
-                lines.push(`名称：${item.name}`);
-                lines.push(`图标：${item.icon || '👹'}`);
-                if (item.description) lines.push(`描述：${item.description}`);
-                for (const [k, v] of Object.entries(f)) {
-                    if (k.startsWith('_pos')) continue;
-                    if (['类型', '图标', 'icon'].includes(k)) continue;
-                    lines.push(`${k}：${v}`);
-                }
-                return lines.join('\n');
-            },
-    
-            async startEncounter(sceneItemIndex) {
+                return;
+            }
+
+            window.MapLauncher._renderMapModal(document.getElementById('cinemaworld-modal'));
+        },
+        // ---------- 构建敌人数据块 ----------
+        _buildEnemyBlock(item) {
+            const f = item.fields || {};
+            const lines = [];
+            lines.push(`名称：${item.name}`);
+            lines.push(`图标：${item.icon || '👹'}`);
+            if (item.description) lines.push(`描述：${item.description}`);
+            for (const [k, v] of Object.entries(f)) {
+                if (k.startsWith('_pos')) continue;
+                if (['类型', '图标', 'icon'].includes(k)) continue;
+                lines.push(`${k}：${v}`);
+            }
+            return lines.join('\n');
+        },
+
+        // ============================================================
+        // ★ 开始战斗
+        //   source: 场景实体的 index（旧）或地图实体的 id（fromMap: true）
+        // ============================================================
+        // ============================================================
+        // ★ 开始战斗
+        //   source: 场景实体的 index（旧）或地图实体的 id（fromMap: true）
+        // ============================================================
+        async startEncounter(source, options = {}) {
+            let rawItem, sourceType;
+            this._fromMap = !!options.fromMap;
+            // ---------- 1. 按来源查找 ----------
+            if (options.fromMap) {
+                const map = window.MapLauncher?.getMap?.();
+                rawItem = map?.entities?.find(e => e.id === source);
+                sourceType = 'map';
+            } else {
                 const scene = window.LocationModalManager.currentLocation;
-                if (!scene) return;
-                const item = scene.sceneItems?.[sceneItemIndex];
-                if (!item) return;
-    
-                if (this.isGenerating) {
-                    await window.UIManager.showText('正在生成战斗...', 1000);
-                    return;
-                }
-    
-                const cached = this._getCachedPackage(item.name);
-                if (cached) {
-                    window.UIManager.closeModal();
-                    await this._openPreviewModal(item, cached, true);
-                    return;
-                }
-    
-                window.UIManager.closeModal();
-    
-                if (window.BattleRuleManager.needsGeneration()) {
-                    await window.UIManager.showText('首次战斗，正在生成战斗规则...', 1500);
-                }
-    
+                rawItem = scene?.sceneItems?.[source];
+                sourceType = 'scene';
+            }
+
+            // ---------- 2. 兜底：两边都找 ----------
+            if (!rawItem) {
+                const map = window.MapLauncher?.getMap?.();
+                rawItem = map?.entities?.find(e => e.id === source);
+                if (rawItem) sourceType = 'map';
+            }
+            if (!rawItem) {
+                const scene = window.LocationModalManager.currentLocation;
+                rawItem = scene?.sceneItems?.find(i => i.name === source || i.id === source);
+                if (rawItem) sourceType = 'scene';
+            }
+            if (!rawItem) {
+                console.warn('[EncounterManager] 找不到敌人实体, source =', source, 'options =', options);
+                window.UIManager.showText('找不到敌人实体', 2000);
+                return;
+            }
+
+            // ---------- 3. ★ 统一包装成"战斗用的敌人项" ----------
+            const item = this._wrapEnemyItem(rawItem, sourceType);
+
+            // ---------- 4. 生成中检查 ----------
+            if (this.isGenerating) {
                 await window.UIManager.showText('正在生成战斗...', 1000);
-    
-                const pkg = await this.generateBattlePackage(item);
+                return;
+            }
+
+            // ---------- 5. 已有骨架 → 弹选项框 ----------
+            const skeleton = this._getSkeleton(item.name);
+
+            if (skeleton) {
+                window.UIManager.closeModal();
+                this._openBattleChoice(item, skeleton);
+                return;
+            }
+
+            // ---------- 6. 没有骨架 → 首次，走完整流程 ----------
+            window.UIManager.closeModal();
+
+            if (window.BattleRuleManager?.needsGeneration?.()) {
+                await window.UIManager.showText('首次战斗，正在生成战斗规则...', 1500);
+            }
+
+            await window.UIManager.showText('首次遭遇，正在生成战斗...', 1200);
+
+            const pkg = await this.generateBattlePackage(item, { mode: 'full' });
+            if (!pkg) {
+                await window.UIManager.showText('❌ 战斗生成失败', 2000);
+                return;
+            }
+
+            await this._openPreviewModal(item, pkg, false);
+        },
+
+        // ============================================================
+        // ★ 把地图实体 / 场景实体统一成一个"战斗用"结构
+        // ============================================================
+        _wrapEnemyItem(raw, sourceType) {
+            const item = {
+                // ---------- 通用字段 ----------
+                name: raw.name,
+                icon: raw.icon || raw.emoji || '👹',
+                description: raw.description || '',
+                fields: { ...(raw.fields || {}) },
+                status: raw.status || '',
+                effect: raw.effect || '',
+                interactions: raw.interactions || [],
+                type: 'entity',
+                count: raw.count || 1,
+                countMode: raw.countMode || 'single',
+
+                // ---------- ★ 记住原始来源 ----------
+                _source: sourceType,       // 'map' | 'scene'
+                _rawRef: raw,              // 原始对象引用（可能被替换，但一般不变）
+                _rawId: raw.id || raw.name,
+            };
+
+            // 地图实体的 emoji 字段叫 emoji，统一成 icon
+            if (sourceType === 'map' && raw.emoji) {
+                item.icon = raw.emoji;
+            }
+
+            return item;
+        },
+
+        // ============================================================
+        // ★ 实际启动战斗
+        // ============================================================
+        async _launchBattle(item, pkg) {
+            if (pkg.sections?.__music?.战前音乐) {
+                await MusicManager.setOverrideMusic(pkg.sections.__music.战前音乐);
+            }
+            if (pkg.sections?.['战前剧情']) {
+                const dialogues = window.VisualNovelManager.parseScript(pkg.sections['战前剧情']);
+                if (dialogues.length > 0) {
+                    await window.VisualNovelManager.play(dialogues);
+                }
+            }
+            if (pkg.sections?.__music?.战中音乐) {
+                await MusicManager.setOverrideMusic(pkg.sections.__music.战中音乐);
+            }
+
+            const combat = window.BattleManager.startBattle(pkg, item.name);
+            combat._enemyItemRef = item;
+
+            // ★ 记住战斗时所在的地图名（用于战斗结束后写回）
+            const currentMap = window.MapLauncher?.getMap?.();
+            if (currentMap) {
+                combat._mapName = currentMap.name;
+                combat._mapRef = currentMap;   // 同时保留引用，双保险
+            }
+
+            window.BattleUIManager.open(combat);
+
+            if (window.SaveManager) window.SaveManager.save();
+        },
+
+        // ============================================================
+        // ★ 战斗选项框
+        // ============================================================
+        _openBattleChoice(item, skeleton) {
+            const modal = document.getElementById('cinemaworld-modal');
+            const enemy = skeleton.enemy || {};
+            const stats = enemy.stats || {};
+            const hp = stats.hp || { current: 100, max: 100 };
+
+            modal.className = 'active';
+            modal.innerHTML = `
+        <div class="cinemaworld-modal-title">⚔️ 遭遇 ${item.name}</div>
+
+        <div style="display:flex;gap:14px;padding:16px;background:rgba(0,0,0,.25);
+            border-radius:12px;margin-bottom:18px;align-items:center;">
+            <div style="font-size:56px;flex-shrink:0;line-height:1;">${item.icon || '👹'}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:17px;font-weight:bold;color:#e8d8a8;margin-bottom:4px;">
+                    ${item.name}
+                </div>
+                <div style="font-size:12px;color:#aaa;line-height:1.6;">
+                    ${item.description || '一个敌人挡在你面前。'}
+                </div>
+                <div style="font-size:11px;color:#888;margin-top:8px;">
+                    ❤️ ${hp.current}/${hp.max} ·
+                    ⚔️ ${Math.round(stats.attack || 10)} ·
+                    🛡 ${Math.round(stats.defense || 5)} ·
+                    💨 ${Math.round(stats.speed || 10)}
+                </div>
+            </div>
+        </div>
+
+        <div style="font-size:13px;color:#888;text-align:center;margin-bottom:14px;">
+            你已经和这类敌人交过手了。选择战斗方式：
+        </div>
+
+        <div style="display:grid;gap:10px;">
+            <div class="cw-battle-choice" onclick="EncounterManager._chooseBattleMode('narrative')"
+                style="background:linear-gradient(135deg,rgba(120,150,255,.18),rgba(80,100,200,.12));
+                    border:1px solid rgba(120,150,255,.4);border-radius:12px;padding:16px 18px;
+                    cursor:pointer;transition:all .2s;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="font-size:28px;">📖</div>
+                    <div style="flex:1;">
+                        <div style="font-size:15px;font-weight:bold;color:#9ab0ff;margin-bottom:2px;">
+                            完整剧情
+                        </div>
+                        <div style="font-size:11px;color:#888;">
+                            使用已有的战前/战后剧情（不重新生成）
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cw-battle-choice" onclick="EncounterManager._chooseBattleMode('fast')"
+                style="background:linear-gradient(135deg,rgba(80,200,120,.15),rgba(60,160,100,.1));
+                    border:1px solid rgba(80,200,120,.4);border-radius:12px;padding:16px 18px;
+                    cursor:pointer;transition:all .2s;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="font-size:28px;">⚡</div>
+                    <div style="flex:1;">
+                        <div style="font-size:15px;font-weight:bold;color:#9ee89e;margin-bottom:2px;">
+                            快速战斗
+                        </div>
+                        <div style="font-size:11px;color:#888;">
+                            直接开打，跳过所有剧情
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:18px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+            <button class="cinemaworld-button" style="color:#ffcf80;border-color:rgba(255,207,128,.4);"
+                onclick="EncounterManager._forceRegenerateNarrative('${this._escapeAttr(item.name)}')">
+                🔄 重新生成剧情
+            </button>
+            <button class="cinemaworld-button" style="color:#d87d7d;border-color:rgba(216,125,125,.4);"
+                onclick="EncounterManager._confirmClearSkeleton('${this._escapeAttr(item.name)}')">
+                🗑️ 清空缓存
+            </button>
+            <button class="cinemaworld-button" onclick="EncounterManager._cancelToMap()">取消</button>
+        </div>
+    `;
+            this._pendingBattleItem = item;
+
+            if (!document.getElementById('cw-battle-choice-styles')) {
+                const s = document.createElement('style');
+                s.id = 'cw-battle-choice-styles';
+                s.textContent = `
+            .cw-battle-choice:hover {
+                transform: translateY(-2px);
+                filter: brightness(1.15);
+                box-shadow: 0 6px 20px rgba(0,0,0,.5);
+            }
+        `;
+                document.head.appendChild(s);
+            }
+        },
+        _cancelToMap() {
+            window.UIManager.closeModal();
+            this._returnToMap();
+        },
+        // ============================================================
+        // ★ 玩家选了战斗方式
+        // ============================================================
+        async _chooseBattleMode(mode) {
+            const item = this._pendingBattleItem;
+            if (!item) return;
+            this._pendingBattleItem = null;
+            window.UIManager.closeModal();
+
+            if (mode === 'fast') {
+                const pkg = await this.generateBattlePackage(item, { mode: 'fast' });
                 if (!pkg) {
-                    await window.UIManager.showText('❌ 战斗生成失败', 2000);
+                    await window.UIManager.showText('❌ 战斗启动失败', 2000);
                     return;
                 }
-    
-                await this._openPreviewModal(item, pkg, false);
-            },
-    
-            // ★ 打开战斗包预览（可编辑）
-            async _openPreviewModal(item, pkg, fromCache) {
-                const modal = document.getElementById('cinemaworld-modal');
-                const sections = pkg.sections;
-    
-                const rawText = pkg.raw || this._buildRawFromSections(sections);
-    
-                const tags = Object.keys(sections).filter(k => k !== '__music');
-                const tagBadges = tags.map(t =>
-                    `<span class="cw-battle-preview-badge">${t}</span>`
-                ).join('');
-    
-                const music = sections.__music || {};
-                const musicHTML = [
-                    music.战前音乐 ? `战前: ${music.战前音乐}` : '',
-                    music.战中音乐 ? `战中: ${music.战中音乐}` : '',
-                    music.战后音乐 ? `战后: ${music.战后音乐}` : '',
-                ].filter(Boolean).join(' / ');
-    
-                modal.innerHTML = `
+                await this._launchBattle(item, pkg);
+                return;
+            }
+
+            // narrative：复用已缓存叙事，不调 AI
+            const pkg = await this.generateBattlePackage(item, { mode: 'narrative' });
+            if (!pkg) {
+                await window.UIManager.showText('❌ 启动失败', 2000);
+                return;
+            }
+            await this._openPreviewModal(item, pkg, true);
+        },
+
+        // ============================================================
+        // ★ 玩家主动点"重新生成剧情"
+        // ============================================================
+        async _forceRegenerateNarrative(enemyName) {
+            const scene = window.LocationModalManager.currentLocation;
+            let item = scene?.sceneItems?.find(i => i.name === enemyName);
+            if (!item) {
+                const map = window.MapLauncher?.getMap?.();
+                item = map?.entities?.find(e => e.name === enemyName);
+            }
+            if (!item) return;
+
+            window.UIManager.closeModal();
+            await window.UIManager.showText('正在重新生成剧情...', 1000);
+
+            const pkg = await this.generateBattlePackage(item, { mode: 'regenerateNarrative' });
+            if (!pkg) {
+                await window.UIManager.showText('❌ 生成失败', 2000);
+                return;
+            }
+            await this._openPreviewModal(item, pkg, false);
+        },
+
+        // ============================================================
+        // ★ 清空缓存
+        // ============================================================
+        _confirmClearSkeleton(enemyName) {
+            if (!confirm(`确定清空【${enemyName}】的战斗缓存吗？\n\n下次遇到会重新生成完整战斗包。`)) {
+                return;
+            }
+            this._clearCache(enemyName);
+            window.UIManager.showText(`已清空【${enemyName}】的战斗缓存`, 1500);
+            window.UIManager.closeModal();
+        },
+
+        // ★ 打开战斗包预览（可编辑）
+        async _openPreviewModal(item, pkg, fromCache) {
+            const modal = document.getElementById('cinemaworld-modal');
+            const sections = pkg.sections;
+
+            const rawText = pkg.raw || this._buildRawFromSections(sections);
+
+            const tags = Object.keys(sections).filter(k => k !== '__music');
+            const tagBadges = tags.map(t =>
+                `<span class="cw-battle-preview-badge">${t}</span>`
+            ).join('');
+
+            const music = sections.__music || {};
+            const musicHTML = [
+                music.战前音乐 ? `战前: ${music.战前音乐}` : '',
+                music.战中音乐 ? `战中: ${music.战中音乐}` : '',
+                music.战后音乐 ? `战后: ${music.战后音乐}` : '',
+            ].filter(Boolean).join(' / ');
+
+            modal.innerHTML = `
                     <div class="cinemaworld-modal-title">⚔️ 战斗预览 · ${item.name}</div>
     
                     <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.7;">
                         ${fromCache
-                            ? '📦 已使用缓存内容。修改会覆盖缓存。'
-                            : '🆕 AI 刚生成的内容。确认后才会开始战斗。'}
+                    ? '📦 已使用缓存内容。修改会覆盖缓存。'
+                    : '🆕 AI 刚生成的内容。确认后才会开始战斗。'}
                     </div>
     
                     <div class="cw-battle-preview-badges">
@@ -2649,372 +3330,496 @@ ${equipBlock}
                             ⚔️ 开始战斗
                         </button>
                         <button class="cinemaworld-button cw-battle-preview-btn"
+                            data-action="fast"
+                            style="color:#9ee89e;border-color:rgba(80,200,120,.4);">
+                            ⚡ 快速战斗
+                        </button>
+                        <button class="cinemaworld-button cw-battle-preview-btn"
                             data-action="regenerate"
-                            ${fromCache ? 'style="color:#ffcf80;border-color:rgba(255,207,128,.4);"' : ''}>
-                            🔄 重新生成
+                            style="color:#ffcf80;border-color:rgba(255,207,128,.4);">
+                            🔄 重新生成剧情
                         </button>
                         <button class="cinemaworld-button cw-battle-preview-btn"
                             data-action="clear">
                             🗑️ 清空缓存
                         </button>
-                        <button class="cinemaworld-button" onclick="UIManager.closeModal()">取消</button>
+                        <button class="cinemaworld-button" onclick="EncounterManager._cancelToMap()">取消</button>
                     </div>`;
-    
-                modal.querySelectorAll('.cw-battle-preview-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const action = btn.dataset.action;
-                        if (action === 'confirm') {
-                            this._confirmPreview(item.name);
-                        } else if (action === 'regenerate') {
-                            this._regenerateFromPreview(item.name);
-                        } else if (action === 'clear') {
-                            this._clearCache(item.name);
-                        }
-                    });
+
+            modal.querySelectorAll('.cw-battle-preview-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const action = btn.dataset.action;
+                    if (action === 'confirm') {
+                        this._confirmPreview(item.name);
+                    } else if (action === 'fast') {
+                        this._fastFromPreview(item.name);
+                    } else if (action === 'regenerate') {
+                        this._regenerateFromPreview(item.name);
+                    } else if (action === 'clear') {
+                        this._clearCache(item.name);
+                    }
                 });
-    
-                modal.className = 'active';
-            },
-    
-            // ★ 确认预览 → 解析 → 保存缓存 → 开始战斗
-            async _confirmPreview(enemyName) {
-                const textarea = document.getElementById('cw-battle-preview-input');
-                if (!textarea) return;
-    
-                const editedText = textarea.value.trim();
-                if (!editedText) { alert('内容不能为空'); return; }
-    
-                const scene = window.LocationModalManager.currentLocation;
-                const item = scene?.sceneItems?.find(i => i.name === enemyName);
-                if (!item) { alert('找不到敌人实体'); return; }
-    
-                const sections = window.BattlePackageSlicer.slice(editedText);
-                const enemy = window.EnemyBuilder.fromSceneItem(item);
-                if (!enemy) { alert('敌人解析失败'); return; }
-    
-                const actionPool = this.parseActions(sections['战斗行动'] || '');
-    
-                let rules = window.BattleRuleManager.getCurrent();
-                if (!rules) {
-                    if (sections['战斗规则'] && sections['战斗规则'].trim()) {
-                        rules = window.BattleRuleManager.parse(sections['战斗规则']);
-                    } else {
-                        rules = { ...window.BattleRuleManager.DEFAULT_RULES };
+            });
+
+            modal.className = 'active';
+        },
+        // ★ 从预览直接进快速战斗
+        async _fastFromPreview(enemyName) {
+            const scene = window.LocationModalManager.currentLocation;
+            let item = scene?.sceneItems?.find(i => i.name === enemyName);
+            if (!item) {
+                const map = window.MapLauncher?.getMap?.();
+                item = map?.entities?.find(e => e.name === enemyName);
+            }
+            if (!item) {
+                window.UIManager.showText('找不到敌人实体', 2000);
+                return;
+            }
+
+            window.UIManager.closeModal();
+            const pkg = await this.generateBattlePackage(item, { mode: 'fast' });
+            if (!pkg) {
+                await window.UIManager.showText('❌ 战斗启动失败', 2000);
+                return;
+            }
+            await this._launchBattle(item, pkg);
+        },
+        // ★ 确认预览 → 解析 → 保存缓存 → 开始战斗
+        async _confirmPreview(enemyName) {
+            const textarea = document.getElementById('cw-battle-preview-input');
+            if (!textarea) return;
+
+            const editedText = textarea.value.trim();
+            if (!editedText) { alert('内容不能为空'); return; }
+
+            // ★ 先按名字在场景实体里找
+            let item = null;
+            const scene = window.LocationModalManager.currentLocation;
+            if (scene?.sceneItems) {
+                item = scene.sceneItems.find(i => i.name === enemyName);
+            }
+
+            // ★ 找不到再从地图实体里找（用名字匹配）
+            if (!item) {
+                const map = window.MapLauncher?.getMap?.();
+                if (map?.entities) {
+                    const rawEnt = map.entities.find(e => e.name === enemyName);
+                    if (rawEnt) {
+                        // 包装成战斗用结构
+                        item = window.EncounterManager._wrapEnemyItem(rawEnt, 'map');
                     }
-                    window.BattleRuleManager.save(rules);
                 }
-    
-                const pkg = {
-                    raw: editedText,
-                    sections,
-                    enemy,
-                    actionPool,
-                    rules,
-                    enemyItemName: enemyName,
-                    cachedAt: Date.now(),
+            }
+
+            if (!item) {
+                alert(`找不到敌人实体：${enemyName}`);
+                return;
+            }
+
+            const sections = window.BattlePackageSlicer.slice(editedText);
+            const enemy = window.EnemyBuilder.fromSceneItem(item);
+            if (!enemy) { alert('敌人解析失败'); return; }
+
+            const actionPool = this.parseActions(sections['战斗行动'] || '');
+
+            let rules = window.BattleRuleManager.getCurrent();
+            if (!rules) {
+                if (sections['战斗规则'] && sections['战斗规则'].trim()) {
+                    rules = window.BattleRuleManager.parse(sections['战斗规则']);
+                } else {
+                    rules = { ...window.BattleRuleManager.DEFAULT_RULES };
+                }
+                window.BattleRuleManager.save(rules);
+            }
+
+            const pkg = {
+                raw: editedText,
+                sections,
+                enemy,
+                actionPool,
+                rules,
+                enemyItemName: enemyName,
+                cachedAt: Date.now(),
+            };
+
+            // ★ 只更新骨架
+            this._setSkeleton(enemyName, {
+                enemy: pkg.enemy,
+                actionPool: pkg.actionPool,
+                rules: pkg.rules,
+                music: pkg.sections?.__music || {},
+            });
+
+            // ★ 更新叙事
+            this._setNarrative(enemyName, {
+                raw: pkg.raw || '',
+                sections: {
+                    '战前剧情': pkg.sections?.['战前剧情'] || '',
+                    '战后剧情·胜利': pkg.sections?.['战后剧情·胜利'] || '',
+                    '战后剧情·失败': pkg.sections?.['战后剧情·失败'] || '',
+                    '战斗奖励': pkg.sections?.['战斗奖励'] || '',
+                    '场景更新': pkg.sections?.['场景更新'] || '',
+                    '胜利摘要': pkg.sections?.['胜利摘要'] || '',
+                },
+            });
+
+            window.UIManager.closeModal();
+            await this._launchBattle(item, pkg);
+        },
+
+
+        // ============================================================
+        // ★ 战斗骨架缓存
+        // ============================================================
+        _getSkeletonCache() {
+            if (!CinemaWorld.worldState.combat) {
+                CinemaWorld.worldState.combat = {
+                    activeCombat: null,
+                    battleRules: null,
+                    battlePackages: {},
+                    battleSkeletons: {},
+                    battleNarratives: {},
+                    history: [],
                 };
-    
-                this._setCachedPackage(enemyName, pkg);
-    
-                window.UIManager.closeModal();
-                await this._launchBattle(item, pkg);
-            },
-    
-            // ★ 实际启动战斗
-            async _launchBattle(item, pkg) {
-                if (pkg.sections.__music?.战前音乐) {
-                    await MusicManager.setOverrideMusic(pkg.sections.__music.战前音乐);
-                }
-                if (pkg.sections['战前剧情']) {
-                    // ★ 改用 window.VisualNovelManager
-                    const dialogues = window.VisualNovelManager.parseScript(pkg.sections['战前剧情']);
-                    if (dialogues.length > 0) {
-                        await window.VisualNovelManager.play(dialogues);
-                    }
-                }
-                if (pkg.sections.__music?.战中音乐) {
-                    await MusicManager.setOverrideMusic(pkg.sections.__music.战中音乐);
-                }
-            
-                const combat = window.BattleManager.startBattle(pkg, item.name);
-                window.BattleUIManager.open(combat);
-            
+            }
+            if (!CinemaWorld.worldState.combat.battleSkeletons) {
+                CinemaWorld.worldState.combat.battleSkeletons = {};
+            }
+            return CinemaWorld.worldState.combat.battleSkeletons;
+        },
+
+        _getSkeleton(enemyName) {
+            return this._getSkeletonCache()[enemyName] || null;
+        },
+
+        _setSkeleton(enemyName, skeleton) {
+            this._getSkeletonCache()[enemyName] = { ...skeleton, cachedAt: Date.now() };
+            if (window.SaveManager) window.SaveManager.save();
+        },
+
+        _clearSkeleton(enemyName) {
+            const cache = this._getSkeletonCache();
+            if (cache[enemyName]) {
+                delete cache[enemyName];
                 if (window.SaveManager) window.SaveManager.save();
-            },
-    
-            // ★ 获取缓存的战斗包
-            _getCachedPackage(enemyName) {
-                const store = CinemaWorld.worldState.combat?.battlePackages;
-                if (!store) return null;
-                const cached = store[enemyName];
-                if (!cached) return null;
-    
-                if (!cached.raw || !cached.sections) {
-                    console.warn(`[Encounter] 缓存不完整: ${enemyName}`);
-                    return null;
-                }
-    
-                return cached;
-            },
-    
-            // ★ 写入缓存
-            _setCachedPackage(enemyName, pkg) {
-                if (!CinemaWorld.worldState.combat) {
-                    CinemaWorld.worldState.combat = { activeCombat: null, battleRules: null, history: [] };
-                }
-                if (!CinemaWorld.worldState.combat.battlePackages) {
-                    CinemaWorld.worldState.combat.battlePackages = {};
-                }
-                CinemaWorld.worldState.combat.battlePackages[enemyName] = {
-                    raw: pkg.raw,
-                    sections: pkg.sections,
-                    enemy: pkg.enemy,
-                    actionPool: pkg.actionPool,
-                    rules: pkg.rules,
-                    enemyItemName: enemyName,
-                    cachedAt: Date.now(),
+                return true;
+            }
+            return false;
+        },
+
+        // ============================================================
+        // ★ 战斗叙事缓存
+        // ============================================================
+        _getNarrativeCache() {
+            if (!CinemaWorld.worldState.combat) {
+                CinemaWorld.worldState.combat = {
+                    activeCombat: null,
+                    battleRules: null,
+                    battlePackages: {},
+                    battleSkeletons: {},
+                    battleNarratives: {},
+                    history: [],
                 };
+            }
+            if (!CinemaWorld.worldState.combat.battleNarratives) {
+                CinemaWorld.worldState.combat.battleNarratives = {};
+            }
+            return CinemaWorld.worldState.combat.battleNarratives;
+        },
+
+        _getNarrative(enemyName) {
+            return this._getNarrativeCache()[enemyName] || null;
+        },
+
+        _setNarrative(enemyName, narrative) {
+            this._getNarrativeCache()[enemyName] = { ...narrative, cachedAt: Date.now() };
+            if (window.SaveManager) window.SaveManager.save();
+        },
+
+        _clearNarrative(enemyName) {
+            const cache = this._getNarrativeCache();
+            if (cache[enemyName]) {
+                delete cache[enemyName];
                 if (window.SaveManager) window.SaveManager.save();
-            },
-    
-            // ★ 清除单个缓存
-            _clearCache(enemyName) {
-                const store = CinemaWorld.worldState.combat?.battlePackages;
-                if (store && store[enemyName]) {
-                    delete store[enemyName];
-                    if (window.SaveManager) window.SaveManager.save();
-                    window.UIManager.showText(`已清空【${enemyName}】的战斗缓存`, 1500);
-                }
-            },
-    
-            // ★ 重新生成
-            async _regenerateFromPreview(enemyName) {
-                const scene = window.LocationModalManager.currentLocation;
-                const item = scene?.sceneItems?.find(i => i.name === enemyName);
-                if (!item) return;
-    
-                this._clearCache(enemyName);
-    
-                await window.UIManager.showText('正在重新生成...', 1000);
-                const pkg = await this.generateBattlePackage(item);
-                if (!pkg) {
-                    await window.UIManager.showText('❌ 生成失败', 2000);
-                    return;
-                }
-    
-                await this._openPreviewModal(item, pkg, false);
-            },
-    
-            // ★ 从 sections 重建 raw
-            _buildRawFromSections(sections) {
-                const parts = [];
-                for (const [tag, content] of Object.entries(sections)) {
-                    if (tag === '__music') continue;
-                    parts.push(`【${tag}】\n${content}`);
-                }
-                const music = sections.__music || {};
-                if (music.战前音乐 || music.战中音乐 || music.战后音乐) {
-                    parts.push(`【音乐提示】\n战前音乐: ${music.战前音乐 || '无'}\n战中音乐: ${music.战中音乐 || '无'}\n战后音乐: ${music.战后音乐 || '无'}`);
-                }
-                return parts.join('\n\n');
-            },
-    
-            // ---------- 解析战斗行动 ----------
-            parseActions(text) {
-                if (!text) return this._defaultActions();
-                const actions = [];
+                return true;
+            }
+            return false;
+        },
 
-                for (let raw of text.split('\n')) {
-                    const line = raw.trim();
-                    if (!line.startsWith('-')) continue;
-                    const content = line.substring(1).trim();
+        // ★ 获取缓存的战斗包
+        _getCachedPackage(enemyName) {
+            const store = CinemaWorld.worldState.combat?.battlePackages;
+            if (!store) return null;
+            const cached = store[enemyName];
+            if (!cached) return null;
 
-                    const nameMatch = content.match(/^【(.+?)】/);
-                    if (!nameMatch) continue;
-                    const nameParts = nameMatch[1].split('|').map(s => s.trim());
-                    const name = nameParts[0] || '';
-                    if (!name) continue;
+            if (!cached.raw || !cached.sections) {
+                console.warn(`[Encounter] 缓存不完整: ${enemyName}`);
+                return null;
+            }
 
-                    const action = {
-                        id: `action_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-                        name,
-                        icon: '⚔️',
-                        type: 'attack',
-                        description: '',
-                        cost: {},
-                        cooldown: 0,
-                        usesLeft: null,
-                        formula: null,
-                        hint: '',
-                        effects: [],   // ★ 附加效果
-                    };
+            return cached;
+        },
 
-                    if (nameParts[1]) {
-                        const emoji = nameParts[1].match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
-                        if (emoji) action.icon = emoji[0];
-                    }
+        // ★ 写入缓存
+        _setCachedPackage(enemyName, pkg) {
+            if (!CinemaWorld.worldState.combat) {
+                CinemaWorld.worldState.combat = { activeCombat: null, battleRules: null, history: [] };
+            }
+            if (!CinemaWorld.worldState.combat.battlePackages) {
+                CinemaWorld.worldState.combat.battlePackages = {};
+            }
+            CinemaWorld.worldState.combat.battlePackages[enemyName] = {
+                raw: pkg.raw,
+                sections: pkg.sections,
+                enemy: pkg.enemy,
+                actionPool: pkg.actionPool,
+                rules: pkg.rules,
+                enemyItemName: enemyName,
+                cachedAt: Date.now(),
+            };
+            if (window.SaveManager) window.SaveManager.save();
+        },
 
-                    const afterName = content.substring(nameMatch[0].length).replace(/^[：:]\s*/, '');
-                    const bracketMatch = afterName.match(/^([\s\S]*?)\s*[\[【]([^\]】]+)[\]】]\s*$/);
-                    if (bracketMatch) {
-                        action.description = bracketMatch[1].trim();
-                        const fields = bracketMatch[2].split('|').map(s => s.trim());
-                        for (const fld of fields) {
-                            const kv = fld.match(/^(.+?)[:：]\s*(.+)$/);
-                            if (!kv) continue;
-                            const k = kv[1].trim();
-                            const v = kv[2].trim();
+        _clearCache(enemyName) {
+            const store = CinemaWorld.worldState.combat?.battlePackages;
+            if (store && store[enemyName]) delete store[enemyName];
 
-                            if (k === '类型') action.type = this._normalizeType(v);
-                            else if (k === '冷却') {
-                                const n = parseInt(v);
-                                if (!isNaN(n)) action.cooldown = n;
-                            }
-                            else if (k === '次数') {
-                                const n = parseInt(v);
-                                if (!isNaN(n)) action.usesLeft = n;
-                            }
-                            else if (k === '公式') action.formula = v;
-                            else if (k === '消耗') {
-                                // 消耗:魔力:15 或 消耗:魔力15
-                                const cm = v.match(/^(.+?)[:：]?\s*(\d+)$/);
-                                if (cm) action.cost[cm[1].trim()] = parseInt(cm[2]);
-                            }
-                            else if (k === '效果') {
-                                // 效果:敌人攻击-50%|持续:1回合
-                                action.effects = this._parseEffects(v);
-                            }
-                            else if (k === '来源') {
-                                action.sourceEquipment = v;
-                            }
-                        }
-                    } else {
-                        action.description = afterName.trim();
-                    }
+            this._clearSkeleton(enemyName);
+            this._clearNarrative(enemyName);
 
-                    if (action.type === 'attack') {
-                        if (/普通攻击|攻击/.test(name)) action.type = 'attack';
-                        else if (/治疗|回复|恢复|治愈/.test(name)) action.type = 'heal';
-                        else if (/防御|格挡|闪避/.test(name)) action.type = 'defend';
-                        else if (/逃跑|撤退|脱离/.test(name)) action.type = 'flee';
-                        else if (/道具|物品/.test(name)) action.type = 'item';
-                        else action.type = 'skill';
-                    }
+            if (window.SaveManager) window.SaveManager.save();
+            window.UIManager.showText(`已清空【${enemyName}】的战斗缓存`, 1500);
+        },
 
-                    actions.push(action);
-                }
+        async _regenerateFromPreview(enemyName) {
+            const scene = window.LocationModalManager.currentLocation;
+            let item = scene?.sceneItems?.find(i => i.name === enemyName);
+            if (!item) {
+                const map = window.MapLauncher?.getMap?.();
+                item = map?.entities?.find(e => e.name === enemyName);
+            }
+            if (!item) return;
 
-                if (!actions.some(a => a.type === 'attack')) {
-                    actions.unshift(this._basicAttack());
-                }
-                if (!actions.some(a => a.type === 'flee')) {
-                    actions.push(this._fleeAction());
-                }
+            await window.UIManager.showText('正在重新生成剧情...', 1000);
+            const pkg = await this.generateBattlePackage(item, { mode: 'regenerateNarrative' });
+            if (!pkg) {
+                await window.UIManager.showText('❌ 生成失败', 2000);
+                return;
+            }
+            await this._openPreviewModal(item, pkg, false);
+        },
 
-                return actions;
-            },
+        // ★ 从 sections 重建 raw
+        _buildRawFromSections(sections) {
+            const parts = [];
+            for (const [tag, content] of Object.entries(sections)) {
+                if (tag === '__music') continue;
+                parts.push(`【${tag}】\n${content}`);
+            }
+            const music = sections.__music || {};
+            if (music.战前音乐 || music.战中音乐 || music.战后音乐) {
+                parts.push(`【音乐提示】\n战前音乐: ${music.战前音乐 || '无'}\n战中音乐: ${music.战中音乐 || '无'}\n战后音乐: ${music.战后音乐 || '无'}`);
+            }
+            return parts.join('\n\n');
+        },
 
-            // ★ 解析效果字符串
-            _parseEffects(str) {
-                const effects = [];
-                const parts = String(str).split(/[;；]/).map(s => s.trim()).filter(Boolean);
+        // ---------- 解析战斗行动 ----------
+        parseActions(text) {
+            if (!text) return this._defaultActions();
+            const actions = [];
 
-                for (const part of parts) {
-                    // 敌人攻击-50% 持续1回合
-                    let m = part.match(/^敌人(.+?)([+\-])(\d+)(?:%|％)?(?:\s*持续\s*(\d+)\s*回合)?$/);
-                    if (m) {
-                        const attr = m[1].trim();
-                        const sign = m[2] === '-' ? -1 : 1;
-                        let val = parseFloat(m[3]);
-                        if (part.includes('%') || part.includes('％')) val = val / 100;
-                        else if (val >= 2) val = val / 100;
-                        effects.push({
-                            type: 'debuff_enemy',
-                            name: `虚弱·${attr}`,
-                            effect: { 属性: { [attr]: sign * val } },
-                            duration: m[4] ? parseInt(m[4]) : 3,
-                        });
-                        continue;
-                    }
-                    // 自己获得状态 xxx
-                    m = part.match(/^自身?(?:获得)?(.+?)(?:，|,|$)/);
-                    if (m && /获得|buff|加/.test(part)) {
-                        effects.push({
-                            type: 'buff_self',
-                            name: m[1].trim(),
-                            duration: 3,
-                        });
-                    }
-                }
-                return effects;
-            },
-    
-            _normalizeType(v) {
-                const s = String(v).toLowerCase();
-                if (/治疗|heal|恢复|回复|治愈/.test(s)) return 'heal';
-                if (/攻击|attack/.test(s)) return 'attack';
-                if (/防御|defend|格挡/.test(s)) return 'defend';
-                if (/技能|skill/.test(s)) return 'skill';
-                if (/道具|item/.test(s)) return 'item';
-                if (/逃跑|flee|撤退/.test(s)) return 'flee';
-                return 'skill';
-            },
-    
-            _basicAttack() {
-                return {
-                    id: 'action_basic_attack',
-                    name: '普通攻击',
+            for (let raw of text.split('\n')) {
+                const line = raw.trim();
+                if (!line.startsWith('-')) continue;
+                const content = line.substring(1).trim();
+
+                const nameMatch = content.match(/^【(.+?)】/);
+                if (!nameMatch) continue;
+                const nameParts = nameMatch[1].split('|').map(s => s.trim());
+                const name = nameParts[0] || '';
+                if (!name) continue;
+
+                const action = {
+                    id: `action_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+                    name,
                     icon: '⚔️',
                     type: 'attack',
-                    description: '普通攻击',
+                    description: '',
                     cost: {},
                     cooldown: 0,
                     usesLeft: null,
                     formula: null,
                     hint: '',
+                    effects: [],   // ★ 附加效果
                 };
-            },
 
-            _defendAction() {
-                return {
-                    id: 'action_defend',
-                    name: '防御',
-                    icon: '🛡️',
-                    type: 'defend',
-                    description: '本回合减伤 50%',
-                    cost: {},
-                    cooldown: 0,
-                    usesLeft: null,
-                    formula: null,
-                    hint: '',
-                };
-            },
-    
-            _fleeAction() {
-                return {
-                    id: 'action_flee',
-                    name: '逃跑',
-                    icon: '🏃',
-                    type: 'flee',
-                    description: '尝试脱离战斗',
-                    cost: {},
-                    cooldown: 0,
-                    usesLeft: null,
-                    formula: null,
-                    hint: '',
-                };
-            },
-    
-            _defaultActions() {
-                return [
-                    this._basicAttack(),
-                    _defendAction(),
-                    this._fleeAction(),
-                    
-                ];
-            },
-        };
-    
+                if (nameParts[1]) {
+                    const emoji = nameParts[1].match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+                    if (emoji) action.icon = emoji[0];
+                }
+
+                const afterName = content.substring(nameMatch[0].length).replace(/^[：:]\s*/, '');
+                const bracketMatch = afterName.match(/^([\s\S]*?)\s*[\[【]([^\]】]+)[\]】]\s*$/);
+                if (bracketMatch) {
+                    action.description = bracketMatch[1].trim();
+                    const fields = bracketMatch[2].split('|').map(s => s.trim());
+                    for (const fld of fields) {
+                        const kv = fld.match(/^(.+?)[:：]\s*(.+)$/);
+                        if (!kv) continue;
+                        const k = kv[1].trim();
+                        const v = kv[2].trim();
+
+                        if (k === '类型') action.type = this._normalizeType(v);
+                        else if (k === '冷却') {
+                            const n = parseInt(v);
+                            if (!isNaN(n)) action.cooldown = n;
+                        }
+                        else if (k === '次数') {
+                            const n = parseInt(v);
+                            if (!isNaN(n)) action.usesLeft = n;
+                        }
+                        else if (k === '公式') action.formula = v;
+                        else if (k === '消耗') {
+                            // 消耗:魔力:15 或 消耗:魔力15
+                            const cm = v.match(/^(.+?)[:：]?\s*(\d+)$/);
+                            if (cm) action.cost[cm[1].trim()] = parseInt(cm[2]);
+                        }
+                        else if (k === '效果') {
+                            // 效果:敌人攻击-50%|持续:1回合
+                            action.effects = this._parseEffects(v);
+                        }
+                        else if (k === '来源') {
+                            action.sourceEquipment = v;
+                        }
+                    }
+                } else {
+                    action.description = afterName.trim();
+                }
+
+                if (action.type === 'attack') {
+                    if (/普通攻击|攻击/.test(name)) action.type = 'attack';
+                    else if (/治疗|回复|恢复|治愈/.test(name)) action.type = 'heal';
+                    else if (/防御|格挡|闪避/.test(name)) action.type = 'defend';
+                    else if (/逃跑|撤退|脱离/.test(name)) action.type = 'flee';
+                    else if (/道具|物品/.test(name)) action.type = 'item';
+                    else action.type = 'skill';
+                }
+
+                actions.push(action);
+            }
+
+            if (!actions.some(a => a.type === 'attack')) {
+                actions.unshift(this._basicAttack());
+            }
+            if (!actions.some(a => a.type === 'flee')) {
+                actions.push(this._fleeAction());
+            }
+
+            return actions;
+        },
+
+        // ★ 解析效果字符串
+        _parseEffects(str) {
+            const effects = [];
+            const parts = String(str).split(/[;；]/).map(s => s.trim()).filter(Boolean);
+
+            for (const part of parts) {
+                // 敌人攻击-50% 持续1回合
+                let m = part.match(/^敌人(.+?)([+\-])(\d+)(?:%|％)?(?:\s*持续\s*(\d+)\s*回合)?$/);
+                if (m) {
+                    const attr = m[1].trim();
+                    const sign = m[2] === '-' ? -1 : 1;
+                    let val = parseFloat(m[3]);
+                    if (part.includes('%') || part.includes('％')) val = val / 100;
+                    else if (val >= 2) val = val / 100;
+                    effects.push({
+                        type: 'debuff_enemy',
+                        name: `虚弱·${attr}`,
+                        effect: { 属性: { [attr]: sign * val } },
+                        duration: m[4] ? parseInt(m[4]) : 3,
+                    });
+                    continue;
+                }
+                // 自己获得状态 xxx
+                m = part.match(/^自身?(?:获得)?(.+?)(?:，|,|$)/);
+                if (m && /获得|buff|加/.test(part)) {
+                    effects.push({
+                        type: 'buff_self',
+                        name: m[1].trim(),
+                        duration: 3,
+                    });
+                }
+            }
+            return effects;
+        },
+
+        _normalizeType(v) {
+            const s = String(v).toLowerCase();
+            if (/治疗|heal|恢复|回复|治愈/.test(s)) return 'heal';
+            if (/攻击|attack/.test(s)) return 'attack';
+            if (/防御|defend|格挡/.test(s)) return 'defend';
+            if (/技能|skill/.test(s)) return 'skill';
+            if (/道具|item/.test(s)) return 'item';
+            if (/逃跑|flee|撤退/.test(s)) return 'flee';
+            return 'skill';
+        },
+
+        _basicAttack() {
+            return {
+                id: 'action_basic_attack',
+                name: '普通攻击',
+                icon: '⚔️',
+                type: 'attack',
+                description: '普通攻击',
+                cost: {},
+                cooldown: 0,
+                usesLeft: null,
+                formula: null,
+                hint: '',
+            };
+        },
+
+        _defendAction() {
+            return {
+                id: 'action_defend',
+                name: '防御',
+                icon: '🛡️',
+                type: 'defend',
+                description: '本回合减伤 50%',
+                cost: {},
+                cooldown: 0,
+                usesLeft: null,
+                formula: null,
+                hint: '',
+            };
+        },
+
+        _fleeAction() {
+            return {
+                id: 'action_flee',
+                name: '逃跑',
+                icon: '🏃',
+                type: 'flee',
+                description: '尝试脱离战斗',
+                cost: {},
+                cooldown: 0,
+                usesLeft: null,
+                formula: null,
+                hint: '',
+            };
+        },
+
+        _defaultActions() {
+            return [
+                this._basicAttack(),
+                this._defendAction(),
+                this._fleeAction(),
+
+            ];
+        },
+    };
+
     // ==================== 背包管理器 ====================
     const InventoryManager = {
         selectedIndex: 0,
@@ -3029,6 +3834,7 @@ ${equipBlock}
 
         open() {
             this.addStyles();
+            this._pendingUseTarget = null;   // ★ 清空
             const modal = document.getElementById('cinemaworld-modal');
             modal.className = 'active cw-inv-modal';
             modal.innerHTML = this.generateHTML();
@@ -3037,18 +3843,18 @@ ${equipBlock}
         generateHTML() {
             const inv = PlayerStateManager.player.inventory || [];
             const slotCount = this._getSlotCount();
-        
+
             // ★ 空背包的处理保持不变
             if (inv.length === 0 && slotCount === 0) {
                 // ... 原有空状态 HTML
             }
-        
+
             // ★ 选中索引修正
             if (this.selectedIndex >= slotCount) this.selectedIndex = 0;
             if (this.selectedIndex < 0) this.selectedIndex = 0;
-        
+
             const selected = inv[this.selectedIndex];
-        
+
             // ★ 格子渲染：上限 = slotCount
             let gridHTML = '';
             for (let i = 0; i < slotCount; i++) {
@@ -3069,7 +3875,7 @@ ${equipBlock}
                     gridHTML += `<div class="cw-inv-slot empty"></div>`;
                 }
             }
-        
+
             return `
                 <div class="cinemaworld-modal-title">🎒 背包 (${inv.length}/${slotCount})</div>
         
@@ -3220,7 +4026,16 @@ ${equipBlock}
                     fieldsHTML = `<div class="cw-inv-detail-section">
                         <div class="cw-inv-detail-section-label">📋 属性</div>
                         ${rows.join('')}
-                    </div>`;
+                    </div>
+                    ${item.fields?.['效果'] ? `
+                <div class="cw-inv-detail-section">
+                    <div class="cw-inv-detail-section-label">⚡ 使用效果</div>
+                    <div class="cw-inv-detail-desc" style="color:#ffd76b;">
+                        ${this._formatEffectDisplay(item.fields['效果'])}
+                    </div>
+                </div>
+            ` : ''}
+                    `;
                 }
             }
 
@@ -3258,6 +4073,12 @@ ${equipBlock}
                             onclick="InventoryManager.useItem(${this.selectedIndex})">
                             ✨ 使用
                         </button>
+                        ${window.ItemEffectApplier?.canQuickUse?.(item) ? `
+                            <button class="cw-inv-action-btn cw-inv-action-quick"
+                                onclick="InventoryManager.quickUse(${this.selectedIndex})">
+                                ⚡ 快捷使用
+                            </button>
+                        ` : ''}
                         <button class="cw-inv-action-btn"
                             onclick="InteractionHistoryManager.openHistoryModal('inventoryItem', '${this._escapeAttr(item.name)}')">
                             📜 历史
@@ -3281,7 +4102,97 @@ ${equipBlock}
                 modal.innerHTML = this.generateHTML();
             }
         },
+        _formatEffectDisplay(dsl) {
+            if (!dsl) return '';
+            if (/^(无|none|n\/a|-|—+)$/i.test(String(dsl).trim())) return '无';
 
+            // 把 DSL 转成人类可读
+            const parts = String(dsl).split(/[;；]/).map(s => s.trim()).filter(Boolean);
+            const labels = [];
+
+            for (const part of parts) {
+                const e = window.ItemEffectApplier?.parseOne?.(part);
+                if (!e) {
+                    labels.push(part);
+                    continue;
+                }
+
+                const { action, target, value, duration } = e;
+                switch (action) {
+                    case '回复':
+                        labels.push(`${target} +${value}`);
+                        break;
+                    case '提升':
+                        labels.push(`${target}上限 +${value}`);
+                        break;
+                    case '设置':
+                        labels.push(`${target} 设为 ${value}`);
+                        break;
+                    case '减少':
+                        labels.push(`${target} -${value}`);
+                        break;
+                    case '永久':
+                        labels.push(`${target} 永久 +${value}`);
+                        break;
+                    case '状态':
+                        labels.push(`获得「${target}」${duration ? ` ${duration}回合` : ''}`);
+                        break;
+                    case '移除':
+                        labels.push(`解除「${target}」`);
+                        break;
+                    case '增益':
+                        labels.push(`${target} +${value}（${duration}回合）`);
+                        break;
+                    default:
+                        labels.push(part);
+                }
+            }
+
+            return labels.join('，');
+        },
+        // ★ 快捷使用：走 DSL，不走 AI
+        async quickUse(index) {
+            const inv = PlayerStateManager.player.inventory || [];
+            const item = inv[index];
+            if (!item) return;
+
+            // 没有可解析效果 → 提示
+            if (!window.ItemEffectApplier?.canQuickUse?.(item)) {
+                window.UIManager?.showText?.('这个物品没有可直接使用的效果', 1500);
+                return;
+            }
+
+            // 应用效果
+            const results = window.ItemEffectApplier.apply(item, '玩家');
+
+            if (!results || results.length === 0) {
+                window.UIManager?.showText?.('效果解析失败，请使用「✨ 使用」', 1500);
+                return;
+            }
+
+            // 消耗 1 个
+            item.count = (item.count || 1) - 1;
+            if (item.count <= 0) {
+                inv.splice(index, 1);
+                if (this.selectedIndex >= inv.length) {
+                    this.selectedIndex = Math.max(0, inv.length - 1);
+                }
+            }
+
+            // 显示结果
+            const text = window.ItemEffectApplier.formatResults(results);
+            if (text) {
+                await window.UIManager?.showText?.(
+                    `🧪 使用 ${item.icon || ''} ${item.name}\n${text}`,
+                    2200
+                );
+            }
+
+            // 刷新
+            PlayerStateManager.refreshAvatarArea();
+            this.open();
+            if (window.SaveManager) window.SaveManager.save();
+        },
         // ============================================================
         // 丢弃（数量选择）
         // ============================================================
@@ -3359,17 +4270,19 @@ ${equipBlock}
             const item = inv[index];
             if (!item) return;
 
-            const scene = window.LocationModalManager.currentLocation;
-            const characters = scene?.sceneCharacters || [];
+            // ★ 按 playMode 拿角色列表
+            const characters = this._getUseTargets();
 
-            if (!scene || characters.length === 0) {
+            if (characters.length === 0) {
+                // 没有可选目标 → 直接对自己
                 return this._proceedUseItem(index, null);
             }
 
             const modal = document.getElementById('cinemaworld-modal');
             modal.innerHTML = `
                 <div class="cinemaworld-modal-title">✨ 使用 ${item.name}</div>
-                <div style="font-size:13px;color:#aaa;margin-bottom:15px;padding:10px;background:rgba(0,0,0,.2);border-radius:8px;">
+                <div style="font-size:13px;color:#aaa;margin-bottom:15px;padding:10px;
+                    background:rgba(0,0,0,.2);border-radius:8px;">
                     ${item.description || '一件普通的物品。'}
                 </div>
                 <div style="font-size:13px;color:#aaa;margin-bottom:8px;">对谁使用？</div>
@@ -3382,8 +4295,8 @@ ${equipBlock}
                     ${characters.map((c, i) => `
                         <div class="cinemaworld-button"
                              style="text-align:left;padding:12px 16px;"
-                             onclick="InventoryManager._proceedUseItem(${index}, ${i})">
-                            <span style="margin-right:8px;">👥</span>对 ${c.name} 使用
+                             onclick="InventoryManager._proceedUseItemByIndex(${index}, ${i})">
+                            <span style="margin-right:8px;">${c._source === 'map' ? '🗺️' : '👥'}</span>对 ${this._escapeAttr(c.name)} 使用
                         </div>
                     `).join('')}
                 </div>
@@ -3393,15 +4306,42 @@ ${equipBlock}
             `;
             modal.className = 'active';
         },
+        // ★ 按 playMode 拿"使用物品的目标角色"
+        _getUseTargets() {
+            const playMode = window.CinemaWorld?.worldState?.playMode;
 
-        async _proceedUseItem(index, targetCharIndex) {
+            // ---------- 地图模式 → 地图 NPC ----------
+            if (playMode === 'map') {
+                const map = window.MapLauncher?.getMap?.();
+                if (!map?.entities) return [];
+
+                return map.entities
+                    .filter(e => e.kind === 'npc' && !e.isPlayer && e._placed)
+                    .map(e => ({
+                        name: e.name,
+                        gender: e.meta?.gender || e.fields?.['性别'] || '',
+                        mood: e.meta?.mood || e.fields?.['心情'] || '',
+                        favorability: e.fields?.['好感度'] || '',
+                        status: e.status || '',
+                        description: e.description || '',
+                        tags: e.tags || [],
+                        _source: 'map',
+                        _entityId: e.id,
+                        _raw: e,
+                    }));
+            }
+
+            // ---------- 场景模式 → 场景角色 ----------
+            const scene = window.LocationModalManager?.currentLocation;
+            const chars = scene?.sceneCharacters || [];
+            return chars.map(c => ({ ...c, _source: 'scene' }));
+        },
+        async _proceedUseItem(index, target) {
             const item = PlayerStateManager.player.inventory[index];
             if (!item) return;
 
-            const scene = window.LocationModalManager.currentLocation;
-            const targetChar = (targetCharIndex !== null && scene)
-                ? scene.sceneCharacters?.[targetCharIndex]
-                : null;
+            // ★ 统一目标对象
+            const targetChar = target || null;
 
             const modal = document.getElementById('cinemaworld-modal');
 
@@ -3421,9 +4361,7 @@ ${equipBlock}
                                     onclick="InventoryManager.selectMode(${m._index})"
                                     style="display:flex;align-items:center;gap:8px;padding:10px 14px;
                                         background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
-                                        border-radius:8px;cursor:pointer;transition:all .2s;"
-                                    onmouseover="this.style.background='rgba(120,150,255,.15)'"
-                                    onmouseout="if(!this.classList.contains('selected'))this.style.background='rgba(255,255,255,.05)'">
+                                        border-radius:8px;cursor:pointer;transition:all .2s;">
                                     <span style="font-size:16px;">${m._free ? '✍️' : '✨'}</span>
                                     <div style="flex:1;">
                                         <div style="font-size:13px;color:#fff;font-weight:600;">${m.name}</div>
@@ -3443,7 +4381,8 @@ ${equipBlock}
 
             const targetLine = targetChar
                 ? `<div style="font-size:13px;color:#9ab0ff;margin-bottom:12px;">
-                       🎯 目标：<strong>${targetChar.name}</strong>
+                       🎯 目标：<strong>${this._escapeAttr(targetChar.name)}</strong>
+                       ${targetChar._source === 'map' ? '<span style="color:#888;font-size:11px;margin-left:6px;">(地图)</span>' : ''}
                    </div>`
                 : `<div style="font-size:13px;color:#9ab0ff;margin-bottom:12px;">
                        🎯 目标：<strong>自己</strong>
@@ -3469,12 +4408,15 @@ ${equipBlock}
                 </div>
                 <div style="text-align:center;">
                     <button class="cinemaworld-button primary"
-                        onclick="InventoryManager.doUseItem(${index}, ${targetCharIndex === null ? 'null' : targetCharIndex})">
+                        onclick="InventoryManager._doUseItem(${index})">
                         确认使用
                     </button>
                     <button class="cinemaworld-button" onclick="InventoryManager.open()">返回</button>
                 </div>`;
             modal.className = 'active';
+
+            // ★ 保存当前目标到实例上，供 _doUseItem 读取
+            this._pendingUseTarget = targetChar;
 
             if (interactions.length > 0) {
                 this._selectedModeIndex = 0;
@@ -3494,14 +4436,13 @@ ${equipBlock}
             });
         },
 
-        async doUseItem(index, targetCharIndex = null) {
+        async _doUseItem(index) {
             const item = PlayerStateManager.player.inventory[index];
             if (!item) return;
+
             const input = document.getElementById('item-use-input')?.value.trim() || '';
+            const targetChar = this._pendingUseTarget || null;
             const scene = window.LocationModalManager.currentLocation;
-            const targetChar = (targetCharIndex !== null && scene)
-                ? scene.sceneCharacters?.[targetCharIndex]
-                : null;
 
             const interactions = item.interactions || [];
             let modeLabel = '直接使用';
@@ -3523,6 +4464,7 @@ ${equipBlock}
                 pendingEvents: false,
             });
 
+            // ---------- 目标块 ----------
             let targetBlock = '';
             if (targetChar) {
                 const extras = targetChar.extraStats || {};
@@ -3530,20 +4472,29 @@ ${equipBlock}
                     .filter(k => extras[k] !== undefined && extras[k] !== '')
                     .map(k => `  · ${k}: ${extras[k]}`)
                     .join('\n');
+
+                // ★ 地图目标：多给上下文
+                const sourceNote = targetChar._source === 'map'
+                    ? `\n★ 目标来源：地图模式\n★ 当前地图：${window.MapLauncher?.getMap?.()?.name || '(未知)'}`
+                    : '';
+
                 targetBlock = `
-【使用目标】
-名称：${targetChar.name}
-${targetChar.gender ? `性别：${targetChar.gender}` : ''}
-${targetChar.mood ? `心情：${targetChar.mood}` : ''}
-${targetChar.favorability ? `好感度：${targetChar.favorability}` : ''}
-${targetChar.status ? `状态：${targetChar.status}` : ''}
-${targetChar.description ? `描述：${targetChar.description}` : ''}
-${extraLines ? `当前数据：\n${extraLines}` : ''}`;
+        【使用目标】
+        名称：${targetChar.name}
+        ${targetChar.gender ? `性别：${targetChar.gender}` : ''}
+        ${targetChar.mood ? `心情：${targetChar.mood}` : ''}
+        ${targetChar.favorability ? `好感度：${targetChar.favorability}` : ''}
+        ${targetChar.status ? `状态：${targetChar.status}` : ''}
+        ${targetChar.description ? `描述：${targetChar.description}` : ''}
+        ${extraLines ? `当前数据：\n${extraLines}` : ''}${sourceNote}`;
             } else {
                 targetBlock = `【使用目标】\n玩家自己`;
             }
 
-            await window.UIManager.showText(`正在对 ${targetChar ? targetChar.name : '自己'} 使用 ${item.name}...`, 1000);
+            await window.UIManager.showText(
+                `正在对 ${targetChar ? targetChar.name : '自己'} 使用 ${item.name}...`,
+                1000
+            );
 
             const prompt = `视觉小说物品使用脚本生成。
 
@@ -3583,7 +4534,7 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
 目标: ${targetChar ? targetChar.name : '玩家'}
 数值变化: 键名 +N  或  键名 -N
 实体变化:
-- 获得【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 获得【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠:是|货币种类:X|买价:X|卖价:X|其他]
 - 失去【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|其他]
 - 获得状态 状态名（可选效果，| 分隔：攻击-20%|持续3回合）
 - 移除状态 状态名
@@ -3593,11 +4544,27 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
 ★ 可消耗物品：写明功能，如 [类型:消耗品|功能:回复 50 点生命|可堆叠]
 ★ 普通物品：至少写 [类型:物品] 和图标
 
+说明：效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
+
 示例：
-- 获得【生锈的铁剑|⚔️】：锈迹斑斑的短剑，[类型:武器|攻击:+3|图标:⚔️]
-- 获得【红药水|🧪】：一瓶红色药剂，[类型:消耗品|功能:回复 30 点生命|可堆叠]
-- 获得【黑面包|🍞】：还热乎，[类型:食物|功能:回复 10 点体力|可堆叠]
-- 获得【金币|🪙】：[类型:货币|货币种类:金币]
+- 【生锈的铁剑|⚔️】：斜靠在墙角，[类型:武器|可拾取:是|货币种类:金钱|买价:X|卖价:X|攻击:+X]
+- 【红药水|🧪】：一瓶红色药剂，[类型:消耗品|可拾取:是|功能:回复生命|效果:回复生命 X|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【野花|🌸】：路边的小花，[类型:材料|可拾取:是|可堆叠:是|货币种类:金钱|买价:X|卖价:X|最大堆叠:X]
+- 【守卫的盾牌|🛡️】：靠在门边的圆盾，[类型:护甲|可拾取:是|货币种类:金钱|买价:X|卖价:X|防御:+X|体力:+Y]
 
 【场景更新】
 环境数据:
@@ -3674,6 +4641,7 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
                 targetMeta: {
                     count: item.count,
                     usedOn: targetChar ? targetChar.name : '玩家',
+                    targetSource: targetChar?._source || 'self',
                 },
                 scene: scene?.name || '(无场景)',
                 playerInput: input || '直接使用',
@@ -3682,7 +4650,16 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
                 summary: digestSummary,
             });
 
-            WorldManager.addToNarrativeLog(`[使用物品] ${item.name}${targetChar ? ` → ${targetChar.name}` : ''}`);
+            WorldManager.addToNarrativeLog(
+                `[使用物品] ${item.name}${targetChar ? ` → ${targetChar.name}` : ''}`
+            );
+
+            // ★ 地图模式下，如果目标是地图 NPC，物品效果可能改变其状态
+            // 这部分由 EffectSystem 的 resolveTarget 处理（它已支持 mapEntity）
+
+            // ★ 清空待定目标
+            this._pendingUseTarget = null;
+
             if (window.SaveManager) window.SaveManager.save();
         },
 
@@ -4225,16 +5202,38 @@ ${fieldLines ? `\n已有字段：\n${fieldLines}` : ''}
 收购: (是/否，是否收购玩家卖的东西)
 
 商品:
-- 【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
-- 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
+- 【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【装备名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y|其他]
 
 【规则】
 1. 商品 3-8 件，符合场景和世界观
 2. 商品格式和场景实体完全一致（方括号内 键:值，用 | 分隔）
 3. 如果这个世界没有货币，把价格写成 0，并在"收购"里写"否"
 4. 价格数值要符合世界观
-5. 物品：用于消耗、食用、携带、交互。
-6. 装备：能给玩家提供属性加成，额外写属性字段，如 攻击:+5|防御:+3
+5.物品：用于消耗、食用、携带、交互的普通物品。
+6.装备：能给玩家提供属性加成的物品（武器、护甲、饰品、工具等）。
+在物品字段基础上，额外写属性字段，格式为 键:值，根据玩家有的属性来写。
+例如 攻击:+X|防御:+Y|暴击:+X%|幸运:+X。
+玩家装备后属性会生效，脱下后失效
+
+说明：效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
+
+★ "功能"是给人看的介绍，模糊、简短，不带具体数字：
+- 恢复生命 / 回复体力 / 解除中毒 / 增加攻击 / 提供照明
 
 【示例】
 【商店】
@@ -4245,7 +5244,7 @@ ${fieldLines ? `\n已有字段：\n${fieldLines}` : ''}
 收购: 是
 
 商品:
-- 【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 - 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
 
 请开始生成：
@@ -4347,17 +5346,17 @@ ${fieldLines ? `\n已有字段：\n${fieldLines}` : ''}
         },
         normalizeCurrency(name, shop) {
             if (!name) return null;
-        
+
             const playerKey = this.findCurrencyKey(shop);
             if (!playerKey) return name;
-        
+
             if (name === playerKey) return playerKey;
-        
+
             const currencyRegex = /金币|银两|铜钱|金钱|货币|币|元/;
             if (currencyRegex.test(name) && currencyRegex.test(playerKey)) {
                 return playerKey;
             }
-        
+
             return name;
         },
         getPlayerCurrency(shop) {
@@ -4423,7 +5422,7 @@ ${fieldLines ? `\n已有字段：\n${fieldLines}` : ''}
             let attrSum = 0;
             for (const [k, v] of Object.entries(fields)) {
                 if (['类型', '状态', '图标', 'icon', '功能', '交互方式', '描述', '可堆叠',
-                     '买价', '卖价', '买入价', '卖出价', '回收价'].includes(k)) continue;
+                    '买价', '卖价', '买入价', '卖出价', '回收价'].includes(k)) continue;
                 const n = parseFloat(String(v).replace(/[^\d.-]/g, ''));
                 if (!isNaN(n)) attrSum += Math.abs(n);
             }
@@ -4596,7 +5595,7 @@ ${context || '根据当前场景，生成一个自然的商店（可以是店铺
 收购: (是/否，是否收购玩家卖的东西)
 
 商品:
-- 【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 - 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
 
 【规则】
@@ -4607,11 +5606,29 @@ ${context || '根据当前场景，生成一个自然的商店（可以是店铺
    把价格写成 0，并在"收购"里写"否"
 5. 价格数值要符合世界观（末日游戏里可能几发子弹换一顿饭）
 6.- 物品：用于消耗、食用、携带、交互的普通物品。
-只需要写类型/状态/功能/交互方式/图标/可堆叠/买价/卖价/库存。
 - 装备：能给玩家提供属性加成的物品（武器、护甲、饰品、工具等）。
 在物品字段基础上，额外写属性字段，格式为 键:值，根据玩家有的属性来写。
-例如 攻击:+5|防御:+3|暴击:+10%|幸运:+5。
+例如 攻击:+X|防御:+Y|暴击:+X%|幸运:+X。
 玩家装备后属性会生效，脱下后失效
+
+说明：效果DSL:<动作><目标> <值>[; <动作><目标> <值>...]
+
+动作：
+- 回复：当前值+N，不超上限（如"回复生命 X"）
+- 提升：上限+N，当前值同步+N（如"提升生命上限 X"）
+- 设置：当前值=N（如"设置生命 X"）
+- 减少：当前值-N（如"减少理智 Y"）
+- 永久：永久改变属性（如"永久力量 X"）
+- 状态：加状态（如"状态中毒 X"）
+- 移除：移除状态（如"移除中毒"）
+- 增益：临时属性加成（如"增益攻击 X Y回合"）
+
+值可以是数字或百分比：回复生命 X / 回复生命 X%
+多效果用分号分隔：回复生命 X; 回复体力 X
+无效果的物品写 效果:无
+
+★ "功能"是给人看的介绍，模糊、简短，不带具体数字：
+- 恢复生命 / 回复体力 / 解除中毒 / 增加攻击 / 提供照明
 
 【示例】
 【商店】
@@ -4622,7 +5639,7 @@ ${context || '根据当前场景，生成一个自然的商店（可以是店铺
 收购: 是
 
 商品:
-- 【物品名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
+- 【物品名|图标】：描述，[类型|状态|功能:一句话介绍|交互方式|效果:效果DSL|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|其他]
 - 【装备名|图标】：描述，[类型|状态|功能|交互方式|可堆叠|货币种类:X|买价:X|卖价:X|库存:X|属性:X|属性:Y]
 
 请开始生成：
@@ -5049,10 +6066,10 @@ ${context || '根据当前场景，生成一个自然的商店（可以是店铺
             const shop = this._currentShop;
             const item = shop.stock[stockIndex];
             if (!item) return;
-        
+
             const unitPrice = item.buyPrice || 0;
             const { key: currencyKey, value: playerGold } = this.getPlayerCurrency(shop);
-        
+
             // ★ 修复：单价为 0（免费）时，不受货币限制，直接按库存算
             //   单价 > 0 时，按 "玩家货币 ÷ 单价" 计算可购买数
             let affordable;
@@ -5061,7 +6078,7 @@ ${context || '根据当前场景，生成一个自然的商店（可以是店铺
             } else {
                 affordable = Math.floor(playerGold / unitPrice);
             }
-        
+
             const maxCount = Math.max(1, Math.min(item.count, affordable));
 
             const modal = document.getElementById('cinemaworld-modal');
@@ -5081,8 +6098,8 @@ ${context || '根据当前场景，生成一个自然的商店（可以是店铺
                 </div>
 
                 ${InventoryManager.renderItemFieldsHTML(item, {
-                    hideKeys: ['买价', '卖价', '库存'],
-                }) ? `
+                hideKeys: ['买价', '卖价', '库存'],
+            }) ? `
                     <div style="padding:10px 12px;background:rgba(255,255,255,.03);
                         border-radius:8px;margin-bottom:12px;">
                         <div style="font-size:11px;color:#888;font-weight:600;
@@ -5198,8 +6215,8 @@ ${context || '根据当前场景，生成一个自然的商店（可以是店铺
                 </div>
 
                 ${InventoryManager.renderItemFieldsHTML(item, {
-                    hideKeys: ['买价', '卖价', '库存'],
-                }) ? `
+                hideKeys: ['买价', '卖价', '库存'],
+            }) ? `
                     <div style="padding:10px 12px;background:rgba(255,255,255,.03);
                         border-radius:8px;margin-bottom:12px;">
                         <div style="font-size:11px;color:#888;font-weight:600;
