@@ -250,7 +250,20 @@
 
     // ==================== 工作流管理 ====================
     const BackgroundWorkflowManager = {
-        JSON_PATH: 'scripts/extensions/third-party/CinemaWorld/workflows/',
+        // ★ 不再写死，改成动态计算
+        get JSON_PATH() {
+            const root = (() => {
+                if (window.CWLoader && typeof window.CWLoader.BASE === 'string') {
+                    return window.CWLoader.BASE.replace(/modules\/$/, '');
+                }
+                const cur = document.currentScript;
+                if (cur && cur.src) {
+                    return cur.src.replace(/modules\/background-gen\.js.*$/, '');
+                }
+                return 'scripts/extensions/third-party/ST-CinemaWorld-main/';
+            })();
+            return root + 'workflows/';
+        },
 
         async init() {
             BackgroundGenState.workflows = [BUILTIN_WORKFLOW];
@@ -920,9 +933,9 @@ Now write the prompt for the scene above:`;
         },
         async _applyToMap(map, dataUrl, promptText) {
             if (!map) return;
-        
+
             const imageId = `bgmap_${map.name.replace(/[^\w\u4e00-\u9fa5]/g, '_')}_${Date.now()}`;
-        
+
             try {
                 await BackgroundImageStore.put(imageId, {
                     dataUrl,
@@ -942,20 +955,20 @@ Now write the prompt for the scene above:`;
                 if (window.SaveManager) window.SaveManager.save();
                 return;
             }
-        
+
             // 删旧
             const oldId = map.generatedBackgroundId;
             if (oldId && oldId !== imageId) {
                 BackgroundImageStore.delete(oldId).catch(() => { });
             }
-        
+
             delete map.generatedBackground;
             map.generatedBackgroundId = imageId;
             map.generatedBackgroundPrompt = promptText;
             map.generatedBackgroundAt = Date.now();
-        
+
             this._applyLayer(dataUrl);
-        
+
             // ★★★ 关键修复：写回世界仓库 + 存档
             window.MapLauncher?._saveMapToWorld?.(map);
             if (window.SaveManager) window.SaveManager.save();
@@ -982,18 +995,18 @@ Now write the prompt for the scene above:`;
         async clearForCurrentMap() {
             const map = window.MapLauncher?.getMap?.();
             if (!map) return;
-        
+
             if (map.generatedBackgroundId) {
                 try {
                     await BackgroundImageStore.delete(map.generatedBackgroundId);
                 } catch (e) { }
             }
-        
+
             delete map.generatedBackgroundId;
             delete map.generatedBackgroundPrompt;
             delete map.generatedBackgroundAt;
             delete map.generatedBackground;
-        
+
             // 恢复默认背景（如果有）
             if (window.BackgroundManager) {
                 if (map.background) {
@@ -1002,11 +1015,11 @@ Now write the prompt for the scene above:`;
                     await window.BackgroundManager.clear();
                 }
             }
-        
+
             // ★ 写回世界仓库 + 存档
             window.MapLauncher?._saveMapToWorld?.(map);
             if (window.SaveManager) window.SaveManager.save();
-        
+
             window.UIManager.showText('已清除地图背景图', 1500);
         },
         async _applyToScene(scene, dataUrl, promptText) {

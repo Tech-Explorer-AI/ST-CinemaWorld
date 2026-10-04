@@ -34,6 +34,7 @@
             './' + subPath.replace(/^\//, ''),
         ];
     }
+    
     // ==================== 世界数据管理 ====================
     const WorldManager = {
         // 添加场景（唯一的添加入口）
@@ -58,6 +59,7 @@
             this.addToNarrativeLog(`[创建场景] ${scene.name}`);
             return scene;
         },
+        
         // WorldManager 里加
         getMap(name) {
             const ws = window.CinemaWorld?.worldState;
