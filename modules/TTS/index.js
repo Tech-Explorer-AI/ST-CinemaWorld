@@ -20,7 +20,7 @@
                 return s.src.replace(/index\.js.*$/, '');
             }
         }
-        return 'scripts/extensions/third-party/CinemaWorld/TTS/';
+        return 'scripts/extensions/third-party/ST-CinemaWorld-main/TTS/';
     })();
 
     console.log('[CinemaWorld/TTS] BASE =', window.CW_TTS_BASE);
