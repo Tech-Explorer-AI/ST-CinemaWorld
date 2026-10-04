@@ -9,7 +9,31 @@
 
     const CinemaWorld = window.CinemaWorld;
     const CharacterRegistry = window.CharacterRegistry;
+    // ============================================================
+    // ★ 统一路径解析：从 CWLoader.BASE 反推插件根目录
+    //   CWLoader.BASE = "<插件根>/modules/"
+    //   所以插件根 = BASE 去掉末尾的 "modules/"
+    // ============================================================
+    const PLUGIN_ROOT = (() => {
+        if (window.CWLoader && typeof window.CWLoader.BASE === 'string') {
+            return window.CWLoader.BASE.replace(/modules\/$/, '');
+        }
+        // 兜底：用当前脚本 src 反推（world.js 在 modules/ 下）
+        const cur = document.currentScript;
+        if (cur && cur.src) {
+            return cur.src.replace(/modules\/world\.js.*$/, '');
+        }
+        return 'scripts/extensions/third-party/ST-CinemaWorld-main/';
+    })();
 
+    // 生成候选路径：插件内路径优先，其次 ST 根目录相对路径
+    function cwPaths(subPath) {
+        return [
+            PLUGIN_ROOT + subPath,         // 插件内（自动适配目录名）
+            subPath.replace(/^\//, ''),    // ST 根目录相对
+            './' + subPath.replace(/^\//, ''),
+        ];
+    }
     // ==================== 世界数据管理 ====================
     const WorldManager = {
         // 添加场景（唯一的添加入口）
@@ -347,18 +371,18 @@
                 maxStack: null,
                 count: 1,
             };
-        
+
             // ========== 名字解析 ==========
             const nameMatch = text.match(/^【(.+?)】/);
             if (nameMatch) {
                 const nameParts = nameMatch[1].split('|').map(s => s.trim());
                 it.name = nameParts[0] || '';
-        
+
                 if (nameParts.length > 1) {
                     const extraParts = nameParts.slice(1);
                     let iconFromName = null;
                     const restParts = [];
-        
+
                     for (const v of extraParts) {
                         if (!v) continue;
                         if (!iconFromName) {
@@ -370,43 +394,43 @@
                         }
                         restParts.push(v);
                     }
-        
+
                     if (iconFromName) it.icon = iconFromName;
-        
+
                     restParts.forEach((v, i) => {
                         it.fields[`_pos${i + 1}`] = v;
                     });
                 }
             }
-        
+
             const afterName = nameMatch
                 ? text.substring(nameMatch[0].length).replace(/^[：:]\s*/, '')
                 : text;
-        
+
             // ========== 方括号字段解析 ==========
             const bracketMatch = afterName.match(/^([\s\S]*?)\s*[\[【]([^\]】]+)[\]】]\s*$/);
-        
+
             if (bracketMatch) {
                 const descPart = bracketMatch[1].trim();
                 const fields = bracketMatch[2].split('|').map(s => s.trim());
-        
+
                 it.description = descPart;
-        
+
                 // ★ 容器键名单：值本身是 "键:值" 结构，需要二次拆分
                 const AGGREGATE_KEYS = ['属性', '加成', '效果数值', '数值', '加成属性'];
-        
+
                 fields.forEach((f, i) => {
                     if (!f) return;
                     const kv = f.match(/^(.+?)[:：]\s*(.+)$/);
                     if (kv) {
                         const key = kv[1].trim();
                         const value = kv[2].trim();
-        
+
                         // ★ 容器键重复出现 → 用 \u0001 拼接，稍后一次性拆
                         //   非容器键重复出现 → 保持覆盖（向后兼容旧行为，下游没准备好吃数组）
                         const isAggregate = AGGREGATE_KEYS.includes(key)
                             || /^属性\d+$/.test(key);
-        
+
                         if (isAggregate && it.fields[key] !== undefined) {
                             it.fields[key] = it.fields[key] + '\u0001' + value;
                         } else if (isAggregate) {
@@ -414,7 +438,7 @@
                         } else {
                             // 非容器键：保持旧的覆盖语义（下游很多地方按单值处理）
                             it.fields[key] = value;
-        
+
                             // 交互方式
                             if (['交互', '交互方式', '互动', '互动方式', '操作', 'actions', 'interactions'].includes(key)) {
                                 it.interactions = this._parseInteractions(value);
@@ -445,24 +469,24 @@
                         if (i === 0 && !it.status) it.status = f;
                     }
                 });
-        
+
                 const descEmoji = this._extractEmoji(it.description);
                 if (descEmoji && it.icon === '📦') it.icon = descEmoji;
-        
+
                 // ★ 统一拆容器字段
                 this._expandAggregateFields(it);
                 return it;
             }
-        
+
             // ========== 没方括号的兜底 ==========
             it.description = afterName.trim();
             const emoji = this._extractEmoji(it.name) || this._extractEmoji(it.description);
             if (emoji) it.icon = emoji;
-        
+
             this._expandAggregateFields(it);
             return it;
         },
-        
+
         // ★ 拆分 AI 塞进一个字段的多个属性
         // 处理：
         //   旧格式 "属性:体力:+80、攻击:+5、暴击:+10%"
@@ -470,7 +494,7 @@
         _expandAggregateFields(it) {
             const AGGREGATE_KEYS = ['属性', '加成', '效果数值', '数值', '加成属性'];
             let changed = false;
-        
+
             // ★ 兼容 "属性"、"属性1"、"属性2"…
             const keysToProcess = [...AGGREGATE_KEYS];
             for (const k of Object.keys(it.fields)) {
@@ -478,14 +502,14 @@
                     keysToProcess.push(k);
                 }
             }
-        
+
             for (const aggKey of keysToProcess) {
                 const raw = it.fields[aggKey];
                 if (raw === undefined) continue;
-        
+
                 delete it.fields[aggKey];
                 changed = true;
-        
+
                 // ★ 先按 \u0001 拆（多个同名键拼接），
                 //   再按常见的多值分隔符拆（一个值里塞了多个属性）
                 const parts = String(raw)
@@ -493,7 +517,7 @@
                     .flatMap(seg => seg.split(/[、,，;；|]/))
                     .map(s => s.trim())
                     .filter(Boolean);
-        
+
                 for (const part of parts) {
                     const clean = part.replace(/^[-•·]\s*/, '').trim();
                     const kv = clean.match(/^(.+?)[:：]\s*(.+)$/);
@@ -518,7 +542,7 @@
                     // 裸词 → 跳过
                 }
             }
-        
+
             return changed;
         },
 
@@ -571,11 +595,7 @@
     // ==================== 背景管理器 ====================
     const BackgroundManager = {
         // 路径候选
-        basePaths: [
-            'scripts/extensions/third-party/CinemaWorld/images/背景图片/',
-            'images/背景图片/',
-            './images/背景图片/',
-        ],
+        basePaths: cwPaths('images/背景图片/'),
 
         // 缓存：已确认存在的文件
         cache: {},
@@ -693,11 +713,7 @@
     // ==================== 音乐管理器 ====================
     const MusicManager = {
         enabled: false,
-        basePaths: [
-            'scripts/extensions/third-party/CinemaWorld/music/',
-            'music/',
-            './music/',
-        ],
+        basePaths: cwPaths('music/'),
         cache: {},
 
         // 场景音乐（底层）
@@ -942,17 +958,8 @@
         characterSpriteMap: {},
         _characterType: {},
 
-        basePaths: [
-            'scripts/extensions/third-party/CinemaWorld/images/立绘/',
-            'images/立绘/',
-            './images/立绘/',
-        ],
-        // ★ 玩家路径
-        playerPaths: [
-            'scripts/extensions/third-party/CinemaWorld/images/玩家/',
-            'images/玩家/',
-            './images/玩家/',
-        ],
+        basePaths: cwPaths('images/立绘/'),
+        playerPaths: cwPaths('images/玩家/'),
 
         extensions: ['png', 'webp',],
         randomRange: { min: 1, max: 200 },
