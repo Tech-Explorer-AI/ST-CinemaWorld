@@ -3436,6 +3436,9 @@
             window.Map3DUI?.onMapWillChange?.();
             if (window.CWEnv) {
                 window.CWEnv.initMapEnvironment(this._map);
+                // ★ 新增：进入地图时对齐 worldMinutes + 补算跨天
+                window.CWEnv.catchUpMap?.(this._map);
+                window.DayNightFilter?.refresh?.();
             }
 
             const win = document.getElementById('cinemaworld-map-window');
@@ -3599,6 +3602,8 @@
             }
             if (window.CWEnv) {
                 window.CWEnv.initMapEnvironment(this._map);
+                // ★ 新增：进入地图时对齐 worldMinutes + 补算跨天
+                window.CWEnv.catchUpMap?.(this._map);
                 window.DayNightFilter?.refresh?.();
             }
 

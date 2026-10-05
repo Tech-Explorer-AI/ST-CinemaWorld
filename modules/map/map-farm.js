@@ -40,7 +40,7 @@
             }
         },
 
-                // ============================================================
+        // ============================================================
         // 单 plot tick
         // ★ 多 plot 修复：
         //   1. 开头做 env 数据清洗（数值化、去重、补全、钳制）
@@ -98,9 +98,19 @@
             const now = this._readTotalMinutes(map);
             const last = (typeof plot.lastTickAt === 'number') ? plot.lastTickAt : now;
 
-            // ★ lastTickAt 是未来值（被污染）→ 纠正
+            // ★ lastTickAt 是未来值 → 纠正
             if (last > now) {
                 console.warn(`[MapFarm] plot ${plot.id} lastTickAt=${last} > now=${now}，纠正`);
+                plot.lastTickAt = now;
+                return false;
+            }
+
+            // ★ 新增：差距过大（> 1 年）视为脏数据，重置基准
+            //    场景：旧存档的 lastTickAt 是"地图本地时间"，
+            //    改成 worldMinutes 后可能严重偏小 → 一次性推进好几年
+            const ONE_YEAR_MINUTES = 365 * 24 * 60;
+            if (now - last > ONE_YEAR_MINUTES) {
+                console.warn(`[MapFarm] plot ${plot.id} lastTickAt=${last} 与 now=${now} 差距过大，重置基准`);
                 plot.lastTickAt = now;
                 return false;
             }
@@ -203,14 +213,24 @@
             plot.lastTickAt = now;
             return changed;
         },
-                // ============================================================
+        // ============================================================
         // ★ 补算一个 plot：按 delta 小时一次性推进
         // ★ 多 plot 修复：与 _tickPlot 一致的 env 清洗 + crop 校验
         // ============================================================
         _catchUpPlot(plot, hoursDelta, mapEnv, map) {
             const rule = plot.rules;
             if (!rule) return false;
-
+            
+            // ★ 新增：hoursDelta 异常保护
+            const ONE_YEAR_HOURS = 365 * 24;
+            if (!isFinite(hoursDelta) || hoursDelta <= 0) {
+                console.warn(`[MapFarm] plot ${plot.id} hoursDelta=${hoursDelta} 非法，跳过`);
+                return false;
+            }
+            if (hoursDelta > ONE_YEAR_HOURS) {
+                console.warn(`[MapFarm] plot ${plot.id} hoursDelta=${hoursDelta} 过大，截断到 1 年`);
+                hoursDelta = ONE_YEAR_HOURS;
+            }
             // ============================================================
             // ★ 0. env 数据清洗（和 _tickPlot 一致）
             // ============================================================
@@ -703,7 +723,7 @@
             return { ok: true, warnings };
         },
 
-                // ============================================================
+        // ============================================================
         // 商店：补货
         // ★ 多 plot 修复：shopState.items 改成 { [id]: state } 对象结构
         //   旧存档如果是数组，会自动迁移

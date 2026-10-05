@@ -5,11 +5,11 @@
 // ★ 时间规则：从 window.TimeRuleEngine 读（如果 AI 生成了【时间规则】段）
 //              没生成则走默认值
 //
-// ★ 懒更新设计：
-//   - worldMinutes 是世界唯一真相（无论玩家在哪都在走）
-//   - 每张地图记 lastTickAt
-//   - 玩家进入地图时才 catchUpMap 补算 delta
-//   - 当前地图实时推进（HUD、昼夜、farm）
+// ★ 唯一真相：worldState.worldMinutes
+//   - 所有地图的时间都必须从 worldMinutes 推导
+//   - 地图本地的 _environment 只是"派生快照"
+//   - 进入地图时 catchUpMap 对齐
+//   - VN / 战斗 / 模态框打开时 tick 暂停
 //
 // 暴露：window.EnvironmentClock
 //       window.EnvironmentManager
@@ -39,7 +39,6 @@
         const ws = window.CinemaWorld?.worldState;
         const stored = ws?.maps?.[map.name]?._environment;
 
-        // 用已存储的 env 补齐（仅当 map 上还没有完整 env）
         if (stored
             && (!map._environment
                 || !map._environment._order
@@ -47,7 +46,6 @@
             map._environment = stored;
         }
 
-        // 建/取 env（★ 只声明一次）
         let env = map._environment;
         if (!env) {
             env = { _order: [], _raw: '' };
@@ -57,19 +55,17 @@
         if (!Array.isArray(env._order)) env._order = [];
         if (typeof env._raw !== 'string') env._raw = '';
 
-        // _runtime 结构保证
         if (!env._runtime) {
             env._runtime = {
-                totalMinutes: null,
+                totalMinutes: null,       // ★ 仅作本地快照，不再当真相
                 lastRollHour: -1,
                 lastRollDay: -1,
                 dayBaseTemp: null,
                 dayBaseHumidity: null,
                 dayBaseWind: null,
-                lastTickAt: null,        // ★ 懒更新用
+                lastTickAt: null,         // ★ 与 worldMinutes 对齐
             };
         } else {
-            // ★ 老存档兜底
             if (env._runtime.totalMinutes === undefined) env._runtime.totalMinutes = null;
             if (env._runtime.lastRollHour === undefined) env._runtime.lastRollHour = -1;
             if (env._runtime.lastRollDay === undefined) env._runtime.lastRollDay = -1;
@@ -136,13 +132,28 @@
     // 1. 时间解析 / 格式化
     // ============================================================
 
+    // ★ 统一入口：优先 worldMinutes（唯一真相）
     function parseTotalMinutes(env) {
+        const ws = window.CinemaWorld?.worldState;
+
+        // 1. 世界时钟是唯一真相
+        if (typeof ws?.worldMinutes === 'number') {
+            return ws.worldMinutes;
+        }
+
+        // 2. 未初始化 worldMinutes → 尝试从 env 文本恢复（旧存档）
         if (!env) return null;
 
+        // 2a. 本地快照
+        if (typeof env._runtime?._snapshotMinutes === 'number') {
+            return env._runtime._snapshotMinutes;
+        }
+        // 2b. 兼容旧字段
         if (typeof env._runtime?.totalMinutes === 'number') {
             return env._runtime.totalMinutes;
         }
 
+        // 2c. 从文本解析
         const timeStr = readField(env, '时间');
         const dateStr = readField(env, '日期');
         const tr = getTimeRules();
@@ -169,10 +180,16 @@
         }
 
         const total = (dayIndex - 1) * HPD * 60 + hh * 60 + mm;
-        if (env._runtime) env._runtime.totalMinutes = total;
+
+        // 顺手写入 worldMinutes（完成初始化）
+        if (ws && typeof ws.worldMinutes !== 'number') {
+            ws.worldMinutes = total;
+        }
+
         return total;
     }
 
+    // ★ 只负责写"派生字段"，不再写 totalMinutes 缓存
     function writeTimeFields(env, totalMinutes) {
         if (!env) return null;
 
@@ -195,7 +212,6 @@
         writeField(env, '时间', `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
         writeField(env, '日期', `${year}年${month}月${dayOfMonth}日`);
 
-        // 季节
         let season = '';
         if (window.TimeRuleEngine?.getSeason) {
             const s = window.TimeRuleEngine.getSeason(month);
@@ -208,7 +224,6 @@
         }
         writeField(env, '季节', season);
 
-        // 时段
         let phase = '';
         if (window.TimeRuleEngine?.getPhase) {
             const p = window.TimeRuleEngine.getPhase(hour);
@@ -220,7 +235,6 @@
             deleteField(env, '时段');
         }
 
-        // 节日
         if (window.TimeRuleEngine?.getFestival) {
             const fest = window.TimeRuleEngine.getFestival(month, dayOfMonth);
             if (fest) {
@@ -231,7 +245,8 @@
         }
 
         if (!env._runtime) env._runtime = {};
-        env._runtime.totalMinutes = totalMinutes;
+        // ★ 只存快照，不当真相
+        env._runtime._snapshotMinutes = totalMinutes;
 
         return {
             day: Math.floor(totalMinutes / minutesPerDay) + 1,
@@ -423,7 +438,6 @@
             console.log('[DayNight] 已初始化');
         },
 
-        // ★ 单一入口：任何地方都可以调，内部自带保护
         refresh() {
             const map = getActiveMap();
             if (!map) return;
@@ -534,9 +548,35 @@
             this._rafId = requestAnimationFrame(() => this._loop());
         },
 
+        // ============================================================
+        // ★ 暂停判定：VN / 战斗 / 模态框 / 子面板
+        // ============================================================
+        _isPaused() {
+            // VN 播放中
+            if (window.VisualNovelManager?.isPlaying) return true;
+
+            // 战斗进行中
+            if (window.BattleManager?.isActive?.()) return true;
+
+            // 模态框打开
+            const modal = document.getElementById('cinemaworld-modal');
+            if (modal?.classList.contains('active')) return true;
+
+            // 地图子面板打开
+            if (window.MapLauncher?._subState) return true;
+
+            return false;
+        },
+
         tick(dtRealSec) {
             const playMode = window.CinemaWorld?.worldState?.playMode;
             if (playMode !== 'map') return;
+
+            // ★ 暂停时不推进
+            if (this._isPaused()) {
+                this._accumulator = 0;
+                return;
+            }
 
             const map = getActiveMap();
             if (!map) return;
@@ -557,7 +597,7 @@
         },
 
         // ============================================================
-        // ★ 核心：只推进世界时钟 + 当前地图
+        // ★ 核心：worldMinutes 是唯一真相，地图只是跟随
         // ============================================================
         advance(minutes) {
             if (!minutes || minutes <= 0) return;
@@ -565,19 +605,26 @@
             const ws = window.CinemaWorld?.worldState;
             if (!ws) return;
 
-            // ★ 世界时钟：唯一真相
-            ws.worldMinutes = (ws.worldMinutes || 0) + minutes;
+            // 首次：从当前地图 env 反推初始化
+            if (typeof ws.worldMinutes !== 'number') {
+                const map0 = getActiveMap();
+                const env0 = map0 ? ensureEnvData(map0) : null;
+                const initTotal = parseTotalMinutes(env0) || 0;
+                ws.worldMinutes = initTotal;
+            }
 
-            // ★ 广播世界 tick（farm 等系统可监听）
+            ws.worldMinutes += minutes;
+
+            // 广播世界 tick（farm 等系统可监听）
             window.dispatchEvent(new CustomEvent('cw:world-tick', {
                 detail: { deltaMinutes: minutes, worldMinutes: ws.worldMinutes }
             }));
 
-            // ★ 只推进"当前地图"的实时 env
+            // 只推进"当前地图"的实时 env
             const activeMap = getActiveMap();
-            if (!activeMap) return;
-
-            this._advanceActiveMap(activeMap, minutes);
+            if (activeMap) {
+                this._advanceActiveMap(activeMap, minutes);
+            }
         },
 
         // ★ 只推进当前地图（实时逻辑，会发 day/hour/minute 事件）
@@ -585,17 +632,18 @@
             const env = ensureEnvData(map);
             if (!env) return;
 
+            const ws = window.CinemaWorld?.worldState;
             const tr = getTimeRules();
             const minPerDay = tr.hoursPerDay * 60;
 
-            const oldTotal = parseTotalMinutes(env);
-            if (oldTotal === null) return;
+            // ★ 从 worldMinutes 反推 oldTotal
+            const newTotal = ws.worldMinutes;
+            const oldTotal = newTotal - minutes;
 
             const oldDayIndex = Math.floor(oldTotal / minPerDay);
             const oldHour = Math.floor((oldTotal % minPerDay) / 60);
 
-            const total = oldTotal + minutes;
-            const derived = writeTimeFields(env, total);
+            const derived = writeTimeFields(env, newTotal);
             rebuildRaw(env);
 
             // 1. 跨天
@@ -627,12 +675,12 @@
                 map, env,
             });
 
-            // ★ 记录当前地图的 tick 时间
-            env._runtime.lastTickAt = total;
+            // ★ 记录"当前地图已同步到 worldMinutes"
+            env._runtime.lastTickAt = newTotal;
         },
 
         // ============================================================
-        // ★ 玩家进入地图 → 按 delta 补算
+        // ★ 进入地图 → 对齐 worldMinutes + 补算跨天
         // ============================================================
         catchUpMap(map) {
             if (!map) return;
@@ -643,35 +691,64 @@
             const env = ensureEnvData(map);
             if (!env) return;
 
-            const worldMinutes = ws.worldMinutes || 0;
+            // 首次：worldMinutes 从 map 的 env 初始化
+            if (typeof ws.worldMinutes !== 'number') {
+                const initTotal = parseTotalMinutes(env) || 0;
+                ws.worldMinutes = initTotal;
+            }
+
+            const worldMinutes = ws.worldMinutes;
             const lastTick = env._runtime.lastTickAt;
 
-            // 首次进入（没有 lastTickAt）→ 用当前世界时间初始化
+            // 首次进入这张地图
             if (typeof lastTick !== 'number') {
                 env._runtime.lastTickAt = worldMinutes;
+                const derived = writeTimeFields(env, worldMinutes);
+                rebuildRaw(env);
+
+                // 计算 day base
+                if (env._runtime.dayBaseTemp === null) computeDayBase(env);
+
+                // 温度/湿度/风力
+                const tr = getTimeRules();
+                const minPerDay = tr.hoursPerDay * 60;
+                const hourNow = Math.floor((worldMinutes % minPerDay) / 60);
+                writeField(env, '温度', `${deriveTempAtHour(env, hourNow)}°C`);
+                writeField(env, '湿度', `${deriveHumidityAtHour(env, hourNow)}%`);
+                writeField(env, '风力', `${deriveWindAtHour(env, hourNow)}级`);
+                env._runtime.lastRollHour = hourNow;
+
+                rebuildRaw(env);
+
+                window.dispatchEvent(new CustomEvent('cw:map-catchup', {
+                    detail: { map, env, deltaMinutes: 0 }
+                }));
                 return;
             }
 
             const delta = worldMinutes - lastTick;
-            if (delta <= 0) return;
+            if (delta <= 0) {
+                // 已经同步（或时间异常）→ 至少刷新派生字段
+                const derived = writeTimeFields(env, worldMinutes);
+                rebuildRaw(env);
+                return;
+            }
 
             console.log(`[EnvClock] catchUp ${map.name}: +${delta} 分钟`);
 
             const tr = getTimeRules();
             const minPerDay = tr.hoursPerDay * 60;
 
-            const total = (env._runtime.totalMinutes || 0) + delta;
-
-            // ★ 只推进 env 时间，不触发 day/hour 事件
+            // ---------- 1. 时间对齐到 worldMinutes ----------
             const savedRuntime = env._runtime;
-            writeTimeFields(env, total);
+            writeTimeFields(env, worldMinutes);
             env._runtime = savedRuntime;
-            env._runtime.totalMinutes = total;
+            env._runtime._snapshotMinutes = worldMinutes;
             env._runtime.lastTickAt = worldMinutes;
 
-            // 天气按天重 roll（补上跨越的天数）
+            // ---------- 2. 天气按天重 roll（补上跨越的天数） ----------
             const lastDay = env._runtime.lastRollDay ?? -1;
-            const curDay = Math.floor(total / minPerDay) + 1;
+            const curDay = Math.floor(worldMinutes / minPerDay) + 1;
             if (curDay !== lastDay) {
                 env._runtime.lastRollDay = curDay;
                 const season = readField(env, '季节') || '春';
@@ -681,8 +758,8 @@
                 computeDayBase(env);
             }
 
-            // 温度/湿度按当前小时重算
-            const hourNow = Math.floor((total % minPerDay) / 60);
+            // ---------- 3. 温度/湿度按当前小时重算 ----------
+            const hourNow = Math.floor((worldMinutes % minPerDay) / 60);
             writeField(env, '温度', `${deriveTempAtHour(env, hourNow)}°C`);
             writeField(env, '湿度', `${deriveHumidityAtHour(env, hourNow)}%`);
             writeField(env, '风力', `${deriveWindAtHour(env, hourNow)}级`);
@@ -690,7 +767,7 @@
 
             rebuildRaw(env);
 
-            // ★ 广播"地图补算完成"，让 farm 消费
+            // ---------- 4. 广播"地图补算完成"（farm 消费） ----------
             window.dispatchEvent(new CustomEvent('cw:map-catchup', {
                 detail: { map, env, deltaMinutes: delta }
             }));
@@ -963,6 +1040,7 @@
 
         // ============================================================
         // 首次初始化地图环境
+        // ★ 已有时间 → 只对齐 worldMinutes
         // ============================================================
         initMapEnvironment(map) {
             if (!map) return;
@@ -972,21 +1050,27 @@
             const ws = window.CinemaWorld?.worldState;
 
             // ----------------------------------------------------
-            // 1. 已有时间 → 只兜底 worldMinutes / lastTickAt
+            // 1. 已有时间 → 只对齐 worldMinutes + 兜底
             // ----------------------------------------------------
             if (readField(env, '时间')) {
                 if (env._runtime.dayBaseTemp === null) computeDayBase(env);
 
-                DayNightFilter.refresh();
-
+                // ★ 关键：对齐 worldMinutes
                 if (ws) {
                     if (typeof ws.worldMinutes !== 'number') {
-                        ws.worldMinutes = parseTotalMinutes(env) || 0;
+                        // 从 map 自身初始化 worldMinutes
+                        const localTotal = env._runtime._snapshotMinutes
+                            ?? env._runtime.totalMinutes
+                            ?? parseTotalMinutes(env)
+                            ?? 0;
+                        ws.worldMinutes = localTotal;
                     }
-                    if (typeof env._runtime.lastTickAt !== 'number') {
-                        env._runtime.lastTickAt = ws.worldMinutes;
-                    }
+                    writeTimeFields(env, ws.worldMinutes);
+                    env._runtime.lastTickAt = ws.worldMinutes;
+                    rebuildRaw(env);
                 }
+
+                DayNightFilter.refresh();
                 return;
             }
 
@@ -1022,6 +1106,9 @@
                     + (sd.day - 1)) * tr.hoursPerDay * 60
                     + sd.hour * 60 + sd.minute;
                 writeTimeFields(env, total);
+                if (ws && typeof ws.worldMinutes !== 'number') {
+                    ws.worldMinutes = total;
+                }
             }
 
             // ----------------------------------------------------
@@ -1042,7 +1129,9 @@
             // 6. 按当前小时写温度/湿度/风力
             // ----------------------------------------------------
             const tr = getTimeRules();
-            const total = parseTotalMinutes(env) ?? 0;
+            const total = (typeof ws?.worldMinutes === 'number')
+                ? ws.worldMinutes
+                : (parseTotalMinutes(env) ?? 0);
             const minPerDay = tr.hoursPerDay * 60;
             const hourNow = Math.floor((total % minPerDay) / 60);
 
@@ -1054,15 +1143,13 @@
             env._runtime.lastRollDay = Math.floor(total / minPerDay) + 1;
 
             // ----------------------------------------------------
-            // 7. 初始化 worldMinutes + lastTickAt（懒更新核心）
+            // 7. 初始化 worldMinutes + lastTickAt
             // ----------------------------------------------------
             if (ws) {
                 if (typeof ws.worldMinutes !== 'number') {
                     ws.worldMinutes = total;
                 }
-                if (typeof env._runtime.lastTickAt !== 'number') {
-                    env._runtime.lastTickAt = ws.worldMinutes;
-                }
+                env._runtime.lastTickAt = ws.worldMinutes;
             }
 
             // ----------------------------------------------------
@@ -1076,7 +1163,7 @@
     };
 
     // ============================================================
-    // 7. HUD
+    // 7. HUD（原样保留）
     // ============================================================
     const EnvironmentHUD = {
         _el: null,
@@ -1349,7 +1436,6 @@
             const wsPanel = document.getElementById('cinemaworld-worldstate');
 
             if (playMode === 'map') {
-                // ★ 有激活地图才显示
                 const map = getActiveMap();
                 if (map) this.show();
                 if (wsPanel) wsPanel.style.display = 'none';
@@ -1550,6 +1636,7 @@
         getActiveEnvData,
         getEnvDataText,
         catchUpMap: (map) => EnvironmentClock.catchUpMap(map),   // ★ 懒更新入口
+        isPaused: () => EnvironmentClock._isPaused(),            // ★ 外部可用
     };
 
     function boot() {
