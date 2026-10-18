@@ -313,7 +313,7 @@
         _duckFactor: 1.0,          // 当前应用的比例
         _ducking: false,           // 是否正在 duck
         _baseVolume: null,         // 基准音量（用户设置的 bgmVolume）
-        _duckLevel: 0.3,           // duck 时降到基准的 30%
+        _duckLevel: 0.5,           // duck 时降到基准的 30%
 
         // 获取基准音量（从 TTSConfig 读，保证和滑块一致）
         _getBase() {

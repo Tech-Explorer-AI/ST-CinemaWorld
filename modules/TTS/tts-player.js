@@ -120,16 +120,17 @@
             const cfg = TTSConfig.get();
             if (!cfg.enabled) return;
             if (!this._pipeline) return;
-
+        
             const text = dialogue?.content;
             if (!text) return;
-
-            // ★ 等当前正在播的播完（同一时刻只有一句在播）
+        
+            // ★ 打断上一句（而不是等它播完）
             if (this._currentPlayPromise) {
-                try { await this._currentPlayPromise; } catch (e) {}
+                try { TTSCore.stop(); } catch (e) {}
+                this._currentPlayPromise = null;
             }
             if (!this._pipeline || this._pipeline.aborted) return;
-
+        
             // ★ 等这句的合成结果
             let blob = this._pipeline.results.get(index);
             if (blob === undefined) {
@@ -137,7 +138,7 @@
             }
             if (!blob || blob.__error) return;
             if (!this._pipeline || this._pipeline.aborted) return;
-
+        
             // ★ 播放
             const playPromise = TTSCore.playBlob(blob, {});
             this._currentPlayPromise = playPromise;

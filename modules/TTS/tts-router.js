@@ -28,7 +28,7 @@
     // ============================================================
     // 音色池大小
     // ============================================================
-    const VOICE_POOL_SIZE = 15;
+    const VOICE_POOL_SIZE = 26;
 
     // 固定不抽的 folder
     const FIXED_FOLDERS = ['narrator', 'player', 'other'];
