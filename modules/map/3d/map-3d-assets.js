@@ -118,8 +118,8 @@
         // 新增：为实体生成 Sprite 材质（优先真实纹理）
         // ============================================================
         entitySpriteMaterial(ent, THREE) {
-            // ★★★ 优先立绘（NPC / 遭遇）
-            if (ent.kind === 'npc' || ent.kind === 'encounter') {
+            // ★★★ 优先立绘（NPC / 遭遇 / 队友）
+            if (ent.kind === 'npc' || ent.kind === 'encounter' || ent.kind === 'companion') {
                 const portraitUrl = window.MapSprites?.getPortraitSync?.(ent);
                 if (portraitUrl) {
                     const tex = window.Map3DTextures?.getFullTexture?.(portraitUrl);
@@ -132,14 +132,16 @@
                         });
                     }
                 } else {
-                    // 触发异步加载，下次渲染就有立绘了
                     window.MapSprites?.requestPortraitLoad?.(ent);
                 }
             }
 
-            // 次选：精灵图集（玩家 / NPC / 遭遇）
+            // 次选：精灵图集（玩家 / NPC / 遭遇 / 队友）
             let tex = null;
-            if (ent.isPlayer || ent.kind === 'npc' || ent.kind === 'encounter') {
+            if (ent.isPlayer
+                || ent.kind === 'npc'
+                || ent.kind === 'encounter'
+                || ent.kind === 'companion') {
                 tex = window.Map3DTextures?.getCharacterTexture(ent);
             }
 
@@ -320,7 +322,10 @@
             if (ent.kind === 'encounter') {
                 return { color: 0xff5555, opacity: 0.55, radius: 1.0, pulse: true };
             }
-
+            // ★★★ 资源点 —— 绿色光圈
+            if (ent.kind === 'resource_point') {
+                return { color: 0x7dd87d, opacity: 0.55, radius: 0.9, pulse: true };
+            }
             // 可拾取物品
             if (ent.kind === 'item' && String(ent.fields?.['可拾取'] || '') === '是') {
                 return { color: 0x5ab0ff, opacity: 0.5, radius: 0.7 };
@@ -328,6 +333,9 @@
             // ★★★ AI 生成的门（portal 实体）—— 青绿色
             if (ent.kind === 'portal') {
                 return { color: 0x8cffdc, opacity: 0.7, radius: 0.9, pulse: true };
+            }
+            if (ent.kind === 'companion' || ent.isCompanion) {
+                return { color: 0x7dd87d, opacity: 0.5, radius: 0.9, pulse: true };
             }
             return null;
         },

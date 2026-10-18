@@ -20,29 +20,29 @@
         // 时段列表
         // ============================================================
         _SEGMENTS: [
-            { id: 'night',     from: 0,  to: 5  },
-            { id: 'dawn',      from: 5,  to: 7  },
-            { id: 'morning',   from: 7,  to: 10 },
-            { id: 'noon',      from: 10, to: 15 },
+            { id: 'night', from: 0, to: 5 },
+            { id: 'dawn', from: 5, to: 7 },
+            { id: 'morning', from: 7, to: 10 },
+            { id: 'noon', from: 10, to: 15 },
             { id: 'afternoon', from: 15, to: 18 },
-            { id: 'dusk',      from: 18, to: 20 },
-            { id: 'evening',   from: 20, to: 24 },
+            { id: 'dusk', from: 18, to: 20 },
+            { id: 'evening', from: 20, to: 24 },
         ],
 
         // ============================================================
         // 关键帧：按小时定义天空 / 太阳 / 环境光
         // ============================================================
         KEYFRAMES: [
-            { hour: 0,    top: 0x05060f, mid: 0x0a1020, bot: 0x0a1020, sun: 0x304060, sunI: 0.0,  stars: 1.0, ambient: 0x223355, ambientI: 0.35 },
-            { hour: 4.5,  top: 0x0a0e1a, mid: 0x1a2030, bot: 0x1a2030, sun: 0x405080, sunI: 0.0,  stars: 0.9, ambient: 0x2a3a5a, ambientI: 0.4  },
-            { hour: 6,    top: 0x2a3a6a, mid: 0x6a5a8a, bot: 0x6a5a8a, sun: 0xff9060, sunI: 0.6,  stars: 0.3, ambient: 0x6a5a7a, ambientI: 0.6  },
-            { hour: 7.5,  top: 0x4a7ad0, mid: 0xa0b8e8, bot: 0xa0b8e8, sun: 0xffc090, sunI: 1.0,  stars: 0.0, ambient: 0xc0d0e8, ambientI: 0.9  },
-            { hour: 12,   top: 0x3a7ad0, mid: 0x8ab0e0, bot: 0x8ab0e0, sun: 0xffffff, sunI: 1.4,  stars: 0.0, ambient: 0xffffff, ambientI: 1.0  },
-            { hour: 16,   top: 0x4a80c0, mid: 0x9ab8d8, bot: 0x9ab8d8, sun: 0xffe0a0, sunI: 1.2,  stars: 0.0, ambient: 0xffe0c0, ambientI: 1.0  },
-            { hour: 18.5, top: 0x3a4a8a, mid: 0x8a6a8a, bot: 0x8a6a8a, sun: 0xff7040, sunI: 0.8,  stars: 0.1, ambient: 0xa08080, ambientI: 0.7  },
-            { hour: 19.5, top: 0x1a1a4a, mid: 0x3a3050, bot: 0x3a3050, sun: 0x805080, sunI: 0.3,  stars: 0.5, ambient: 0x5a4a7a, ambientI: 0.5  },
-            { hour: 21,   top: 0x0a0e1e, mid: 0x1a2030, bot: 0x3a4050, sun: 0x405080, sunI: 0.05, stars: 0.9, ambient: 0x2a3a5a, ambientI: 0.4  },
-            { hour: 24,   top: 0x05060f, mid: 0x0a1020, bot: 0x1a2030, sun: 0x304060, sunI: 0.0,  stars: 1.0, ambient: 0x223355, ambientI: 0.35 },
+            { hour: 0, top: 0x05060f, mid: 0x0a1020, bot: 0x0a1020, sun: 0x304060, sunI: 0.0, stars: 1.0, ambient: 0x223355, ambientI: 0.35 },
+            { hour: 4.5, top: 0x0a0e1a, mid: 0x1a2030, bot: 0x1a2030, sun: 0x405080, sunI: 0.0, stars: 0.9, ambient: 0x2a3a5a, ambientI: 0.4 },
+            { hour: 6, top: 0x2a3a6a, mid: 0x6a5a8a, bot: 0x6a5a8a, sun: 0xff9060, sunI: 0.6, stars: 0.3, ambient: 0x6a5a7a, ambientI: 0.6 },
+            { hour: 7.5, top: 0x4a7ad0, mid: 0xa0b8e8, bot: 0xa0b8e8, sun: 0xffc090, sunI: 1.0, stars: 0.0, ambient: 0xc0d0e8, ambientI: 0.9 },
+            { hour: 12, top: 0x3a7ad0, mid: 0x8ab0e0, bot: 0x8ab0e0, sun: 0xffffff, sunI: 1.4, stars: 0.0, ambient: 0xffffff, ambientI: 1.0 },
+            { hour: 16, top: 0x4a80c0, mid: 0x9ab8d8, bot: 0x9ab8d8, sun: 0xffe0a0, sunI: 1.2, stars: 0.0, ambient: 0xffe0c0, ambientI: 1.0 },
+            { hour: 18.5, top: 0x3a4a8a, mid: 0x8a6a8a, bot: 0x8a6a8a, sun: 0xff7040, sunI: 0.8, stars: 0.1, ambient: 0xa08080, ambientI: 0.7 },
+            { hour: 19.5, top: 0x1a1a4a, mid: 0x3a3050, bot: 0x3a3050, sun: 0x805080, sunI: 0.3, stars: 0.5, ambient: 0x5a4a7a, ambientI: 0.5 },
+            { hour: 21, top: 0x0a0e1e, mid: 0x1a2030, bot: 0x3a4050, sun: 0x405080, sunI: 0.05, stars: 0.9, ambient: 0x2a3a5a, ambientI: 0.4 },
+            { hour: 24, top: 0x05060f, mid: 0x0a1020, bot: 0x1a2030, sun: 0x304060, sunI: 0.0, stars: 1.0, ambient: 0x223355, ambientI: 0.35 },
         ],
 
         _lastSegment: null,
@@ -61,14 +61,14 @@
             const geo = new THREE.SphereGeometry(RADIUS, 48, 32);
 
             const uniforms = {
-                uTop:         { value: new THREE.Color(0x1a2a5a) },
-                uMid:         { value: new THREE.Color(0x4a6aaa) },
-                uBottom:      { value: new THREE.Color(0x9ab8e0) },
-                uSunDir:      { value: new THREE.Vector3(0.5, 0.6, 0.3).normalize() },
-                uSunColor:    { value: new THREE.Color(0xffd0a0) },
-                uSunI:        { value: 1.0 },
-                uStars:       { value: 0.0 },
-                uTime:        { value: 0.0 },
+                uTop: { value: new THREE.Color(0x1a2a5a) },
+                uMid: { value: new THREE.Color(0x4a6aaa) },
+                uBottom: { value: new THREE.Color(0x9ab8e0) },
+                uSunDir: { value: new THREE.Vector3(0.5, 0.6, 0.3).normalize() },
+                uSunColor: { value: new THREE.Color(0xffd0a0) },
+                uSunI: { value: 1.0 },
+                uStars: { value: 0.0 },
+                uTime: { value: 0.0 },
                 uStarDensity: { value: 0.94 },
             };
             this.uniforms = uniforms;
@@ -260,13 +260,13 @@
             ).normalize();
 
             return {
-                top:      lerpColor(a.top, b.top),
-                mid:      lerpColor(a.mid, b.mid),
-                bot:      lerpColor(a.bot, b.bot),
-                sun:      lerpColor(a.sun, b.sun),
-                sunI:     lerp(a.sunI, b.sunI),
-                stars:    lerp(a.stars, b.stars),
-                ambient:  lerpColor(a.ambient, b.ambient),
+                top: lerpColor(a.top, b.top),
+                mid: lerpColor(a.mid, b.mid),
+                bot: lerpColor(a.bot, b.bot),
+                sun: lerpColor(a.sun, b.sun),
+                sunI: lerp(a.sunI, b.sunI),
+                stars: lerp(a.stars, b.stars),
+                ambient: lerpColor(a.ambient, b.ambient),
                 ambientI: lerp(a.ambientI, b.ambientI),
                 sunDir,
             };
@@ -289,13 +289,16 @@
             u.uStars.value = target.stars;
             u.uSunDir.value.copy(target.sunDir);
 
+            // map-3d-sky.js · applyHour()
             if (this._ambient) {
                 this._ambient.color.copy(target.ambient);
-                this._ambient.intensity = target.ambientI;
+                // ★ 夜晚也保持可见，避免地形全黑
+                this._ambient.intensity = Math.max(0.85, target.ambientI);
             }
             if (this._sun) {
                 this._sun.color.copy(target.sun);
-                this._sun.intensity = target.sunI * 1.2;
+                // ★ 太阳强度也给个下限（夜晚用月亮光）
+                this._sun.intensity = Math.max(0.35, target.sunI * 1.2);
                 this._sun.position.copy(target.sunDir).multiplyScalar(80);
             }
 

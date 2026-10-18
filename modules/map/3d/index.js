@@ -17,9 +17,14 @@
     const MODULES = [
         'map/3d/three-loader.js',
         'map/3d/map-3d-textures.js', 
+        'map/3d/map-3d-style.js',
         'map/3d/map-3d-assets.js',
         'map/3d/map-3d-camera.js',
         'map/3d/map-3d-canvas.js',
+        'map/3d/map-3d-props.js',   
+        'map/3d/map-3d-ground-program.js',// ← 后加载，接管 _buildGround
+        'map/3d/3D-extra/map-3d-props-extra.js',// ← 后加载，接管 _buildGround
+        'map/3d/map-3d-buildings-thick.js', 
         'map/3d/map-3d-sky.js',
         'map/3d/map-3d-interact.js',
         'map/3d/map-3d-ui.js',

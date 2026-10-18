@@ -73,7 +73,11 @@
             this._mapW = map._generated.grid[0].length;
             this._mapH = map._generated.grid.length;
             this._tileSize = options.tileSize || 1;
-
+            // ★ 0.5 应用地图风格（在建场景之前）
+            if (window.Map3DStyle) {
+                window.Map3DStyle.setMapStyle(map);
+            }
+            this.THREE = window.THREE;
             // ============================================================
             // 1. 场景
             // ============================================================
@@ -144,6 +148,12 @@
             if (window.Map3DSky) {
                 window.Map3DSky.init(this.THREE, this.scene, ambient, sun);
             }
+            // ★ 场景建好后，应用风格
+            if (window.Map3DStyle) {
+                window.Map3DStyle.applyMapStyleToScene(
+                    this.THREE, this.scene, ambient, sun
+                );
+            }
 
             // ============================================================
             // 3.6 ★ 监听游戏小时（每小时检查一次时段是否变化）
@@ -181,6 +191,19 @@
             // ============================================================
             this._buildGround(map);
             this._buildDecor(map);
+            // ★ 程序化 3D 装饰（树/灌木/石头/路灯）
+            if (window.Map3DProps && window.THREE) {
+                try {
+                    window.Map3DProps.buildAll(
+                        window.THREE,
+                        this.scene,
+                        map,
+                        { tileSize: this._tileSize }
+                    );
+                } catch (e) {
+                    console.error('[MapCanvas3D] Map3DProps 失败:', e);
+                }
+            }
             this._buildEntities(map);
             this._buildPlots(map);
 
@@ -188,8 +211,10 @@
             // 8. 玩家 & 相机初始位置
             // ============================================================
             if (this._playerData) {
-                const pos = this._gridToWorld(this._playerData.x, this._playerData.y);
-                window.Map3DCamera.snapToPlayer(new this.THREE.Vector3(pos.x, 0, pos.z));
+                const p = this._playerData;
+                const pos = this._gridToWorld(p.x, p.y);
+                const groundY = this._getCellWorldY(map, p.x, p.y);
+                window.Map3DCamera.snapToPlayer(new this.THREE.Vector3(pos.x, groundY, pos.z));
             }
 
             // ============================================================
@@ -202,10 +227,14 @@
             // 10. 启动
             // ============================================================
             this._running = true;
+
             this._loop();
 
             console.log('[MapCanvas3D] 已初始化:', map.name, `${this._mapW}x${this._mapH}`);
             return true;
+        },
+        _getMapStyle(map) {
+            return map?.style || { name: '默认', keywords: [] };
         },
         // ============================================================
         // ★ 预加载立绘：等所有 NPC 立绘加载完
@@ -216,8 +245,12 @@
 
             const targets = [];
             for (const ent of map.entities) {
-                if (ent.kind !== 'npc' && ent.kind !== 'encounter') continue;
                 if (ent.isPlayer) continue;
+                const eligible = ent.kind === 'npc'
+                    || ent.kind === 'encounter'
+                    || ent.kind === 'companion'
+                    || ent.isCompanion;
+                if (!eligible) continue;
                 targets.push(ent);
             }
 
@@ -248,6 +281,18 @@
                 };
                 check();
             });
+        },
+        // ============================================================
+        // 取格子高度对应的世界 y
+        // ============================================================
+        _getCellWorldY(map, gx, gy) {
+            if (window.Map3DGround?.getCellWorldY) {
+                return window.Map3DGround.getCellWorldY(map, gx, gy);
+            }
+            // 兜底
+            const cell = map?._generated?.grid?.[gy]?.[gx];
+            const h = (cell && typeof cell.height === 'number') ? cell.height : 0;
+            return h * 0.5;
         },
         // ============================================================
         // 格子 → 世界坐标
@@ -302,20 +347,17 @@
             const tileGeo = new T.PlaneGeometry(this._tileSize, this._tileSize);
             tileGeo.rotateX(-Math.PI / 2);
 
+            // map-3d-canvas.js · _buildGround()
             const terrainMatFactory = (key) => {
                 if (useRealTextures) {
                     const tex = window.Map3DTextures.getTerrainTexture(key);
                     if (tex) {
-                        return new T.MeshStandardMaterial({
-                            map: tex,
-                        });
+                        return new T.MeshBasicMaterial({ map: tex });   // ★ 不受光照
                     }
                 }
                 const color = window.Map3DAssets.terrainColor(key);
                 if (color === null) return null;
-                return new T.MeshStandardMaterial({
-                    color,
-                });
+                return new T.MeshBasicMaterial({ color });              // ★ 不受光照
             };
 
             this._buildChunkedLayer(terrainCells, tileGeo, terrainMatFactory, 0, this._groundGroup);
@@ -325,7 +367,7 @@
                 if (useRealTextures) {
                     const tex = window.Map3DTextures.getTerrainTexture(key);
                     if (tex) {
-                        return new T.MeshStandardMaterial({
+                        return new T.MeshBasicMaterial({   // ★ 不受光照
                             map: tex,
                             polygonOffset: true,
                             polygonOffsetFactor: -1,
@@ -334,7 +376,7 @@
                     }
                 }
                 const color = key === 'path' ? 0x9a7a4a : 0x8a8a8a;
-                return new T.MeshStandardMaterial({
+                return new T.MeshBasicMaterial({           // ★ 不受光照
                     color,
                     polygonOffset: true,
                     polygonOffsetFactor: -1,
@@ -532,10 +574,10 @@
                     const cell = grid[y][x];
                     if (!cell?.decor) continue;
                     if (cell.decor.buildingId) continue;
+                    const PROP_TYPES = ['tree', 'plant', 'rock', 'lamp'];
+                    if (PROP_TYPES.includes(cell.decor.type)) continue;
 
                     let mat;
-
-                    // ★ 优先真实纹理
                     if (useRealTextures) {
                         const tex = window.Map3DTextures.getDecorTexture(cell.decor);
                         if (tex) {
@@ -547,8 +589,6 @@
                             });
                         }
                     }
-
-                    // 兜底：emoji
                     if (!mat) {
                         const emoji = window.Map3DAssets.decorEmoji(cell.decor);
                         if (!emoji) continue;
@@ -564,9 +604,12 @@
                     const sprite = new T.Sprite(mat);
                     sprite.scale.set(1.2, 1.2, 1);
                     const pos = this._gridToWorld(x, y);
-                    sprite.position.set(pos.x, 0.6, pos.z);
-                    this._decorGroup.add(sprite);
 
+                    // ★ 关键：取该格地形高度
+                    const groundY = this._getCellWorldY(map, x, y);
+
+                    sprite.position.set(pos.x, groundY + 0.6, pos.z);
+                    this._decorGroup.add(sprite);
                 }
             }
         },
@@ -585,14 +628,50 @@
                 this._buildOneEntity(ent);
             }
         },
+        // ============================================================
+        // ★ 取某个格子的"中心世界 y"
+        //   与 map-3d-ground-smooth.js 的顶点生成规则一致：
+        //     顶点高度 = cell.height * HEIGHT_UNIT
+        //     格中心 = 4 个顶点高度的平均
+        // ============================================================
+        _getCellCenterY(map, gx, gy) {
+            const grid = map?._generated?.grid;
+            if (!grid) return 0;
+
+            const HEIGHT_UNIT = window.Map3DGroundSmooth?.HEIGHT_UNIT
+                ?? window.Map3DGround?.HEIGHT_UNIT
+                ?? 0.35;
+
+            const W = this._mapW;
+            const H = this._mapH;
+
+            // 取 4 个顶点（越界 → 用中心格）
+            const getH = (x, y) => {
+                if (x < 0 || x >= W || y < 0 || y >= H) return 0;
+                const c = grid[y]?.[x];
+                if (!c || c.terrain === 'void') return 0;
+                return typeof c.height === 'number' ? c.height : 0;
+            };
+
+            const h00 = getH(gx, gy);
+            const h10 = getH(gx + 1, gy);
+            const h01 = getH(gx, gy + 1);
+            const h11 = getH(gx + 1, gy + 1);
+
+            const avgH = (h00 + h10 + h01 + h11) / 4;
+            return avgH * HEIGHT_UNIT;
+        },
         _buildOneEntity(ent) {
             const T = this.THREE;
-
+            const map = window.MapLauncher?.getMap?.();
+            const groundY = this._getCellCenterY(map, ent.x, ent.y);
             const isPlayer = !!ent.isPlayer;
             const isNPC = ent.kind === 'npc';
             const isEncounter = ent.kind === 'encounter';
+            const isCompanion = ent.kind === 'companion' || ent.isCompanion;
             const isQuestPoint = ent.kind === 'quest_point';
             const isDecor = ent.kind === 'decor';
+            const isResource = ent.kind === 'resource_point';
 
             const pickupField = ent.fields?.['可拾取'];
             const isPickable = pickupField === true
@@ -600,18 +679,21 @@
                 || String(pickupField || '').trim() === '是';
 
             const baseScale = isPlayer ? 2.0
-                : (isEncounter ? 2.2 : 1.8);
+                : (isEncounter ? 2.2
+                    : (isCompanion ? 1.9 : 1.8));
+
 
             // ---------- 主 sprite ----------
             const mat = window.Map3DAssets.entitySpriteMaterial(ent, T);
             const sprite = new T.Sprite(mat);
             sprite.userData._entityId = ent.id;
+            sprite.userData._baseGroundY = groundY;   // ★ 记录下来，平滑时用
 
             const { sw, sh } = window.Map3DAssets.spriteScaleFromTexture(mat, baseScale);
             sprite.scale.set(sw, sh, 1);
 
             const pos = this._gridToWorld(ent.x, ent.y);
-            sprite.position.set(pos.x, sh / 2, pos.z);
+            sprite.position.set(pos.x, groundY + sh / 2, pos.z);
 
             // ---------- 地面光圈 ----------
             const ringStyle = window.Map3DAssets.getGroundRingStyle(ent);
@@ -625,8 +707,10 @@
                 );
                 ringGeo.rotateX(-Math.PI / 2);
                 ring = new T.Mesh(ringGeo, ringMat);
-                ring.position.set(pos.x, 0.06, pos.z);
+                // ★ 地面高度 + 0.06
+                ring.position.set(pos.x, groundY + 0.06, pos.z);
                 ring.userData._pulse = !!ringStyle.pulse;
+                ring.userData._baseGroundY = groundY;
                 this._entityGroup.add(ring);
             }
 
@@ -634,26 +718,35 @@
             let nameLabel = null;
             const isPortal = ent.kind === 'portal';
 
-            if (isNPC || isEncounter || isDecor || isPickable || isPortal) {
+            if (isNPC || isEncounter || isDecor || isPickable || isPortal || isCompanion || isResource) {
                 nameLabel = window.Map3DAssets.makeTextSprite(T, ent.name, {
                     fontSize: 28,
-                    bgColor: isPortal ? 'rgba(20, 50, 50, 0.85)'
-                        : (isPickable ? 'rgba(20, 35, 60, 0.85)'
-                            : (isDecor ? 'rgba(30, 25, 45, 0.85)'
-                                : (isEncounter ? 'rgba(60, 20, 20, 0.85)'
-                                    : 'rgba(40, 30, 10, 0.85)'))),
-                    borderColor: isPortal ? 'rgba(140, 255, 220, 0.9)'
-                        : (isPickable ? 'rgba(90, 176, 255, 0.9)'
-                            : (isDecor ? 'rgba(180, 144, 255, 0.9)'
-                                : (isEncounter ? 'rgba(255, 140, 140, 0.9)'
-                                    : 'rgba(255, 215, 140, 0.9)'))),
-                    textColor: isPortal ? '#a8ffe0'
-                        : (isPickable ? '#5ab0ff'
-                            : (isDecor ? '#d0b0ff'
-                                : (isEncounter ? '#ffb8b8' : '#ffd76b'))),
+                    bgColor: isCompanion ? 'rgba(20, 50, 30, 0.85)'
+                        : isPortal ? 'rgba(20, 50, 50, 0.85)'
+                            : isResource ? 'rgba(20, 50, 25, 0.85)'
+                                : (isPickable ? 'rgba(20, 35, 60, 0.85)'
+                                    : (isDecor ? 'rgba(30, 25, 45, 0.85)'
+                                        : (isEncounter ? 'rgba(60, 20, 20, 0.85)'
+                                            : 'rgba(40, 30, 10, 0.85)'))),
+                    borderColor: isCompanion ? 'rgba(125, 216, 125, 0.9)'
+                        : isPortal ? 'rgba(140, 255, 220, 0.9)'
+                            : isResource ? 'rgba(125, 216, 125, 0.9)'
+                                : (isPickable ? 'rgba(90, 176, 255, 0.9)'
+                                    : (isDecor ? 'rgba(180, 144, 255, 0.9)'
+                                        : (isEncounter ? 'rgba(255, 140, 140, 0.9)'
+                                            : 'rgba(255, 215, 140, 0.9)'))),
+                    textColor: isCompanion ? '#7dd87d'
+                        : isPortal ? '#a8ffe0'
+                            : isResource ? '#a8ffa8'
+                                : (isPickable ? '#5ab0ff'
+                                    : (isDecor ? '#d0b0ff'
+                                        : (isEncounter ? '#ffb8b8' : '#ffd76b'))),
                 });
                 if (nameLabel) {
-                    nameLabel.position.set(pos.x, sh + 0.3, pos.z);
+                    // ★ 地面高度 + sprite 高 + 0.3
+                    nameLabel.position.set(pos.x, groundY + sh + 0.3, pos.z);
+                    nameLabel.userData._baseGroundY = groundY;
+                    nameLabel.userData._spriteH = sh;
                     this._entityGroup.add(nameLabel);
                 }
             }
@@ -673,8 +766,11 @@
                 markSprite = new T.Sprite(mMat);
                 markSprite.scale.set(0.7, 0.7, 1);
                 markSprite.userData._baseScale = 0.7;
-                markSprite.position.set(pos.x, sh + 1.0, pos.z);
-                markSprite.userData._baseY = sh + 1.0;
+                // ★ 地面高度 + sprite 高 + 1.0
+                markSprite.position.set(pos.x, groundY + sh + 1.0, pos.z);
+                markSprite.userData._baseY = groundY + sh + 1.0;
+                markSprite.userData._baseGroundY = groundY;
+                markSprite.userData._spriteH = sh;
                 this._entityGroup.add(markSprite);
             } else if (isPickable) {
                 const tex = window.Map3DAssets.emojiToTexture('🖐️', T, 128);
@@ -684,9 +780,39 @@
                 markSprite = new T.Sprite(mMat);
                 markSprite.scale.set(0.6, 0.6, 1);
                 markSprite.userData._baseScale = 0.7;
-                markSprite.position.set(pos.x, sh + 0.9, pos.z);
-                markSprite.userData._baseY = sh + 0.9;
+                markSprite.position.set(pos.x, groundY + sh + 0.9, pos.z);
+                markSprite.userData._baseY = groundY + sh + 0.9;
+                markSprite.userData._baseGroundY = groundY;
+                markSprite.userData._spriteH = sh;
                 this._entityGroup.add(markSprite);
+            } else if (isResource) {
+                // ★ 资源点头顶标记：绿色 ✨
+                const tex = window.Map3DAssets.emojiToTexture('✨', T, 128);
+                const mMat = new T.SpriteMaterial({
+                    map: tex, transparent: true, depthWrite: false, alphaTest: 0.05,
+                });
+                markSprite = new T.Sprite(mMat);
+                markSprite.scale.set(0.6, 0.6, 1);
+                markSprite.userData._baseScale = 0.6;
+                markSprite.position.set(pos.x, groundY + sh + 0.9, pos.z);
+                markSprite.userData._baseY = groundY + sh + 0.9;
+                markSprite.userData._baseGroundY = groundY;
+                markSprite.userData._spriteH = sh;
+                this._entityGroup.add(markSprite);
+
+                // ★ 次数角标（"3/3" 那种）
+                const uses = ent.resource?.uses;
+                if (uses && !uses.infinite && uses.max > 0) {
+                    const countSprite = this._makeResourceCountSprite(ent, T);
+                    if (countSprite) {
+                        countSprite.position.set(pos.x + 0.5, groundY + sh + 0.5, pos.z);
+                        countSprite.userData._baseGroundY = groundY;
+                        countSprite.userData._spriteH = sh;
+                        this._entityGroup.add(countSprite);
+                        // 存到 node 里，方便同步
+                        markSprite.userData._countSprite = countSprite;
+                    }
+                }
             }
 
             // ---------- 玩家光圈 ----------
@@ -696,15 +822,15 @@
                 prGeo.rotateX(-Math.PI / 2);
                 const prMat = window.Map3DAssets.makeGroundRingMaterial(T, 0x6688ff, 0.55);
                 playerRing = new T.Mesh(prGeo, prMat);
-                playerRing.position.set(pos.x, 0.05, pos.z);
+                playerRing.position.set(pos.x, groundY + 0.05, pos.z);
                 playerRing.userData._pulse = true;
+                playerRing.userData._baseGroundY = groundY;
                 this._entityGroup.add(playerRing);
 
                 this._playerSprite = sprite;
                 this._playerData = ent;
             }
 
-            // ---------- 加入场景 ----------
             this._entityGroup.add(sprite);
 
             this._entityNodes.set(ent.id, {
@@ -712,11 +838,38 @@
                 baseScale,
                 _sized: false,
                 _facing: isPlayer ? null : undefined,
+                _groundY: groundY,               // ★ 当前地面 y（平滑用）
+                _groundYTarget: groundY,         // ★ 目标地面 y
             });
+        },
+        // ============================================================
+        // ★ 资源点次数角标（"3/3"）
+        // ============================================================
+        _makeResourceCountSprite(ent, T) {
+            const uses = ent.resource?.uses;
+            if (!uses || uses.infinite || uses.max <= 0) return null;
+
+            const text = `${uses.current}/${uses.max}`;
+            const depleted = uses.current <= 0;
+
+            // 用 makeTextSprite 生成，但缩小字体
+            const sprite = window.Map3DAssets.makeTextSprite(T, text, {
+                fontSize: 22,
+                bgColor: depleted ? 'rgba(60, 60, 60, 0.9)' : 'rgba(20, 60, 20, 0.9)',
+                borderColor: depleted ? 'rgba(150, 150, 150, 0.9)' : 'rgba(125, 216, 125, 0.9)',
+                textColor: depleted ? '#aaa' : '#a8ffa8',
+            });
+            if (!sprite) return null;
+
+            // 缩小一点
+            const { x: sx, y: sy } = sprite.scale;
+            sprite.scale.set(sx * 0.7, sy * 0.7, 1);
+            return sprite;
         },
         _buildBuilding(ent) {
             const T = this.THREE;
             if (!ent.anchor || !ent.size) return;
+            const map = window.MapLauncher?.getMap?.();
 
             const w = ent.size.w * this._tileSize;
             const h = ent.size.h * this._tileSize;
@@ -725,31 +878,28 @@
             const cy = ent.anchor.y + ent.size.h / 2 - 0.5;
             const pos = this._gridToWorld(cx, cy);
 
+            // ★ 建筑以左下角格子（anchor）高度为准
+            const groundY = this._getCellWorldY(map, ent.anchor.x, ent.anchor.y);
+
             // ============================================================
-            // 1. 占位底（土黄）
+            // 1. 占位底
             // ============================================================
             const markGeo = new T.PlaneGeometry(w - 0.04, h - 0.04);
             markGeo.rotateX(-Math.PI / 2);
             const markMat = new T.MeshBasicMaterial({
-                color: 0xa88a5a,
-                transparent: true,
-                opacity: 0.35,
-                depthWrite: false,
+                color: 0xa88a5a, transparent: true, opacity: 0.35, depthWrite: false,
             });
             const mark = new T.Mesh(markGeo, markMat);
-            mark.position.set(pos.x, 0.04, pos.z);
+            mark.position.set(pos.x, groundY + 0.04, pos.z);
             mark.renderOrder = -2;
             this._entityGroup.add(mark);
 
-            // 边框
             const edgeGeo = new T.EdgesGeometry(markGeo);
             const edgeMat = new T.LineBasicMaterial({
-                color: 0x6a4a2a,
-                transparent: true,
-                opacity: 0.5,
+                color: 0x6a4a2a, transparent: true, opacity: 0.5,
             });
             const edges = new T.LineSegments(edgeGeo, edgeMat);
-            edges.position.set(pos.x, 0.05, pos.z);
+            edges.position.set(pos.x, groundY + 0.05, pos.z);
             edges.renderOrder = -1;
             this._entityGroup.add(edges);
 
@@ -760,44 +910,36 @@
             let sprite;
 
             if (tex) {
-                // 优先：用纹理 sprite
                 const mat = new T.SpriteMaterial({
-                    map: tex,
-                    transparent: true,
-                    depthWrite: false,
-                    alphaTest: 0.02,
+                    map: tex, transparent: true, depthWrite: false, alphaTest: 0.02,
                 });
                 sprite = new T.Sprite(mat);
                 sprite.scale.set(w, h, 1);
-                sprite.position.set(pos.x, h / 2, pos.z);
+                // ★ 建筑 y = 地面 + h/2
+                sprite.position.set(pos.x, groundY + h / 2, pos.z);
                 sprite.userData._entityId = ent.id;
                 sprite.userData._isBuilding = true;
+                sprite.userData._baseGroundY = groundY;
                 this._entityGroup.add(sprite);
             } else {
-                // 兜底：Box + emoji
                 console.warn('[MapCanvas3D] 建筑纹理缺失，用 Box:', ent.name);
-
                 const height = 1.2;
                 const geo = new T.BoxGeometry(w * 0.9, height, h * 0.9);
                 const color = this._buildingColor(ent);
                 const mat = new T.MeshStandardMaterial({ color, roughness: 0.8 });
                 sprite = new T.Mesh(geo, mat);
-                sprite.position.set(pos.x, height / 2, pos.z);
+                sprite.position.set(pos.x, groundY + height / 2, pos.z);
                 sprite.userData._entityId = ent.id;
-
                 this._entityGroup.add(sprite);
 
-                // 顶部 emoji
                 const emoji = ent.emoji || '🏠';
                 const emojiTex = window.Map3DAssets.emojiToTexture(emoji, T);
                 const spriteMat = new T.SpriteMaterial({
-                    map: emojiTex,
-                    transparent: true,
-                    depthWrite: false,
+                    map: emojiTex, transparent: true, depthWrite: false,
                 });
                 const emojiSprite = new T.Sprite(spriteMat);
                 emojiSprite.scale.set(1.5, 1.5, 1);
-                emojiSprite.position.set(pos.x, height + 0.8, pos.z);
+                emojiSprite.position.set(pos.x, groundY + height + 0.8, pos.z);
                 this._entityGroup.add(emojiSprite);
             }
 
@@ -810,17 +952,16 @@
             }
 
             // ============================================================
-            // 5. 记录
+            // 4. 记录
             // ============================================================
             this._entityNodes.set(ent.id, {
-                sprite,
-                mark,
-                edges,
-                doorData,
-                _isBuilding: true,      // ★ 标记是建筑，方便剔除逻辑跳过
+                sprite, mark, edges, doorData,
+                _isBuilding: true,
+                _groundY: groundY,
+                _groundYTarget: groundY,
             });
 
-            console.log(`[MapCanvas3D] 建筑: ${ent.name} @ (${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}), tex=${!!tex}`);
+            console.log(`[MapCanvas3D] 建筑: ${ent.name} @ (${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}), groundY=${groundY.toFixed(2)}, tex=${!!tex}`);
         },
 
         // ============================================================
@@ -830,18 +971,22 @@
             const T = this.THREE;
             const entrance = ent.entrance;
             if (!entrance) return null;
+            const map = window.MapLauncher?.getMap?.();
 
             const epos = this._gridToWorld(entrance.x, entrance.y);
+            // ★ 门格自己取高度
+            const groundY = this._getCellWorldY(map, entrance.x, entrance.y);
 
-            // 青绿光圈（静态）
+            // 青绿光圈
             const ringGeo = new T.PlaneGeometry(1.6, 1.6);
             ringGeo.rotateX(-Math.PI / 2);
             const ringMat = window.Map3DAssets.makeGroundRingMaterial(T, 0x8cffdc, 0.75);
             const ring = new T.Mesh(ringGeo, ringMat);
-            ring.position.set(epos.x, 0.07, epos.z);
+            ring.position.set(epos.x, groundY + 0.07, epos.z);
             ring.userData._isBuildingEntrance = true;
             ring.userData._buildingId = ent.id;
             ring.userData._buildingName = ent.name;
+            ring.userData._baseGroundY = groundY;
             this._entityGroup.add(ring);
 
             // 名字标签
@@ -852,14 +997,17 @@
                 textColor: '#a8ffe0',
             });
             if (nameLabel) {
-                nameLabel.position.set(epos.x, 1.5, epos.z);
+                // ★ 地面 + 1.5
+                nameLabel.position.set(epos.x, groundY + 1.5, epos.z);
                 nameLabel.userData._isBuildingEntrance = true;
                 nameLabel.userData._buildingId = ent.id;
                 nameLabel.userData._buildingName = ent.name;
+                nameLabel.userData._baseGroundY = groundY;
+                nameLabel.userData._baseY = groundY + 1.5;
                 this._entityGroup.add(nameLabel);
             }
 
-            console.log(`[MapCanvas3D] 门: ${ent.name} @ (${entrance.x}, ${entrance.y})`);
+            console.log(`[MapCanvas3D] 门: ${ent.name} @ (${entrance.x}, ${entrance.y}), groundY=${groundY.toFixed(2)}`);
 
             return { ring, nameLabel };
         },
@@ -909,8 +1057,8 @@
             const map = window.MapLauncher?.getMap?.();
             if (!map?._generated) return;
 
-            // ★ 按时间算系数
             const kPos = 1 - Math.pow(0.5, dt / 0.05);   // 半衰期 50ms
+            const kY = 1 - Math.pow(0.5, dt / 0.08);     // y 平滑慢一点
 
             // ---------- 玩家 ----------
             if (this._playerData) {
@@ -921,15 +1069,34 @@
                     node.sprite.position.x += (target.x - node.sprite.position.x) * kPos;
                     node.sprite.position.z += (target.z - node.sprite.position.z) * kPos;
 
+                    // ★ 玩家 y 也要平滑插值到目标高度
+                    const targetY = this._getCellWorldY(map, p.x, p.y);
+                    node._groundYTarget = targetY;
+                    node._groundY += (targetY - node._groundY) * kY;
+                    node.sprite.position.y = node._groundY + node.sprite.scale.y / 2;
+
                     this._ensureSpriteSized(node);
 
                     const facing = window.MapSprites?.playerFacing || 'down';
-                    if (node._facing !== facing) {
+                    const isAimed = (
+                        window.CinemaWorld?.worldState?.settings?.combatMode === 'realtime'
+                        && !!window.CombatState?.isAimed?.()
+                    );
+
+                    if (node._facing !== facing || node._aimed !== isAimed) {
                         node._facing = facing;
+                        node._aimed = isAimed;
                         this._refreshPlayerFacing(node);
                     }
 
                     this._syncNodeAttachments(node);
+
+                    // ★ 同步相机 y
+                    window.Map3DCamera.setTarget(
+                        node.sprite.position.x,
+                        node._groundY + 0.5,
+                        node.sprite.position.z
+                    );
                 }
             }
 
@@ -938,6 +1105,7 @@
                 if (ent.isPlayer) continue;
                 if (!ent._placed) continue;
                 if (ent.kind === 'building') continue;
+                if (ent.kind === 'furniture') continue;
 
                 const node = this._entityNodes.get(ent.id);
                 if (!node?.sprite) continue;
@@ -945,6 +1113,12 @@
                 const target = this._gridToWorld(ent.x, ent.y);
                 node.sprite.position.x += (target.x - node.sprite.position.x) * kPos;
                 node.sprite.position.z += (target.z - node.sprite.position.z) * kPos;
+
+                // ★ 地面 y 平滑插值
+                const targetY = this._getCellWorldY(map, ent.x, ent.y);
+                node._groundYTarget = targetY;
+                node._groundY += (targetY - node._groundY) * kY;
+                node.sprite.position.y = node._groundY + node.sprite.scale.y / 2;
 
                 this._ensureSpriteSized(node);
                 this._syncNodeAttachments(node);
@@ -961,12 +1135,14 @@
             const sz = node.sprite.position.z;
             const sh = node.sprite.scale.y;
 
+            // ★ 关键：用节点当前地面 y
+            const groundY = node._groundY ?? 0;
+
             // 地面光圈
             if (node.ring) {
                 node.ring.position.x = sx;
                 node.ring.position.z = sz;
-                // ★ 删掉脉动，固定 scale
-                const baseR = node.ring.userData._baseRadius || 1;
+                node.ring.position.y = groundY + 0.06;
                 node.ring.scale.set(1, 1, 1);
             }
 
@@ -974,6 +1150,7 @@
             if (node.playerRing) {
                 node.playerRing.position.x = sx;
                 node.playerRing.position.z = sz;
+                node.playerRing.position.y = groundY + 0.05;
                 node.playerRing.scale.set(1, 1, 1);
             }
 
@@ -981,21 +1158,20 @@
             if (node.nameLabel) {
                 node.nameLabel.position.x = sx;
                 node.nameLabel.position.z = sz;
-                node.nameLabel.position.y = sh + 0.3;
+                node.nameLabel.position.y = groundY + sh + 0.3;
             }
 
             // 头顶标记
             if (node.markSprite) {
                 node.markSprite.position.x = sx;
                 node.markSprite.position.z = sz;
-                // ★ 删掉浮动
-                const baseY = node.markSprite.userData._baseY || (sh + 1.0);
-                node.markSprite.position.y = baseY;
-                // ★ 删掉脉动，固定 scale（保留初始 scale）
+                const baseY = node.markSprite.userData._baseY || (groundY + sh + 1.0);
+                // ★ 用当前 groundY 重算 baseY
+                const spriteH = node.markSprite.userData._spriteH || sh;
+                node.markSprite.position.y = groundY + spriteH + 1.0;
                 const s = node.markSprite.userData._baseScale || 0.7;
                 node.markSprite.scale.set(s, s, 1);
             }
-
         },
 
         // ★ 玩家朝向变化 → 换材质
@@ -1003,10 +1179,19 @@
             const T = this.THREE;
             const sprite = node.sprite;
 
-            const srcRect = window.MapSprites?.getPlayerSourceRect?.();
-            const cfg = window.MapSprites?.playerConfig;
+            // ★ 不依赖 window.isPlayerAimed，直接判断
+            const isAimed = (
+                window.CinemaWorld?.worldState?.settings?.combatMode === 'realtime'
+                && !!window.CombatState?.isAimed?.()
+            );
+
+            const srcRect = window.MapSprites?.getPlayerSourceRect?.(isAimed);
+            const cfg = isAimed
+                ? window.MapSprites?.playerAimedConfig
+                : window.MapSprites?.playerConfig;
+
             if (!srcRect || !cfg) {
-                console.warn('[MapCanvas3D] 无法取玩家源图:', { srcRect, cfg });
+                console.warn('[MapCanvas3D] 无法取玩家源图:', { srcRect, cfg, isAimed });
                 return;
             }
 
@@ -1014,9 +1199,12 @@
             const col = Math.floor(srcRect.sx / (cfg.tileW + pad));
             const row = Math.floor(srcRect.sy / (cfg.tileH + pad));
 
-            const tex = window.Map3DTextures?.getTileTexture('player', col, row);
+            const atlasKey = isAimed ? 'player_aimed' : 'player';
+
+            // ★ 关键：用 cropTileTexture（Sprite 不支持 offset/repeat）
+            const tex = window.Map3DTextures?.cropTileTexture?.(atlasKey, col, row);
             if (!tex) {
-                console.warn('[MapCanvas3D] 玩家纹理取不到:', col, row);
+                console.warn('[MapCanvas3D] 玩家纹理取不到:', atlasKey, col, row);
                 return;
             }
 
@@ -1028,17 +1216,17 @@
                 alphaTest: 0.05,
             });
 
-            // 玩家尺寸固定（正方形）
             const baseScale = node.baseScale || 1.5;
+            const groundY = node._groundY ?? 0;
             sprite.scale.set(baseScale, baseScale, 1);
-            sprite.position.y = baseScale / 2;
+            sprite.position.y = groundY + baseScale / 2;
 
             if (oldMat && oldMat.map !== tex) {
                 oldMat.dispose();
             }
 
             console.log(
-                `[MapCanvas3D] 玩家朝向: ${window.MapSprites.playerFacing} → (col=${col}, row=${row})`
+                `[MapCanvas3D] 玩家朝向: ${window.MapSprites.playerFacing}, 举械=${isAimed} → (${atlasKey}, ${col}, ${row})`
             );
         },
 
@@ -1057,18 +1245,17 @@
                 node.baseScale || 1.2
             );
             node.sprite.scale.set(sw, sh, 1);
-            node.sprite.position.y = sh / 2;
+            // ★ 用当前 groundY
+            const groundY = node._groundY ?? 0;
+            node.sprite.position.y = groundY + sh / 2;
 
-            // ★ 同步名字标签
             if (node.nameLabel) {
-                node.nameLabel.position.y = sh + 0.3;
+                node.nameLabel.position.y = groundY + sh + 0.3;
             }
-
-            // ★ 同步头顶 ❗
             if (node.markSprite) {
-                const baseY = sh + 1.0;
-                node.markSprite.userData._baseY = baseY;
-                node.markSprite.position.y = baseY;
+                node.markSprite.userData._baseY = groundY + sh + 1.0;
+                node.markSprite.userData._spriteH = sh;
+                node.markSprite.position.y = groundY + sh + 1.0;
             }
         },
         _buildingColor(ent) {
@@ -1109,23 +1296,23 @@
         _buildOnePlot(plot) {
             const T = this.THREE;
             const { x, y, w, h } = plot.bounds;
+            const map = window.MapLauncher?.getMap?.();
 
             // 覆盖平面
             const geo = new T.PlaneGeometry(w * this._tileSize, h * this._tileSize);
             geo.rotateX(-Math.PI / 2);
             const color = this._parsePlotColor(plot.color);
             const mat = new T.MeshBasicMaterial({
-                color,
-                transparent: true,
-                opacity: 0.22,
-                depthWrite: false,
+                color, transparent: true, opacity: 0.22, depthWrite: false,
             });
             const plane = new T.Mesh(geo, mat);
 
             const centerX = x + w / 2 - 0.5;
             const centerY = y + h / 2 - 0.5;
             const pos = this._gridToWorld(centerX, centerY);
-            plane.position.set(pos.x, 0.08, pos.z);
+            // ★ 中心格高度
+            const groundY = this._getCellWorldY(map, Math.floor(centerX), Math.floor(centerY));
+            plane.position.set(pos.x, groundY + 0.08, pos.z);
             plane.userData._plotId = plot.id;
             this._plotGroup.add(plane);
 
@@ -1145,7 +1332,6 @@
 
         _refreshPlotCrops(plot, spriteArray) {
             const T = this.THREE;
-            // 清掉旧的
             for (const s of spriteArray) this._plotGroup.remove(s);
             spriteArray.length = 0;
 
@@ -1153,6 +1339,7 @@
             const crop = plot.rules?.crops?.[plot.cropId];
             if (!crop) return;
 
+            const map = window.MapLauncher?.getMap?.();
             const stages = crop.stages || [crop.emoji || '🌱'];
             const idx = plot.status === 'ready'
                 ? stages.length - 1
@@ -1168,15 +1355,14 @@
             for (let dy = 0; dy < h; dy++) {
                 for (let dx = 0; dx < w; dx++) {
                     const mat = new T.SpriteMaterial({
-                        map: tex,
-                        transparent: true,
-                        depthWrite: false,
-                        alphaTest: 0.1,
+                        map: tex, transparent: true, depthWrite: false, alphaTest: 0.1,
                     });
                     const s = new T.Sprite(mat);
                     s.scale.set(0.7, 0.7, 1);
                     const pos = this._gridToWorld(x + dx, y + dy);
-                    s.position.set(pos.x, 0.5, pos.z);
+                    // ★ 每格自己的高度
+                    const groundY = this._getCellWorldY(map, x + dx, y + dy);
+                    s.position.set(pos.x, groundY + 0.5, pos.z);
                     s.userData._plotId = plot.id;
                     this._plotGroup.add(s);
                     spriteArray.push(s);
@@ -1198,26 +1384,43 @@
             if (!ent) return;
             const node = this._entityNodes.get(ent.id);
             if (!node) return;
+            const map = window.MapLauncher?.getMap?.();
             const pos = this._gridToWorld(ent.x, ent.y);
             node.sprite.position.x = pos.x;
             node.sprite.position.z = pos.z;
+
+            // ★ 更新地面 y
+            const groundY = this._getCellWorldY(map, ent.x, ent.y);
+            node._groundY = groundY;
+            node._groundYTarget = groundY;
+            node.sprite.position.y = groundY + node.sprite.scale.y / 2;
 
             if (node.sprite.userData._ring) {
                 node.sprite.userData._ring.position.x = pos.x;
                 node.sprite.userData._ring.position.z = pos.z;
             }
-            // 相机跟随
-            window.Map3DCamera.setTarget(pos.x, 0.5, pos.z);
+
+            this._syncNodeAttachments(node);
+
+            // 相机跟随（带高度）
+            window.Map3DCamera.setTarget(pos.x, groundY + 0.5, pos.z);
         },
 
         syncEntity(ent) {
             if (!ent) return;
             const node = this._entityNodes.get(ent.id);
             if (!node) return;
+            const map = window.MapLauncher?.getMap?.();
             const pos = this._gridToWorld(ent.x, ent.y);
             node.sprite.position.x = pos.x;
             node.sprite.position.z = pos.z;
 
+            const groundY = this._getCellWorldY(map, ent.x, ent.y);
+            node._groundY = groundY;
+            node._groundYTarget = groundY;
+            node.sprite.position.y = groundY + node.sprite.scale.y / 2;
+
+            this._syncNodeAttachments(node);
         },
 
         syncPlot(plot) {
@@ -1272,6 +1475,13 @@
                 console.error('[MapCanvas3D] 驱动 2D 移动失败:', e);
             }
 
+            // ★★★ 驱动即时战斗的状态机（CD 递减 / 朝向追踪）
+            try {
+                window.CombatState?.update?.(dt * 1000);
+            } catch (e) {
+                console.error('[MapCanvas3D] CombatState.update 失败:', e);
+            }
+
             window.Map3DCamera.update(dt);
             // ★ 天空跟随 + 时间
             if (window.Map3DSky) {
@@ -1286,6 +1496,13 @@
             if (this._cullFrameCount >= 5) {
                 this._cullFrameCount = 0;
                 this._updateCulling();
+            }
+
+            // ★ 即时战斗 3D 渲染（范围高亮 / ❗ / 飘字 / 射线）
+            try {
+                window.CombatRender3D?.render?.();
+            } catch (e) {
+                console.error('[MapCanvas3D] CombatRender3D 失败:', e);
             }
 
             try {
@@ -1397,6 +1614,38 @@
         _syncAllEntities() {
             const map = window.MapLauncher?.getMap?.();
             if (!map?._generated) return;
+            // ★ 兜底：所有实体都丢了 _placed → 从 3D 节点恢复
+            let placedCount = 0;
+            for (const ent of map.entities) {
+                if (ent._placed) placedCount++;
+            }
+
+            if (placedCount === 0 && map.entities.length > 0 && this._entityNodes.size > 0) {
+                console.warn('[MapCanvas3D] 所有实体丢失 _placed，从 3D 节点恢复');
+
+                for (const ent of map.entities) {
+                    if (ent.kind === 'building') continue;
+                    const node = this._entityNodes.get(ent.id);
+                    if (!node?.sprite) continue;
+
+                    // 从 sprite 位置反推格子坐标
+                    const { gx, gy } = this.worldToGrid(
+                        node.sprite.position.x,
+                        node.sprite.position.z
+                    );
+                    ent.x = gx;
+                    ent.y = gy;
+                    ent._placed = true;
+                }
+
+                // 恢复后如果还有没恢复的，用 MapLayout 重新摆放
+                const stillUnplaced = map.entities.filter(e =>
+                    !e._placed && e.kind !== 'building' && !e.isPlayer
+                );
+                if (stillUnplaced.length > 0) {
+                    console.warn(`[MapCanvas3D] 还有 ${stillUnplaced.length} 个实体未恢复`);
+                }
+            }
 
             const currentIds = new Set();
             for (const ent of map.entities) {
@@ -1500,7 +1749,17 @@
                     }
                 }
             };
-
+            // 家具
+            if (node.furnitureGroup) {
+                G.remove(node.furnitureGroup);
+                node.furnitureGroup.traverse(obj => {
+                    obj.geometry?.dispose?.();
+                });
+            }
+            if (node.markSprite?.userData?._countSprite) {
+                removeFromGroup(node.markSprite.userData._countSprite);
+                node.markSprite.userData._countSprite = null;
+            }
             removeFromGroup(node.sprite);
             removeFromGroup(node.outline);
             removeFromGroup(node.ring);
@@ -1589,6 +1848,7 @@
             const FAR_DIST_SQ = FAR_DIST * FAR_DIST;
 
             for (const [id, node] of this._entityNodes) {
+                if (node._isFurniture) continue; 
                 if (!node.sprite) continue;
 
                 const dx = node.sprite.position.x - camPos.x;
@@ -1681,11 +1941,15 @@
 
             // ★ 销毁天空
             window.Map3DSky?.destroy();
+            try { window.CombatRender3D?.destroy?.(); } catch (e) { }
             // 清空缓存
             this._entityNodes.clear();
             this._plotNodes.clear();
             this._terrainMaterials.clear();
-
+            // ★ 销毁 3D 装饰
+            if (window.Map3DProps) {
+                try { window.Map3DProps.destroy(this.scene); } catch (e) { }
+            }
             // 销毁 Three.js
             if (this.scene) {
                 this.scene.traverse((obj) => {

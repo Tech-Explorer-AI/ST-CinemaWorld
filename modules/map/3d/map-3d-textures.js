@@ -66,6 +66,11 @@
                 cols: 2, rows: 2,
                 tileW: 256, tileH: 256,
             },
+            player_aimed: {
+                src: BASE_PATH + 'images/地图/玩家举械.png',
+                cols: 2, rows: 2,          // ★ 和你 map-sprites.js 里的布局一致
+                tileW: 256, tileH: 256
+            },
         },
 
         // ============================================================
@@ -121,34 +126,34 @@
             if (this._textureCache.has(cacheKey)) {
                 return this._textureCache.get(cacheKey);
             }
-        
+
             const img = this._images[atlasKey];
             const cfg = this.ATLASES[atlasKey];
             if (!img || !cfg) return null;
-        
+
             const THREE = window.THREE;
             if (!THREE) return null;
-        
+
             const tex = new THREE.Texture(img);
             tex.wrapS = THREE.ClampToEdgeWrapping;
             tex.wrapT = THREE.ClampToEdgeWrapping;
-        
+
             // ★ 加速采样：用 NearestMipmapLinear 代替 LinearMipmapLinear
             //   （mipmap 层级之间插值，但采样点用最近邻 → 更快）
             tex.minFilter = THREE.NearestMipmapLinearFilter;
             tex.magFilter = THREE.LinearFilter;
             tex.generateMipmaps = true;
-        
+
             if (THREE.SRGBColorSpace) {
                 tex.colorSpace = THREE.SRGBColorSpace;
             }
-        
+
             tex.repeat.set(1 / cfg.cols, 1 / cfg.rows);
             tex.offset.set(
                 col / cfg.cols,
                 1 - (row + 1) / cfg.rows
             );
-        
+
             tex.userData = {
                 tileW: img.width / cfg.cols,
                 tileH: img.height / cfg.rows,
@@ -157,21 +162,21 @@
                 col, row,
                 atlasKey,
             };
-        
+
             tex.needsUpdate = true;
             this._textureCache.set(cacheKey, tex);
             return tex;
         },
-        
+
         getFullTexture(url) {
             const cacheKey = `full|${url}`;
             if (this._textureCache.has(cacheKey)) {
                 return this._textureCache.get(cacheKey);
             }
-        
+
             const THREE = window.THREE;
             if (!THREE) return null;
-        
+
             const loader = new THREE.TextureLoader();
             const tex = loader.load(url, (img) => {
                 // ★ 立绘加载完 → 缩小到 384（降显存）
@@ -183,17 +188,17 @@
                     canvas.height = Math.floor(img.height * ratio);
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
+
                     const newTex = new THREE.CanvasTexture(canvas);
                     newTex.minFilter = THREE.NearestMipmapLinearFilter;
                     newTex.magFilter = THREE.LinearFilter;
                     newTex.generateMipmaps = true;
                     newTex.needsUpdate = true;
                     if (THREE.SRGBColorSpace) newTex.colorSpace = THREE.SRGBColorSpace;
-        
+
                     // 替换缓存
                     this._textureCache.set(cacheKey, newTex);
-        
+
                     // ★ 更新所有已用这张纹理的 sprite
                     if (window.MapCanvas3D?._entityNodes) {
                         for (const [, node] of window.MapCanvas3D._entityNodes) {
@@ -207,22 +212,22 @@
                             }
                         }
                     }
-        
+
                     // 释放旧纹理
                     tex.dispose?.();
                 }
             });
-        
+
             tex.minFilter = THREE.NearestMipmapLinearFilter;   // ★ 快速采样
             tex.magFilter = THREE.LinearFilter;
             tex.generateMipmaps = true;
             tex.wrapS = THREE.ClampToEdgeWrapping;
             tex.wrapT = THREE.ClampToEdgeWrapping;
-        
+
             if (THREE.SRGBColorSpace) {
                 tex.colorSpace = THREE.SRGBColorSpace;
             }
-        
+
             this._textureCache.set(cacheKey, tex);
             return tex;
         },
@@ -263,7 +268,7 @@
         // ============================================================
         getBuildingTexture(ent) {
             if (!ent) return null;
-        
+
             let typeKey = ent._spriteType;
             if (!typeKey && window.MapBuildings?.matchType) {
                 typeKey = window.MapBuildings.matchType(ent.name, {
@@ -272,95 +277,90 @@
                 });
                 ent._spriteType = typeKey;
             }
-        
+
             if (!typeKey) return null;
-        
+
             const def = window.MapBuildings?.TYPES?.[typeKey];
             if (!def) return null;
-        
+
             const size = ent.size || { w: 3, h: 3 };
             const atlasKey = this._pickBuildingAtlas(size.w, size.h);
             if (!atlasKey) return null;
-        
+
             // ★★★ 用 cropTileTexture 而不是 getTileTexture
             return this.cropTileTexture(atlasKey, def.col, def.row);
         },
         // ============================================================
-// ★ 从图集切出一格，生成"独立纹理"
-//   （Sprite 不读 offset/repeat，必须切成独立纹理才能正确显示单格）
-// ============================================================
-cropTileTexture(atlasKey, col, row) {
-    const cfg = this.ATLASES[atlasKey];
-    if (!cfg) {
-        console.warn('[Map3DTextures] 图集不存在:', atlasKey);
-        return null;
-    }
+        // ★ 从图集切出一格，生成"独立纹理"
+        //   （Sprite 不读 offset/repeat，必须切成独立纹理才能正确显示单格）
+        // ============================================================
+        // ============================================================
+        // ★ 从图集切出一格，生成"独立纹理"
+        // ============================================================
+        cropTileTexture(atlasKey, col, row) {
+            const cfg = this.ATLASES[atlasKey];
+            if (!cfg) {
+                console.warn('[Map3DTextures] 图集不存在:', atlasKey);
+                return null;
+            }
 
-    // 越界取模
-    col = ((col % cfg.cols) + cfg.cols) % cfg.cols;
-    row = ((row % cfg.rows) + cfg.rows) % cfg.rows;
+            col = ((col % cfg.cols) + cfg.cols) % cfg.cols;
+            row = ((row % cfg.rows) + cfg.rows) % cfg.rows;
 
-    const cacheKey = `crop|${atlasKey}|${col}|${row}`;
-    if (this._textureCache.has(cacheKey)) {
-        return this._textureCache.get(cacheKey);
-    }
+            const cacheKey = `crop|${atlasKey}|${col}|${row}`;
+            if (this._textureCache.has(cacheKey)) {
+                return this._textureCache.get(cacheKey);
+            }
 
-    const img = this._images[atlasKey];
-    if (!img) {
-        console.warn('[Map3DTextures] 图集未加载:', atlasKey);
-        return null;
-    }
+            const img = this._images[atlasKey];
+            if (!img) {
+                console.warn('[Map3DTextures] 图集未加载:', atlasKey);
+                return null;
+            }
 
-    const THREE = window.THREE;
-    if (!THREE) return null;
+            const THREE = window.THREE;
+            if (!THREE) return null;
 
-    // 计算单格尺寸
-    const tileW = Math.floor(img.width / cfg.cols);
-    const tileH = Math.floor(img.height / cfg.rows);
+            const tileW = Math.floor(img.width / cfg.cols);
+            const tileH = Math.floor(img.height / cfg.rows);
 
-    // 用 canvas 切出单格
-    const canvas = document.createElement('canvas');
-    canvas.width = tileW;
-    canvas.height = tileH;
-    const ctx = canvas.getContext('2d');
+            const canvas = document.createElement('canvas');
+            canvas.width = tileW;
+            canvas.height = tileH;
+            const ctx = canvas.getContext('2d');
 
-    // 关掉平滑（像素风更清晰）
-    // ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(
+                img,
+                col * tileW, row * tileH, tileW, tileH,
+                0, 0, tileW, tileH
+            );
 
-    ctx.drawImage(
-        img,
-        col * tileW, row * tileH, tileW, tileH,   // 源区域
-        0, 0, tileW, tileH                         // 目标区域
-    );
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.generateMipmaps = true;
+            tex.wrapS = THREE.ClampToEdgeWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
 
-    // 生成独立纹理
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.generateMipmaps = true;
-    tex.wrapS = THREE.ClampToEdgeWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
+            if (THREE.SRGBColorSpace) {
+                tex.colorSpace = THREE.SRGBColorSpace;
+            }
 
-    if (THREE.SRGBColorSpace) {
-        tex.colorSpace = THREE.SRGBColorSpace;
-    }
+            tex.needsUpdate = true;
 
-    tex.needsUpdate = true;
+            tex.userData = {
+                tileW,
+                tileH,
+                atlasW: img.width,
+                atlasH: img.height,
+                col, row,
+                atlasKey,
+                isCropped: true,
+            };
 
-    // 记录元数据（spriteScaleFromTexture 会读）
-    tex.userData = {
-        tileW,
-        tileH,
-        atlasW: img.width,
-        atlasH: img.height,
-        col, row,
-        atlasKey,
-        isCropped: true,
-    };
-
-    this._textureCache.set(cacheKey, tex);
-    return tex;
-},
+            this._textureCache.set(cacheKey, tex);
+            return tex;
+        },
         _pickBuildingAtlas(w, h) {
             if (w <= 2 && h <= 2) return 'building_2x2';
             if (w <= 3 && h <= 3) return 'building_3x3';
@@ -375,37 +375,72 @@ cropTileTexture(atlasKey, col, row) {
         // ============================================================
         getCharacterTexture(ent) {
             if (!ent) return null;
-        
-            // ★★★ 玩家：按当前朝向取
+
+            // ★★★ 玩家：按当前朝向取，区分举械
             if (ent.isPlayer) {
-                const srcRect = window.MapSprites?.getPlayerSourceRect?.();
-                const cfg = window.MapSprites?.playerConfig;
+                // 是否处于"即时战斗模式 + 举械态"
+                const combatMode = window.CinemaWorld?.worldState?.settings?.combatMode;
+                const isAimed = (combatMode === 'realtime')
+                    && !!(window.CombatState?.isAimed?.());
+
+                console.log('[Map3DTextures] 玩家贴图:', {
+                    combatMode,
+                    isAimed,
+                    playerFacing: window.MapSprites?.playerFacing,
+                });
+
+                const srcRect = window.MapSprites?.getPlayerSourceRect?.(isAimed);
+                const cfg = isAimed
+                    ? window.MapSprites?.playerAimedConfig
+                    : window.MapSprites?.playerConfig;
+
                 if (srcRect && cfg) {
                     const pad = cfg.pad || 0;
                     const col = Math.floor(srcRect.sx / (cfg.tileW + pad));
                     const row = Math.floor(srcRect.sy / (cfg.tileH + pad));
-                    return this.getTileTexture('player', col, row);
+                    const atlasKey = isAimed ? 'player_aimed' : 'player';
+
+                    console.log('[Map3DTextures] 切片:', atlasKey, col, row);
+
+                    // ★ 用 cropTileTexture（Sprite 必须用独立纹理）
+                    const tex = this.cropTileTexture(atlasKey, col, row);
+                    if (!tex) {
+                        console.warn('[Map3DTextures] cropTileTexture 失败:', atlasKey, col, row);
+                        // 兜底：如果举械图集没加载，用走路图集
+                        if (isAimed) {
+                            return this.cropTileTexture('player', col, row);
+                        }
+                    }
+                    return tex;
                 }
-                // 兜底：默认朝下 = (0, 0)
-                return this.getTileTexture('player', 0, 0);
+
+                // 兜底
+                return this.cropTileTexture('player', 0, 0);
             }
-        
+
             // NPC / 遭遇
-            const resolved = window.MapSprites?.resolveSprite?.(ent);
-            if (!resolved) return null;
-        
-            const atlasKey = resolved.imageKey === 'male' ? 'sprite_male'
-                : resolved.imageKey === 'female' ? 'sprite_female'
-                    : 'sprite_common';
-        
-            const idx = resolved.index;
-            const cfg = this.ATLASES[atlasKey];
-            if (!cfg) return null;
-        
-            const col = idx % cfg.cols;
-            const row = Math.floor(idx / cfg.cols);
-        
-            return this.getTileTexture(atlasKey, col, row);
+
+            // ★★★ NPC / 遭遇 / 队友
+            if (ent.kind === 'npc'
+                || ent.kind === 'encounter'
+                || ent.kind === 'companion'
+                || ent.isCompanion) {
+                const resolved = window.MapSprites?.resolveSprite?.(ent);
+                if (!resolved) return null;
+
+                const atlasKey = resolved.imageKey === 'male' ? 'sprite_male'
+                    : resolved.imageKey === 'female' ? 'sprite_female'
+                        : 'sprite_common';
+
+                const idx = resolved.index;
+                const cfg = this.ATLASES[atlasKey];
+                if (!cfg) return null;
+
+                const col = idx % cfg.cols;
+                const row = Math.floor(idx / cfg.cols);
+
+                return this.cropTileTexture(atlasKey, col, row);
+            }
         },
 
         // ============================================================

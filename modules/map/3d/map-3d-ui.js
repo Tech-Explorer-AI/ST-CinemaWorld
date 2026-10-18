@@ -43,6 +43,7 @@
             this._pendingReenter = true;
 
             // 主动销毁 3D 资源
+            try { window.CombatRender3D?.destroy?.(); } catch (e) { }
             try { window.Map3DInteract?.destroy?.(); } catch (e) { }
             try { window.MapCanvas3D?.destroy?.(); } catch (e) { }
 
@@ -257,6 +258,9 @@
         },
 
         _exit3D() {
+            try {
+                window.CombatRender3D?.destroy?.();
+            } catch (e) { }
             try {
                 window.Map3DInteract.destroy();
             } catch (e) { }
