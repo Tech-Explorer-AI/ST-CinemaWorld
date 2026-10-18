@@ -193,60 +193,69 @@
                 id: raw.id || `map_${Date.now()}`,
                 name: raw.name || '无名区域',
                 description: raw.description || '',
+                mapType: raw.mapType || 'outdoor',
                 background: raw.background || '',
                 music: raw.music || '',
                 seed: raw.seed ?? Math.floor(Math.random() * 1e9),
                 startRegion: raw.startRegion || null,
+
+                // ★ 新增字段
+                style: raw.style || null,
+                spatial: raw.spatial || {},
+                exits: (raw.exits && typeof raw.exits === 'object') ? raw.exits : {},
+                heightMap: raw.heightMap || { _base: 0 },
+
                 regions: [],
                 connections: [],
                 entities: [],
                 scenes: raw.scenes || {},
                 buildingCatalog: raw.buildingCatalog || {},
-        
-                // ★ 玩法区（plot）
+                rewardTable: raw.rewardTable || {},
+                itemTable: (raw.itemTable && typeof raw.itemTable === 'object') ? raw.itemTable : {},
                 _plots: (raw._plots && typeof raw._plots === 'object')
-                    ? JSON.parse(JSON.stringify(raw._plots))
-                    : {},
-        
+                    ? JSON.parse(JSON.stringify(raw._plots)) : {},
+
                 _environment: {},
                 _generated: null,
                 _rawText: raw._rawText || null,
-        
                 _source: raw._source || null,
+                _parentMap: raw._parentMap || null,
                 tags: Array.isArray(raw.tags) ? raw.tags : [],
             };
-        
+
             // ---------- regions ----------
             const regions = Array.isArray(raw.regions) ? raw.regions : [];
             for (const r of regions) {
-                if (!r || !r.id) continue;
-                const size = r.size || 'medium';
-                const terrain = r.terrain || 'stone';
-        
+                if (!r) continue;
+                const name = r.name || r.id;
+                if (!name) continue;
+
                 map.regions.push({
-                    id: String(r.id),
-                    name: r.name || r.id,
+                    id: String(r.id || name),
+                    name: String(name),
                     type: r.type || 'default',
-                    size,
-                    terrain,
+                    size: r.size || 'medium',
+                    terrain: r.terrain || 'stone',
                     shape: r.shape || 'rect',
                     tags: Array.isArray(r.tags) ? r.tags : [],
+                    _spawnState: raw._spawnState || null,
                     description: r.description || '',
                     anchors: r.anchors || ['center', 'north', 'south', 'east', 'west'],
                     sceneName: r.sceneName || null,
-        
+                    heightRef: r.heightRef || null,
+
                     terrains: Array.isArray(r.terrains) ? r.terrains : [],
                     decors: Array.isArray(r.decors) ? r.decors : [],
                     minis: Array.isArray(r.minis) ? r.minis : [],
                     buildings: Array.isArray(r.buildings) ? r.buildings : [],
                 });
             }
-        
-            // 起点兜底
-            if (!map.startRegion || !map.regions.some(r => r.id === map.startRegion)) {
-                map.startRegion = map.regions[0]?.id || null;
+
+            // 起点兜底（用 name）
+            if (!map.startRegion || !map.regions.some(r => r.name === map.startRegion)) {
+                map.startRegion = map.regions[0]?.name || null;
             }
-        
+
             // ---------- connections ----------
             const conns = Array.isArray(raw.connections) ? raw.connections : [];
             for (const c of conns) {
@@ -260,15 +269,19 @@
                     kind: c.kind || 'road',
                 });
             }
-        
+
             // ---------- entities ----------
             const ents = Array.isArray(raw.entities) ? raw.entities : [];
             for (const e of ents) {
-                if (!e || !e.id) continue;
-        
+                if (!e) continue;
+
+                // ★ 名字优先
+                const name = e.name || e.id || '未命名';
+                const id = e.id || name;   // 兼容旧存档
+
                 const normalized = {
-                    id: String(e.id),
-                    name: e.name || e.id,
+                    id: String(id),
+                    name: String(name),
                     emoji: e.emoji || '❓',
                     kind: e.kind || 'npc',
                     region: e.region || null,
@@ -278,7 +291,11 @@
                     tags: Array.isArray(e.tags) ? e.tags : [],
                     description: e.description || '',
                     meta: e.meta || {},
-        
+
+                    _systemExit: e._systemExit || false,
+                    _placed: e._placed || false,
+                    _pendingEntry: e._pendingEntry || null,
+
                     status: e.status || '',
                     effect: e.effect || '',
                     fields: (e.fields && typeof e.fields === 'object') ? e.fields : {},
@@ -287,14 +304,19 @@
                     count: typeof e.count === 'number' ? e.count : 1,
                     countMode: e.countMode || (
                         (e.kind === 'encounter' || e.kind === 'npc') && (e.count || 1) > 1
-                            ? 'cluster'
-                            : 'single'
+                            ? 'cluster' : 'single'
                     ),
                     stackable: !!e.stackable,
                     maxStack: e.maxStack || null,
                     type: e.type || 'entity',
+                    resource: e.resource || null,
+                    indoor: (e.indoor && typeof e.indoor === 'object') ? e.indoor : null,
+
+                    x: typeof e.x === 'number' ? e.x : undefined,
+                    y: typeof e.y === 'number' ? e.y : undefined,
+                    _placed: !!e._placed,
                 };
-        
+
                 if (e.kind === 'building') {
                     normalized.anchor = e.anchor || null;
                     normalized.size = e.size || { w: 3, h: 3 };
@@ -306,6 +328,8 @@
                     normalized.wallTile = e.wallTile || null;
                     normalized.roofTile = e.roofTile || null;
                     normalized.doorTile = e.doorTile || null;
+                    normalized.style = e.style || null;         // ★ 新增
+                    normalized.floors = e.floors || 1;          // ★ 新增
                     normalized.spawnCount = e.spawnCount || e.count || 1;
                     normalized.isTiny = (normalized.size.w <= 1 && normalized.size.h <= 1);
                     if (normalized.isTiny) {
@@ -313,53 +337,45 @@
                         normalized.linkedScene = null;
                     }
                 }
-        
+
                 if (e.kind === 'decor') {
                     normalized.size = e.size || { w: 1, h: 1 };
                     normalized.decorType = e.decorType || 'building';
                     normalized.variant = e.variant ?? 0;
                     normalized.anchor = e.anchor || null;
                 }
-        
+
+                if (e.kind === 'companion') {
+                    normalized.isCompanion = true;
+                    normalized._companionName = e._companionName || e.meta?.companionName || null;
+                    normalized.blocking = false;
+                    if (!normalized.tags.includes('队友')) normalized.tags.push('队友');
+                }
+
                 map.entities.push(normalized);
             }
-        
-            // 保证有玩家
+
+            // 玩家兜底
             if (!map.entities.some(e => e.isPlayer)) {
                 map.entities.push({
-                    id: 'player',
-                    name: '玩家',
-                    emoji: '🧍',
-                    kind: 'player',
-                    region: map.startRegion,
-                    position: 'center',
-                    blocking: false,
-                    isPlayer: true,
-                    tags: [],
-                    description: '',
-                    meta: {},
-                    status: '',
-                    effect: '',
-                    fields: {},
-                    interactions: [],
+                    id: '玩家', name: '玩家', emoji: '🧍', kind: 'player',
+                    region: map.startRegion, position: '中心', blocking: false,
+                    isPlayer: true, tags: [], description: '', meta: {},
+                    status: '', effect: '', fields: {}, interactions: [],
                     extraStats: { _order: [], _raw: '' },
-                    count: 1,
-                    stackable: false,
-                    maxStack: null,
+                    count: 1, countMode: 'single', stackable: false, maxStack: null,
                     type: 'player',
                 });
             } else {
                 const p = map.entities.find(e => e.isPlayer);
                 if (map.startRegion) p.region = map.startRegion;
             }
-        
+
             // 所有实体兜底 region
             for (const e of map.entities) {
-                if (!e.region && map.startRegion) {
-                    e.region = map.startRegion;
-                }
+                if (!e.region && map.startRegion) e.region = map.startRegion;
             }
-        
+
             return map;
         },
 
@@ -381,22 +397,43 @@
             delete out._generated;
             delete out._check;
             delete out._rawText;
-        
-            // ★ 显式保留背景字段（防止被意外 strip）
+
             out.generatedBackgroundId = map.generatedBackgroundId || null;
             out.generatedBackgroundPrompt = map.generatedBackgroundPrompt || null;
             out.generatedBackgroundAt = map.generatedBackgroundAt || null;
-        
+
+            // ★ 队友实体额外保存关键字段
+            if (Array.isArray(out.entities)) {
+                for (const e of out.entities) {
+                    if (e.kind === 'companion') {
+                        e.isCompanion = true;
+                        // 确保 _companionName 不被丢
+                        if (!e._companionName && e.meta?.companionName) {
+                            e._companionName = e.meta.companionName;
+                        }
+                    }
+                }
+            }
+
             return out;
         },
-
+        // 在 _patchResources 后面加
+        _patchExits(map) {
+            if (!map) return;
+            // 兜底：确保 exits 是对象
+            if (!map.exits || typeof map.exits !== 'object') {
+                map.exits = {};
+            }
+            return map;
+        },
         // ============================================================
         // 反序列化
         // ============================================================
         deserialize(data, worldManager) {
             if (!data) return null;
             const map = this.normalize(data);
-
+            this._patchResources(map);
+            this._patchExits(map);
             // 用名字找回场景真身
             if (map.scenes) {
                 const real = {};
@@ -421,7 +458,27 @@
 
             return map;
         },
+        // ============================================================
+        // ★ 补丁：旧存档的 resource_point 补 resource
+        // ============================================================
+        _patchResources(map) {
+            if (!map?.entities) return;
+            if (!window.MapParser?._parseResourceData) return;
 
+            let patched = 0;
+            for (const ent of map.entities) {
+                if (ent.kind !== 'resource_point') continue;
+                if (ent.resource) continue;
+                if (!ent.fields) continue;
+
+                ent.resource = window.MapParser._parseResourceData(ent.fields);
+                patched++;
+            }
+
+            if (patched > 0) {
+                console.log(`[MapSchema] 补丁：${patched} 个资源点补全 resource`);
+            }
+        },
         // ============================================================
         // 校验
         // ============================================================

@@ -84,14 +84,12 @@
 
             html += `
                 <div style="text-align:center;margin-top:18px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
-                    <button class="cinemaworld-button" id="cw-map-open-rules"
-                        style="color:#a8d8ff;">
-                        📜 规则库
+                    <button class="cinemaworld-button" style="color:#7da8ff;"
+                        onclick="MapManagerPanel.openGrid()">
+                        🗺️ 网格视图
                     </button>
-                    <button class="cinemaworld-button" style="color:#d87d7d;"
-                        onclick="MapManagerPanel.confirmClearAll()">
-                        🧹 清空所有地图
-                    </button>
+                    <button class="cinemaworld-button" id="cw-map-open-rules">📜 规则库</button>
+                    <button class="cinemaworld-button" style="color:#d87d7d;" onclick="MapManagerPanel.confirmClearAll()">🧹 清空所有地图</button>
                     <button class="cinemaworld-button" onclick="MapManagerPanel.close()">关闭</button>
                 </div>
             `;
@@ -171,13 +169,19 @@
                         onclick="MapManagerPanel.jumpTo('${this._escAttr(name)}')">
                         🚀 传送过去
                     </button>
-                    <button class="cinemaworld-button" onclick="MapManagerPanel.open()">← 返回列表</button>
+                    <button class="cinemaworld-button" onclick="MapManagerPanel._goBack()">← 返回</button>
                 </div>
             `;
 
             this._showModal(html);
         },
-
+        _goBack() {
+            if (this._viewMode === 'grid') {
+                this.openGrid();
+            } else {
+                this.open();
+            }
+        },
         // ============================================================
         // 传送到某张地图
         // ============================================================
@@ -209,24 +213,24 @@
             const store = window.CinemaWorld?.worldState?.maps || {};
             const data = store[name];
             if (!data) return;
-        
+
             const isCurrent = window.CinemaWorld?.worldState?.currentMapName === name;
-        
+
             if (!confirm(`确定删除地图「${name}」吗？\n\n` +
                 `区域 ${data.regions?.length || 0} 个 · 实体 ${data.entities?.filter(e => !e.isPlayer).length || 0} 个\n` +
                 (isCurrent ? '\n⚠️ 这是当前地图，删除后需要重新生成。' : '')
             )) return;
-        
+
             // ★ 1. 收集这张地图里所有 plot 用过的模板 id
             const plotsInMap = data._plots || {};
             const usedTemplateIds = new Set();
             // 注意：plot 本身不存 templateId，只有 ruleId 是历史字段
             // 但 plot 有 name/emoji 等，无法反查"来自哪个模板"
             // 所以这里只能做"孤儿清理"：扫描所有自定义模板，如果没有任何 plot 引用 → 不删（保守）
-            
+
             // ---------- 删除地图 ----------
             delete store[name];
-        
+
             // ---------- 清理其他地图里指向这张地图的 portal ----------
             const cleaned = [];
             for (const otherName of Object.keys(store)) {
@@ -238,7 +242,7 @@
                 );
                 if (other.entities.length !== before) cleaned.push(otherName);
             }
-        
+
             // ---------- 清理其他地图的 childMaps ----------
             for (const otherName of Object.keys(store)) {
                 const other = store[otherName];
@@ -246,34 +250,34 @@
                     delete other.childMaps[name];
                 }
             }
-        
+
             // ---------- 当前地图删除后的处理 ----------
             if (isCurrent) {
                 window.CinemaWorld.worldState.currentMapName = null;
-        
+
                 const mq = window.CinemaWorld.worldState.mainQuest;
                 if (mq?.target?.mapName === name) {
                     window.CinemaWorld.worldState.mainQuest = null;
                     console.log(`[MapManager] 删除地图「${name}」时清空主线`);
                 }
-        
+
                 if (window.MapCanvas.canvas) {
                     window.MapCanvas.destroy();
                 }
                 window.MapLauncher._map = null;
             }
-        
+
             // ★ 2. 清理孤儿模板（可选）
             //    如果某模板的所有使用它的 plot 都随着地图消失了，就删掉它
             this._cleanOrphanTemplates();
-        
+
             console.log(`[MapManager] 删除地图: ${name}`, cleaned.length ? `（清理了 ${cleaned.length} 张地图里的返回 portal）` : '');
             window.UIManager.showText(`已删除地图「${name}」`, 1500);
-        
+
             if (window.SaveManager) window.SaveManager.save();
             this.open();
         },
-        
+
         // ============================================================
         // ★ 新增：清理孤儿模板
         //   规则：如果某自定义模板的"最后使用它的地图"被删了，就删模板
@@ -281,9 +285,9 @@
         // ============================================================
         _cleanOrphanTemplates() {
             if (!window.MapPlotTemplate) return;
-            
+
             const store = window.CinemaWorld?.worldState?.maps || {};
-            
+
             // 收集所有地图里 plots 用到的模板 id
             // ★ plot 不直接记 templateId（它只有 rules 和 shop），
             //    所以这里用"同名模板 + 相同 crops 数量"做启发式匹配是不准的。
@@ -311,32 +315,32 @@
                 window.UIManager.showText('没有地图可清空', 1500);
                 return;
             }
-        
+
             if (!confirm(`确定清空全部 ${names.length} 张地图吗？\n\n` +
                 `这会删除：\n- 所有地图数据\n- 所有地图上的实体、物品、NPC 状态\n- 所有建筑实例\n\n` +
                 `规则库、背包、角色状态、场景不受影响。\n\n此操作不可撤销。`
             )) return;
-        
+
             if (!confirm(`真的确定？再确认一次。`)) return;
-        
+
             window.CinemaWorld.worldState.maps = {};
             window.CinemaWorld.worldState.currentMapName = null;
             window.CinemaWorld.worldState.mainQuest = null;
-        
+
             if (window.MapCanvas.canvas) {
                 window.MapCanvas.destroy();
             }
             window.MapLauncher._map = null;
-        
+
             // ★ 清空所有地图 → 清空所有自定义模板
             if (window.MapPlotTemplate) {
                 window.MapPlotTemplate.clearCustom?.();
                 console.log('[MapManager] 已清空所有地图，自定义模板已清理');
             }
-        
+
             console.log(`[MapManager] 清空所有地图（${names.length} 张）`);
             window.UIManager.showText(`已清空 ${names.length} 张地图`, 2000);
-        
+
             if (window.SaveManager) window.SaveManager.save();
             this.open();
         },
@@ -644,6 +648,343 @@
                 .replace(/'/g, '&#39;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
+        },
+
+        // ============================================================
+        // 视图状态（挂在 MapManagerPanel 上）
+        // ============================================================
+        _viewMode: 'list',              // 'list' | 'grid'
+        _gridZoom: 1,                   // 0.4 ~ 2
+        _gridPan: { x: 0, y: 0 },       // 平移偏移
+
+        // ============================================================
+        // 主入口：打开网格视图
+        // ============================================================
+        openGrid() {
+            this._viewMode = 'grid';
+            this._injectGridStyles();
+
+            const coord = window.WorldCoord;
+            if (!coord) {
+                this._showModal(`
+            <div style="text-align:center;padding:40px;color:#888;">
+                坐标系统未加载
+            </div>
+        `);
+                return;
+            }
+
+            const bounds = coord.bounds();
+            if (!bounds) {
+                this._showModal(`
+            <div style="text-align:center;padding:40px;color:#888;">
+                还没有任何地图<br>
+                <span style="font-size:12px;">去走走出入口，生成几张地图再来</span>
+            </div>
+            <div style="text-align:center;margin-top:16px;">
+                <button class="cinemaworld-button" onclick="MapManagerPanel.open()">
+                    ← 返回列表
+                </button>
+            </div>
+        `);
+                return;
+            }
+
+            const html = `
+        <div style="font-size:20px;font-weight:bold;margin-bottom:14px;">
+            🗺️ 世界地图
+        </div>
+        <div class="cw-worldmap-view">
+            <!-- 工具栏 -->
+            <div class="cw-worldmap-toolbar">
+                <button onclick="MapManagerPanel.open()">📋 列表</button>
+                <button class="active">🗺️ 网格</button>
+                <span class="cw-worldmap-zoom">
+                    <button onclick="MapManagerPanel._gridZoomBy(-1)">−</button>
+                    <span class="zoom-val" id="cw-grid-zoom">${Math.round(this._gridZoom * 100)}%</span>
+                    <button onclick="MapManagerPanel._gridZoomBy(1)">＋</button>
+                </span>
+                <button onclick="MapManagerPanel._gridCenter()">🎯 回中心</button>
+            </div>
+            
+            <!-- 画布 -->
+            <div class="cw-worldmap-canvas" id="cw-worldmap-canvas">
+                <div class="cw-worldmap-compass">
+                    <span class="n">北</span>
+                    <span class="s">南</span>
+                    <span class="e">东</span>
+                    <span class="w">西</span>
+                    <span class="center">N</span>
+                </div>
+                <div class="cw-worldmap-grid" id="cw-worldmap-grid"
+                    style="
+                        transform: translate(-50%, -50%) scale(${this._gridZoom});
+                        grid-template-columns: repeat(${bounds.width}, 110px);
+                        grid-template-rows: repeat(${bounds.height}, 90px);
+                    ">
+                    ${this._renderGridHTML()}
+                </div>
+            </div>
+            
+            <!-- 图例 -->
+            <div class="cw-worldmap-legend">
+                <span class="legend-item current">当前所在</span>
+                <span class="legend-item visited">已探索</span>
+                <span class="legend-item unvisited">未探索出口</span>
+                <span class="legend-item overlap">重叠坐标</span>
+            </div>
+        </div>
+    `;
+
+            this._showModal(html);
+            this._bindGridEvents();
+        },
+
+        // ============================================================
+        // 生成网格 HTML
+        // ============================================================
+        _renderGridHTML() {
+            const coord = window.WorldCoord;
+            const bounds = coord.bounds();
+            const allCoords = coord.getAll();
+            const ws = window.CinemaWorld?.worldState;
+            const currentMap = ws?.currentMapName;
+            const mq = ws?.mainQuest;
+        
+            // ---------- 1. 建坐标 → mapName[] 索引 ----------
+            const coordIndex = {};
+            for (const [name, c] of Object.entries(allCoords)) {
+                if (c._isolated) continue;
+                const key = `${c.x || 0},${c.y || 0}`;
+                if (!coordIndex[key]) coordIndex[key] = [];
+                coordIndex[key].push(name);
+            }
+        
+            // ---------- 2. 遍历网格 ----------
+            const rows = [];
+            for (let gy = bounds.minY; gy <= bounds.maxY; gy++) {
+                for (let gx = bounds.minX; gx <= bounds.maxX; gx++) {
+                    const key = `${gx},${gy}`;
+                    const names = coordIndex[key] || [];
+                    rows.push(this._renderCell(gx, gy, names, currentMap, mq));
+                }
+            }
+        
+            // ★ 只返回 cells，不含外层 div
+            return rows.join('');
+        },
+
+        // ============================================================
+        // 单个格子
+        // ============================================================
+        _renderCell(gx, gy, names, currentMap, mq) {
+            // ---------- 空位 ----------
+            if (names.length === 0) {
+                return `<div class="cw-worldmap-cell empty"></div>`;
+            }
+
+            // ---------- 单图 ----------
+            if (names.length === 1) {
+                const name = names[0];
+                const isCurrent = name === currentMap;
+                const coordData = window.WorldCoord.get(name);
+
+                // 主线目标?
+                const isMainQuest = mq?.active
+                    && mq.status === 'active'
+                    && mq.target?.mapName === name;
+
+                // 特殊标记
+                const badges = [];
+                if (isMainQuest) {
+                    badges.push(`<span class="cell-badge main-quest">⭐ 主线</span>`);
+                }
+                if (coordData?._isolated) {
+                    badges.push(`<span class="cell-badge">孤立</span>`);
+                }
+
+                const cls = [
+                    'cw-worldmap-cell',
+                    'visited',
+                    isCurrent ? 'current' : '',
+                ].filter(Boolean).join(' ');
+
+                const safeName = this._escAttr(name);
+                return `
+            <div class="${cls}"
+                 title="${this._escAttr(name)} (${gx}, ${gy})"
+                 onclick="MapManagerPanel._gridClickMap('${safeName}')">
+                <div class="cell-name">${this._esc(name)}</div>
+                <div class="cell-coord">(${gx}, ${gy})</div>
+                ${badges.join('')}
+            </div>
+        `;
+            }
+
+            // ---------- 重叠 ----------
+            const hasCurrent = names.includes(currentMap);
+            const cls = [
+                'cw-worldmap-cell',
+                'overlap',
+                hasCurrent ? 'current' : '',
+            ].filter(Boolean).join(' ');
+
+            return `
+        <div class="${cls}"
+             title="${names.length} 张地图重叠"
+             onclick="MapManagerPanel._gridClickOverlap(${gx}, ${gy})">
+            <div class="cell-name" style="font-size:11px;">
+                ${this._esc(names[0])}
+                ${names.length > 1 ? ` 等 ${names.length} 张` : ''}
+            </div>
+            <div class="cell-coord">(${gx}, ${gy})</div>
+            <span class="cell-badge overlap-count">⚠️ ${names.length}</span>
+        </div>
+    `;
+        },
+
+        // ============================================================
+        // 点击处理
+        // ============================================================
+
+        // 点击单图 → 打开详情
+        _gridClickMap(name) {
+            this.inspect(name);
+        },
+
+        // 点击重叠 → 弹出选择
+        _gridClickOverlap(gx, gy) {
+            const names = window.WorldCoord.findByCoord({ x: gx, y: gy, z: 0 });
+            if (names.length === 0) return;
+
+            const modal = document.getElementById('cinemaworld-modal');
+            if (!modal) return;
+
+            const currentMap = window.CinemaWorld?.worldState?.currentMapName;
+
+            const html = `
+        <div style="font-size:20px;font-weight:bold;margin-bottom:16px;">
+            📍 坐标 (${gx}, ${gy})
+        </div>
+        <div style="font-size:12px;color:#888;text-align:center;margin-bottom:14px;">
+            ${names.length} 张地图共享这个位置
+        </div>
+        <div style="display:grid;gap:8px;max-height:50vh;overflow-y:auto;">
+            ${names.map(name => {
+                const isCurrent = name === currentMap;
+                const data = window.CinemaWorld?.worldState?.maps?.[name];
+                const desc = data?.description || '无描述';
+                return `
+                    <div style="padding:12px 16px;
+                        background:${isCurrent ? 'rgba(120,200,255,.15)' : 'rgba(255,255,255,.05)'};
+                        border:1px solid ${isCurrent ? 'rgba(120,200,255,.5)' : 'rgba(255,255,255,.1)'};
+                        border-radius:10px;cursor:pointer;"
+                        onclick="MapManagerPanel.inspect('${this._escAttr(name)}')">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:14px;color:#fff;font-weight:600;">
+                                ${this._esc(name)}
+                                ${isCurrent ? ' <span style="font-size:11px;color:#7dd87d;">[当前]</span>' : ''}
+                            </span>
+                        </div>
+                        <div style="font-size:11px;color:#888;margin-top:4px;">
+                            ${this._esc(desc)}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+        <div style="text-align:center;margin-top:16px;">
+            <button class="cinemaworld-button" onclick="MapManagerPanel.openGrid()">
+                ← 返回网格
+            </button>
+        </div>
+    `;
+
+            this._showModal(html);
+        },
+
+        // ============================================================
+        // 缩放
+        // ============================================================
+        _gridZoomBy(delta) {
+            const steps = [0.4, 0.6, 0.8, 1.0, 1.3, 1.6, 2.0];
+            const cur = this._gridZoom;
+            const idx = steps.findIndex(s => Math.abs(s - cur) < 0.05);
+            const nextIdx = Math.max(0, Math.min(steps.length - 1,
+                (idx < 0 ? steps.indexOf(1.0) : idx) + delta));
+            this._gridZoom = steps[nextIdx];
+
+            const grid = document.getElementById('cw-worldmap-grid');
+            const val = document.getElementById('cw-grid-zoom');
+            if (grid) {
+                grid.style.transform =
+                    `translate(-50%, -50%) scale(${this._gridZoom})`;
+            }
+            if (val) {
+                val.textContent = `${Math.round(this._gridZoom * 100)}%`;
+            }
+        },
+
+        _gridCenter() {
+            const canvas = document.getElementById('cw-worldmap-canvas');
+            if (!canvas) return;
+            canvas.scrollTo({
+                left: canvas.scrollWidth / 2 - canvas.clientWidth / 2,
+                top: canvas.scrollHeight / 2 - canvas.clientHeight / 2,
+                behavior: 'smooth',
+            });
+        },
+
+        // ============================================================
+        // 绑定拖拽平移
+        // ============================================================
+        _bindGridEvents() {
+            const canvas = document.getElementById('cw-worldmap-canvas');
+            if (!canvas) return;
+
+            let isDragging = false;
+            let startX = 0, startY = 0;
+            let scrollLeft = 0, scrollTop = 0;
+
+            canvas.addEventListener('mousedown', (e) => {
+                // 只在中键或空白区域左键时拖拽
+                if (e.target.closest('.cw-worldmap-cell')) return;
+                isDragging = true;
+                canvas.style.cursor = 'grabbing';
+                startX = e.pageX - canvas.offsetLeft;
+                startY = e.pageY - canvas.offsetTop;
+                scrollLeft = canvas.scrollLeft;
+                scrollTop = canvas.scrollTop;
+                e.preventDefault();
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const x = e.pageX - canvas.offsetLeft;
+                const y = e.pageY - canvas.offsetTop;
+                canvas.scrollLeft = scrollLeft - (x - startX);
+                canvas.scrollTop = scrollTop - (y - startY);
+            });
+
+            const stopDrag = () => {
+                isDragging = false;
+                if (canvas) canvas.style.cursor = 'grab';
+            };
+
+            canvas.addEventListener('mouseup', stopDrag);
+            canvas.addEventListener('mouseleave', stopDrag);
+        },
+
+        // ============================================================
+        // 注入样式（只注入一次）
+        // ============================================================
+        _injectGridStyles() {
+            if (document.getElementById('cw-worldmap-styles')) return;
+            const style = document.createElement('style');
+            style.id = 'cw-worldmap-styles';
+            style.textContent = `/* ...上面的 CSS... */`;
+            document.head.appendChild(style);
         },
     };
 

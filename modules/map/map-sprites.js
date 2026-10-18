@@ -96,7 +96,18 @@
             tileH: 256,
             pad: 0,
         },
-
+        // 玩家举械图集：2×2 = 4 格（和走路图同布局），1024×1024
+        // ★ 如果你用 2×4 布局，改 cols/rows
+        playerAimedConfig: {
+            src: BASE_PATH + 'images/地图/玩家举械.png',
+            sheetWidth: 512,
+            sheetHeight: 512,
+            cols: 2,
+            rows: 2,
+            tileW: 256,
+            tileH: 256,
+            pad: 0,
+        },
         // ============================================================
         // 状态
         // ============================================================
@@ -115,6 +126,10 @@
         playerImage: null,
         playerLoaded: false,
         _playerLoadPromise: null,
+
+        playerAimedImage: null,
+        playerAimedLoaded: false,
+        _playerAimedLoadPromise: null,
 
         // 玩家动画状态
         _playerFrame: 0,
@@ -209,7 +224,7 @@
         // 该实体是否参与"立绘优先"（只对 NPC / 遭遇）
         _canUsePortrait(ent) {
             if (!ent || ent.isPlayer) return false;
-            return ent.kind === 'npc' || ent.kind === 'encounter';
+            return ent.kind === 'npc' || ent.kind === 'encounter' || ent.kind === 'companion';
         },
 
         // ★ 同步查：返回立绘 URL 或 null（不发起网络请求）
@@ -332,7 +347,40 @@
             });
             return this._playerLoadPromise;
         },
+        // ============================================================
+        // 加载：玩家举械图集
+        // ============================================================
+        loadPlayerAimed() {
+            if (this._playerAimedLoadPromise) return this._playerAimedLoadPromise;
+            this._playerAimedLoadPromise = new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    this.playerAimedImage = img;
+                    this.playerAimedLoaded = true;
 
+                    const { cols, rows } = this.playerAimedConfig;
+                    this.playerAimedConfig.sheetWidth = img.width;
+                    this.playerAimedConfig.sheetHeight = img.height;
+                    this.playerAimedConfig.tileW = Math.floor(img.width / cols);
+                    this.playerAimedConfig.tileH = Math.floor(img.height / rows);
+
+                    console.log('[MapSprites] 玩家举械精灵已加载:', img.width, 'x', img.height,
+                        '→ 每格', this.playerAimedConfig.tileW, 'x', this.playerAimedConfig.tileH);
+                    resolve(img);
+                };
+                img.onerror = () => {
+                    console.error('[MapSprites] 玩家举械精灵加载失败:', this.playerAimedConfig.src);
+                    this.playerAimedLoaded = false;
+                    resolve(null);
+                };
+                img.src = this.playerAimedConfig.src;
+            });
+            return this._playerAimedLoadPromise;
+        },
+
+        playerAimedReady() {
+            return this.playerAimedLoaded && !!this.playerAimedImage;
+        },
         playerReady() {
             return this.playerLoaded && !!this.playerImage;
         },
@@ -361,7 +409,21 @@
             }
         },
 
-        getPlayerSourceRect() {
+        // aimed=true → 用举械图集
+        getPlayerSourceRect(aimed = false) {
+            const useAimed = aimed && this.playerAimedLoaded;
+
+            if (useAimed) {
+                const { tileW, tileH, pad } = this.playerAimedConfig;
+                const pos = this.DIR_POS[this.playerFacing] || this.DIR_POS.down;
+                return {
+                    sx: Math.round(pos.col * (tileW + pad)),
+                    sy: Math.round(pos.row * (tileH + pad)),
+                    sw: tileW,
+                    sh: tileH,
+                };
+            }
+
             if (!this.playerLoaded) return null;
             const { tileW, tileH, pad } = this.playerConfig;
             const pos = this.DIR_POS[this.playerFacing] || this.DIR_POS.down;
@@ -371,6 +433,12 @@
                 sw: tileW,
                 sh: tileH,
             };
+        },
+
+        // 返回举械图集的 Image 对象（供渲染用）
+        getPlayerImage(aimed = false) {
+            if (aimed && this.playerAimedLoaded) return this.playerAimedImage;
+            return this.playerImage;
         },
 
         // ============================================================
@@ -400,7 +468,35 @@
                 const idx = this._pickFromRow('monster', ent);
                 return idx >= 0 ? { imageKey: 'base', index: idx } : null;
             }
+            // ★★★ 4. 队友：和 NPC 走一样的逻辑
+            if (ent.kind === 'companion' || ent.isCompanion) {
+                const text = `${ent.name || ''} ${ent.description || ''} ${(ent.tags || []).join(' ')}`;
 
+                // 4a. 动物
+                if (ANIMAL_KEYWORDS.some(k => text.includes(k))) {
+                    const idx = this._pickFromRow('animal', ent);
+                    return idx >= 0 ? { imageKey: 'base', index: idx } : null;
+                }
+
+                // 4b. 性别
+                const gender = this.detectGender(ent);
+                if (gender === '男' && this.maleLoaded) {
+                    return { imageKey: 'male', index: this._pickFromGrid16(ent) };
+                }
+                if (gender === '女' && this.femaleLoaded) {
+                    return { imageKey: 'female', index: this._pickFromGrid16(ent) };
+                }
+
+                // 4c. 职业
+                if (JOB_KEYWORDS.some(k => text.includes(k))) {
+                    const idx = this._pickFromRow('job', ent);
+                    return idx >= 0 ? { imageKey: 'base', index: idx } : null;
+                }
+
+                // 4d. 中性
+                const idx = this._pickFromRow('neutral', ent);
+                return idx >= 0 ? { imageKey: 'base', index: idx } : null;
+            }
             // 4. NPC
             if (ent.kind === 'npc') {
                 const text = `${ent.name || ''} ${ent.description || ''} ${(ent.tags || []).join(' ')}`;

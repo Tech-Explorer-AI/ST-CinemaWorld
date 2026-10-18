@@ -153,13 +153,111 @@
                 : null;
             const canOfferQuest = offerQuest && offerQuest.status === 'offered';
 
-            // ★★★ 新增：任务点（quest_point）判定 ★★★
+            // ★ 任务点（quest_point）判定
             const isQuestPoint = ent.kind === 'quest_point' && ent.meta?.questId;
             const q = isQuestPoint
                 ? window.MapQuestManager?.getQuest?.(ent.meta.questId)
                 : null;
 
             // ============================================================
+            // ★★★ 队友实体：最高优先级分支 ★★★
+            // ============================================================
+            if (ent.isCompanion) {
+                const companionName = ent.meta?.companionName;
+                const bond = companionName && window.BondManager
+                    ? window.BondManager.getBond(companionName)
+                    : null;
+
+                // 立绘
+                let avatarHTML = ent.emoji || '🤝';
+                if (typeof SpriteManager !== 'undefined' && bond) {
+                    const url = SpriteManager.getCachedSprite?.(bond.name);
+                    if (url) {
+                        avatarHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;object-position:center top;" alt="">`;
+                    } else {
+                        SpriteManager.ensureSprite?.(bond.name, bond.profile?.gender).then(loaded => {
+                            if (!loaded) return;
+                            document.querySelectorAll('[data-companion-entity-avatar]').forEach(el => {
+                                el.innerHTML = `<img src="${loaded}" style="width:100%;height:100%;object-fit:cover;object-position:center top;" alt="">`;
+                            });
+                        });
+                    }
+                }
+
+                const stage = bond && window.BondManager
+                    ? window.BondManager.getCurrentStage(bond)
+                    : null;
+
+                // 队友专属按钮
+                let actionBtnsHTML = '';
+                if (window.CompanionSummonUI) {
+                    actionBtnsHTML = window.CompanionSummonUI.renderEntityDetailButtons(ent);
+                } else {
+                    actionBtnsHTML = `
+                        <button class="cinemaworld-button primary"
+                            onclick="UIManager.closeModal(); CompanionUI.openModalDetail('${this._escAttr(companionName)}');">
+                            📊 队友详情
+                        </button>
+                        <button class="cinemaworld-button" style="color:#d87d7d;"
+                            onclick="if(confirm('收回队友？')) { CompanionSummonManager.recall('${this._escAttr(companionName)}'); MapLauncher._closeSubPanel(); }">
+                            📦 收回
+                        </button>
+                    `;
+                }
+
+                // ★ 新增：队友也能对话 / 交互
+                const talkBtn = `
+                    <button class="cinemaworld-button"
+                        onclick="MapInteract.talkTo('${ent.id}')">
+                        💬 对话
+                    </button>
+                `;
+
+                const html = `
+                    <div style="font-size:20px;font-weight:bold;margin-bottom:16px;">
+                        🤝 ${this._esc(ent.name)}
+                        <span style="font-size:12px;color:#7dd87d;margin-left:8px;">[队友]</span>
+                    </div>
+            
+                    <div style="display:flex;gap:14px;padding:14px;
+                        background:linear-gradient(135deg,rgba(120,220,140,.1),rgba(90,200,120,.06));
+                        border:1px solid rgba(120,220,140,.35);
+                        border-radius:10px;margin-bottom:14px;align-items:center;">
+                        <div data-companion-entity-avatar
+                            style="width:72px;height:72px;border-radius:50%;overflow:hidden;flex-shrink:0;
+                                background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;
+                                font-size:36px;border:2px solid rgba(120,220,140,.5);">
+                            ${avatarHTML}
+                        </div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:17px;font-weight:bold;color:#7dd87d;margin-bottom:4px;">
+                                ${this._esc(ent.name)}
+                            </div>
+                            <div style="font-size:12px;color:#888;">
+                                ${stage ? `🎖️ ${this._esc(stage.name)}` : '队友'}
+                                ${region ? ` · 📍 ${this._esc(region.name)}` : ''}
+                            </div>
+                        </div>
+                    </div>
+            
+                    ${descHTML}
+                    ${fieldsHTML}
+                    ${extraHTML}
+                    ${tagsHTML}
+            
+                    <div style="text-align:center;margin-top:20px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
+                        ${talkBtn}
+                        ${actionBtnsHTML}
+                        <button class="cinemaworld-button"
+                            onclick="MapLauncher._closeSubPanel()">关闭</button>
+                    </div>
+                `;
+
+                window.MapLauncher._openSubPanel(html);
+                return;
+            }
+
+                        // ============================================================
             // 主按钮 + 次级按钮
             // 优先级：任务点 > 拾取 > 接取任务 > 主线 > 遭遇 > 查看任务 > NPC对话 > 交互
             // ============================================================
@@ -218,13 +316,6 @@
                     onclick="MapQuestManager.openQuestOffer('${offerQuestId}')">
                     📜 接取任务
                 </button>`;
-
-                if (ent.kind === 'npc') {
-                    secondaryBtns.push(`<button class="cinemaworld-button"
-                        onclick="MapInteract.talkTo('${ent.id}')">
-                        💬 对话
-                    </button>`);
-                }
             }
             // ---------- 主线 ----------
             else if (isMainTarget) {
@@ -240,6 +331,22 @@
                         📜 查看任务
                     </button>`);
                 }
+            }
+            // ---------- ★ 资源点 ----------
+            else if (ent.kind === 'resource_point') {
+                const r = ent.resource || {};
+                const uses = r.uses;
+
+                primaryBtn = `<button class="cinemaworld-button primary"
+                                style="background:linear-gradient(135deg,#7dd87d,#5ab85a);"
+                                onclick="MapResource.quickInteract('${ent.id}')">
+                                ${r.actionEmoji || '✨'} ${r.actionName || '快速互动'}
+                            </button>`;
+
+                secondaryBtns.push(`<button class="cinemaworld-button"
+                                onclick="MapInteract.interactWith('${ent.id}')">
+                                ✍️ 自由发挥
+                            </button>`);
             }
             // ---------- 遭遇 ----------
             else if (isEncounter) {
@@ -276,6 +383,40 @@
                     onclick="MapInteract.interactWith('${ent.id}')">
                     ✨ 交互
                 </button>`;
+            }
+
+            // ============================================================
+            // ★ 主链外的独立补充按钮
+            //   不受优先级链影响，谁都不会被谁挤掉
+            // ============================================================
+
+            // ---------- NPC 的对话（补位）----------
+            // 如果这个 NPC 因为挂了任务 / 是主线目标，导致走了别的分支，
+            // 这里再补一个"对话"，跟主按钮并存
+            if (ent.kind === 'npc' && primaryBtn && !primaryBtn.includes('对话')) {
+                secondaryBtns.push(`<button class="cinemaworld-button"
+                    onclick="MapInteract.talkTo('${ent.id}')">
+                    💬 对话
+                </button>`);
+            }
+
+            // ---------- NPC 的队友按钮 ----------
+            if (ent.kind === 'npc' && window.CompanionManager) {
+                const isMember = window.CompanionManager.isMember(ent.name);
+
+                if (isMember) {
+                    secondaryBtns.push(`<button class="cinemaworld-button"
+                        style="color:#ffd76b;"
+                        onclick="CompanionUI.openModalDetail('${this._escAttr(ent.name)}')">
+                        🤝 队友
+                    </button>`);
+                } else {
+                    secondaryBtns.push(`<button class="cinemaworld-button"
+                        style="color:#a8d8ff;"
+                        onclick="CompanionInvite.invite('${this._escAttr(ent.name)}')">
+                        🤝 邀请同行
+                    </button>`);
+                }
             }
 
             const secondaryHTML = secondaryBtns.join('');
@@ -334,6 +475,12 @@
             `;
 
             window.MapLauncher._openSubPanel(html);
+        },
+        _esc(s) {
+            return String(s || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         },
         _renderQuestPointInfo(q) {
             if (!q) return '';

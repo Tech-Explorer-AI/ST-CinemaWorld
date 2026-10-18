@@ -14,6 +14,7 @@
         // ============================================================
         // 1. 对话（NPC）
         // ============================================================
+        // map-interact.js · talkTo() 改造
         async talkTo(entityId) {
             const map = window.MapLauncher?.getMap?.();
             const ent = map?.entities?.find(e => e.id === entityId);
@@ -27,28 +28,259 @@
                     padding:10px;background:rgba(0,0,0,.2);border-radius:8px;">
                     ${ent.description || ''}
                 </div>
-                <div style="margin-bottom:15px;">
-                    <div style="font-size:13px;color:#aaa;margin-bottom:5px;">
-                        你想说什么 / 做什么？
+        
+                <div style="display:grid;gap:10px;margin-bottom:16px;">
+                    <div onclick="MapInteract._chooseDialogueMode('${entityId}', 'script')"
+                        style="padding:14px 16px;background:rgba(120,150,255,.12);
+                            border:1px solid rgba(120,150,255,.35);border-radius:10px;
+                            cursor:pointer;transition:all .15s;"
+                        onmouseover="this.style.background='rgba(120,150,255,.22)'"
+                        onmouseout="this.style.background='rgba(120,150,255,.12)'">
+                        <div style="font-size:14px;font-weight:600;color:#a8c4ff;margin-bottom:4px;">
+                            🎬 脚本对话（推荐）
+                        </div>
+                        <div style="font-size:12px;color:#888;line-height:1.6;">
+                            像视觉小说一样对话。轮到你时会出现输入框，
+                            AI 不会替你说话。
+                        </div>
                     </div>
-                    <textarea class="cinemaworld-textarea" id="cw-map-interact-input"
-                        placeholder="例如：'你好，我是路过这里的旅人。'&#10;（留空则由对方主动开口）"
-                        style="min-height:120px;"></textarea>
+        
+                    <div onclick="MapInteract._chooseDialogueMode('${entityId}', 'single')"
+                        style="padding:14px 16px;background:rgba(255,255,255,.04);
+                            border:1px solid rgba(255,255,255,.1);border-radius:10px;
+                            cursor:pointer;transition:all .15s;"
+                        onmouseover="this.style.background='rgba(255,255,255,.08)'"
+                        onmouseout="this.style.background='rgba(255,255,255,.04)'">
+                        <div style="font-size:14px;font-weight:600;color:#ddd;margin-bottom:4px;">
+                            ⚡ 快速对话
+                        </div>
+                        <div style="font-size:12px;color:#888;line-height:1.6;">
+                            输入一句话，AI 生成完整一段交互。适合只想快速推进剧情。
+                        </div>
+                    </div>
                 </div>
+        
                 <div style="text-align:center;">
-                    <button class="cinemaworld-button primary"
-                        onclick="MapInteract._doTalk('${entityId}')">
-                        💬 开始对话
-                    </button>
                     <button class="cinemaworld-button"
                         onclick="MapEntityPanel.openDetail('${entityId}')">返回</button>
                 </div>`;
+        },
+        async _chooseDialogueMode(entityId, mode) {
+            // ★ 返回：回到选模式界面
+            if (mode === 'back') {
+                this.talkTo(entityId);
+                return;
+            }
+        
+            if (mode === 'script') {
+                const result = await this._askDialogueSetup(entityId);
+                if (!result) {
+                    this.talkTo(entityId);
+                    return;
+                }
+        
+                window.MapLauncher._closeSubPanel?.();
+                window.UIManager.closeModal();
+        
+                await window.MapDialogue.start(entityId, {
+                    compactContext: result.compactContext,
+                    openingGuide: result.openingGuide,
+                });
+            } else {
+                this._openQuickTalkModal(entityId);
+            }
+        },
+        _escAttr(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        },
+        // ============================================================
+        // ★ 快速对话：输入指导文本（原 talkTo 的输入框）
+        // ============================================================
+        _openQuickTalkModal(entityId) {
+            const map = window.MapLauncher?.getMap?.();
+            const ent = map?.entities?.find(e => e.id === entityId);
+            if (!ent) return;
+
+            const modal = document.getElementById('cinemaworld-modal');
+            modal.className = 'active';
+            modal.innerHTML = `
+        <div class="cinemaworld-modal-title">⚡ 与 ${ent.name} 快速对话</div>
+        <div style="margin-bottom:15px;color:#aaa;font-size:13px;
+            padding:10px;background:rgba(0,0,0,.2);border-radius:8px;">
+            ${ent.description || ''}
+        </div>
+        <div style="margin-bottom:15px;">
+            <div style="font-size:13px;color:#aaa;margin-bottom:5px;">
+                你想说什么 / 做什么？
+            </div>
+            <textarea class="cinemaworld-textarea" id="cw-map-interact-input"
+                placeholder="例如：'你好，我是路过这里的旅人。'&#10;（留空则由对方主动开口）"
+                style="min-height:120px;"></textarea>
+        </div>
+        <div style="text-align:center;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+            <button class="cinemaworld-button primary"
+                onclick="MapInteract._doTalkLegacy('${entityId}')">
+                💬 开始对话
+            </button>
+            <button class="cinemaworld-button"
+                onclick="MapInteract._chooseDialogueMode('${entityId}', 'back')">
+                ← 返回
+            </button>
+        </div>`;
+
+            setTimeout(() => document.getElementById('cw-map-interact-input')?.focus(), 50);
+
             if (window.MapQuestManager) {
                 window.MapQuestManager.onEntityInteracted(ent);
             }
         },
 
-        async _doTalk(entityId) {
+        _askDialogueSetup(entityId) {
+            return new Promise((resolve) => {
+                const map = window.MapLauncher?.getMap?.();
+                const ent = map?.entities?.find(e => e.id === entityId);
+                if (!ent) return resolve(null);
+
+                const lastUse = this._lastCompactChoice;
+                const defaultCompact = typeof lastUse === 'boolean' ? lastUse : true;
+
+                const modal = document.getElementById('cinemaworld-modal');
+                modal.className = 'active';
+                modal.innerHTML = `
+                    <div class="cinemaworld-modal-title">🎬 与 ${this._escAttr(ent.name)} 脚本对话</div>
+        
+                    <!-- 开场指引 -->
+                    <div style="margin-bottom:16px;">
+                        <div style="font-size:13px;color:#a8c4ff;margin-bottom:6px;font-weight:600;">
+                            ✍️ 你想说什么？（可选）
+                        </div>
+                        <div style="font-size:12px;color:#888;margin-bottom:8px;line-height:1.6;">
+                            告诉 AI 你为什么来找 ${ent.name}、当前氛围、想聊什么方向。
+                            <span style="color:#666;">留空则 AI 自行开场。</span>
+                        </div>
+                        <textarea id="cw-dlg-opening-input" class="cinemaworld-textarea"
+                            placeholder="例如：我刚从外面淋着雨进来，想问问她有没有毛巾。"
+                            style="min-height:90px;font-size:14px;"></textarea>
+                    </div>
+        
+                    <!-- 上下文模式 -->
+                    <div style="margin-bottom:16px;">
+                        <div style="font-size:13px;color:#a8c4ff;margin-bottom:8px;font-weight:600;">
+                            📚 上下文模式
+                        </div>
+                        <div style="display:grid;gap:8px;">
+                            <label style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
+                                background:rgba(120,150,255,.1);border:1px solid rgba(120,150,255,.3);
+                                border-radius:10px;cursor:pointer;transition:all .15s;"
+                                onmouseover="this.style.background='rgba(120,150,255,.18)'"
+                                onmouseout="this.style.background='rgba(120,150,255,.1)'">
+                                <input type="radio" name="cw-dlg-ctx" value="compact"
+                                    ${defaultCompact ? 'checked' : ''}
+                                    style="margin-top:3px;accent-color:#667eea;">
+                                <div style="flex:1;">
+                                    <div style="font-size:14px;color:#e0e6ff;font-weight:600;margin-bottom:3px;">
+                                        📦 摘要上下文（推荐）
+                                    </div>
+                                    <div style="font-size:12px;color:#888;line-height:1.6;">
+                                        进入前先用 AI 压缩一次上下文，省 token。<br>
+                                        <span style="color:#d8c07d;">可能丢细节，适合熟悉的世界。</span>
+                                    </div>
+                                </div>
+                            </label>
+        
+                            <label style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
+                                background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+                                border-radius:10px;cursor:pointer;transition:all .15s;"
+                                onmouseover="this.style.background='rgba(255,255,255,.08)'"
+                                onmouseout="this.style.background='rgba(255,255,255,.04)'">
+                                <input type="radio" name="cw-dlg-ctx" value="full"
+                                    ${!defaultCompact ? 'checked' : ''}
+                                    style="margin-top:3px;accent-color:#667eea;">
+                                <div style="flex:1;">
+                                    <div style="font-size:14px;color:#e0e6ff;font-weight:600;margin-bottom:3px;">
+                                        📚 完整上下文
+                                    </div>
+                                    <div style="font-size:12px;color:#888;line-height:1.6;">
+                                        用完整世界状态构建 prompt，每轮贵约 1 万 token。<br>
+                                        <span style="color:#7dd87d;">保真度高，适合不熟悉的世界或重要对话。</span>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+        
+                    <!-- 按钮 -->
+                    <div style="text-align:center;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
+                        <button class="cinemaworld-button primary" id="cw-dlg-start">
+                            ✅ 开始对话
+                        </button>
+                        <button class="cinemaworld-button" id="cw-dlg-cancel">
+                            ← 返回
+                        </button>
+                    </div>
+                `;
+
+                const input = document.getElementById('cw-dlg-opening-input');
+                setTimeout(() => input?.focus(), 50);
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        document.getElementById('cw-dlg-start').click();
+                    }
+                });
+
+                document.getElementById('cw-dlg-start').onclick = () => {
+                    const checked = modal.querySelector('input[name="cw-dlg-ctx"]:checked');
+                    const compactContext = checked ? checked.value === 'compact' : true;
+                    const openingGuide = input.value.trim();
+
+                    this._lastCompactChoice = compactContext;
+
+                    resolve({ compactContext, openingGuide });
+                };
+
+                document.getElementById('cw-dlg-cancel').onclick = () => {
+                    // ★ 不关闭模态框，让调用方处理返回
+                    resolve(null);
+                };
+            });
+        },
+        _askCompactContext(entityId) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('cinemaworld-modal');
+                modal.className = 'active';
+                modal.innerHTML = `
+            <div class="cinemaworld-modal-title">🎬 脚本对话</div>
+            <div style="margin-bottom:16px;color:#aaa;font-size:13px;line-height:1.7;
+                padding:12px;background:rgba(0,0,0,.2);border-radius:10px;">
+                进入对话前，可以先用 AI 压缩一次上下文。<br>
+                <span style="color:#7dd87d;">省 token，但可能丢细节。</span><br>
+                <span style="color:#888;">如果关闭，会用完整上下文（更准，但每轮贵约 1 万 token）。</span>
+            </div>
+            <div style="display:grid;gap:10px;">
+                <button class="cinemaworld-button primary" id="cw-ctx-compact">
+                    📦 用摘要上下文（推荐）
+                </button>
+                <button class="cinemaworld-button" id="cw-ctx-full">
+                    📚 用完整上下文
+                </button>
+                <button class="cinemaworld-button" id="cw-ctx-cancel">
+                    取消
+                </button>
+            </div>`;
+
+                document.getElementById('cw-ctx-compact').onclick = () => resolve(true);
+                document.getElementById('cw-ctx-full').onclick = () => resolve(false);
+                document.getElementById('cw-ctx-cancel').onclick = () => resolve(null);
+            });
+        },
+        async _doTalkLegacy(entityId) {
             if (this.isGenerating) return;
             this.isGenerating = true;
 
@@ -68,6 +300,12 @@
 
                 const contextParts = this._buildContextParts(map, ent, region);
 
+                // ★★★ 队友：多塞一段档案
+                let companionBlock = '';
+                if (ent.isCompanion || ent.kind === 'companion') {
+                    companionBlock = this._buildCompanionBlock(ent);
+                }
+
                 const prompt = `你正在扮演一个视觉小说游戏。玩家在地图上遇到了一个 NPC，现在开始对话。
         
         ${contextParts}
@@ -78,6 +316,8 @@
         描述：${ent.description || ''}
         ${ent.tags?.length ? `标签：${ent.tags.join('、')}` : ''}
         ${this._formatEntityStats(ent)}
+        
+        ${companionBlock}
         
         【玩家行动】
         ${action}
@@ -120,6 +360,11 @@
                 const result = await window.generateFunctionalReply(prompt, 'map-talk');
                 if (!result) return;
 
+                // ★★★ 队友专属：先把【效果】里的养成数值应用一遍
+                if (ent.isCompanion || ent.kind === 'companion') {
+                    this._applyCompanionBondEffects(ent, result);
+                }
+
                 await this._processResult(result, {
                     type: 'mapEntity',
                     target: ent.name,
@@ -136,7 +381,144 @@
                 this.isGenerating = false;
             }
         },
+        // ============================================================
+        // ★ 队友档案块（塞进 NPC 对话 prompt 里）
+        // ============================================================
+        _buildCompanionBlock(ent) {
+            const companionName = ent.meta?.companionName;
+            if (!companionName) return '';
 
+            const bond = window.BondManager?.getBond?.(companionName);
+            if (!bond) return '';
+
+            const lines = [];
+
+            // ---------- 1. 档案 ----------
+            const p = bond.profile || {};
+            const profileRows = [];
+            if (p.gender) profileRows.push(`- 性别：${p.gender}`);
+            if (p.age) profileRows.push(`- 年龄：${p.age}`);
+            if (p.personality) profileRows.push(`- 性格：${p.personality}`);
+            if (p.mood) profileRows.push(`- 当前心情：${p.mood}`);
+            if (p.appearance) profileRows.push(`- 外貌：${p.appearance}`);
+            if (p.outfit) profileRows.push(`- 穿着：${p.outfit}`);
+            if (p.background) profileRows.push(`- 背景故事：${p.background}`);
+
+            if (profileRows.length > 0) {
+                lines.push(`【队友档案】\n${profileRows.join('\n')}`);
+            }
+
+            // ---------- 2. 关系阶段 ----------
+            const stage = window.BondManager?.getCurrentStage?.(bond);
+            if (stage) {
+                lines.push(`【关系阶段】${stage.name}：${stage.desc || ''}`);
+            }
+
+            // ---------- 3. 养成属性 ----------
+            const bondStatsLines = [];
+            for (const key of (bond.bondStatsOrder || [])) {
+                const s = bond.bondStats?.[key];
+                if (!s) continue;
+                const levelInfo = window.BondManager?.getStatLevelInfo?.(bond, key);
+                const cap = window.BondManager?.getStatCap?.(bond, key);
+
+                let line = `- ${s.label || key}：${s.value}`;
+                if (levelInfo) {
+                    line += `（Lv.${levelInfo.level}「${levelInfo.name}」/ 共 ${levelInfo.maxLevel} 级）`;
+                }
+                if (cap !== null && cap !== undefined) {
+                    line += ` [本阶段上限 ${cap}]`;
+                }
+                bondStatsLines.push(line);
+            }
+            if (bondStatsLines.length > 0) {
+                lines.push(`【养成属性】\n${bondStatsLines.join('\n')}`);
+            }
+
+            // ---------- 4. 近期里程碑 ----------
+            const ms = (bond.milestones || []).slice(-3);
+            if (ms.length > 0) {
+                lines.push(`【近期里程碑】\n${ms.map(m => `- ${m.title}`).join('\n')}`);
+            }
+
+            return lines.join('\n\n');
+        },
+
+        // ============================================================
+        // ★ 队友对话的养成效果
+        //   在 _processResult 之前跑一遍，把效果里的 bondStats 提前应用到 bond
+        //   然后 _processResult 里的 EffectSystem 会走 mapEntity 分支
+        //   （mapEntity 分支会尝试改 ent.fields，但队友的养成数据不在 ent.fields 里）
+        // ============================================================
+        _applyCompanionBondEffects(ent, resultText) {
+            const companionName = ent.meta?.companionName;
+            if (!companionName) return;
+
+            const bond = window.BondManager?.getBond?.(companionName);
+            if (!bond) return;
+
+            // ---------- 提取【效果】块 ----------
+            const effectIdx = resultText.indexOf('【效果】');
+            if (effectIdx < 0) return;
+
+            const afterEffect = resultText.substring(effectIdx);
+            const nextBlockIdx = afterEffect.substring('【效果】'.length).search(/\n【/);
+            const effectPart = nextBlockIdx >= 0
+                ? afterEffect.substring(0, nextBlockIdx + '【效果】'.length)
+                : afterEffect;
+
+            // ---------- 解析【效果】里的数值变化 ----------
+            const lines = effectPart.split('\n');
+            let target = null;
+            const changes = [];
+
+            for (const raw of lines) {
+                const line = raw.trim();
+                if (!line) continue;
+
+                // 目标行
+                const targetM = line.match(/^目标\s*[:：]\s*(.+)$/);
+                if (targetM) {
+                    target = targetM[1].trim();
+                    continue;
+                }
+
+                // 数值变化行
+                const numM = line.match(/^数值变化\s*[:：]\s*(.+)$/);
+                if (numM) {
+                    const parts = numM[1].split(/[，,、\/／]/).map(s => s.trim());
+                    for (const p of parts) {
+                        const m = p.match(/^(.+?)\s*([+\-＋－])\s*(\d+)$/);
+                        if (!m) continue;
+                        changes.push({
+                            key: m[1].trim(),
+                            delta: (m[2] === '-' || m[2] === '－' ? -1 : 1) * parseInt(m[3]),
+                        });
+                    }
+                }
+            }
+
+            // ---------- 判断目标是不是队友 ----------
+            // 目标可能是：队友名 / "玩家" / 其他
+            if (!target || (target !== ent.name && !target.includes(ent.name))) {
+                return;   // 效果不是给队友的，跳过
+            }
+
+            // ---------- 应用到 bond ----------
+            const applied = [];
+            for (const c of changes) {
+                // 只处理 bondStats 里存在的键
+                if (window.BondManager?.addStatValue?.(bond, c.key, c.delta)) {
+                    applied.push(c);
+                }
+            }
+
+            if (applied.length > 0) {
+                window.BondManager?._log?.(bond, `💬 对话：${applied.map(c => `${c.key}${c.delta > 0 ? '+' : ''}${c.delta}`).join('、')
+                    }`);
+                console.log(`[MapInteract] 队友养成效果：`, applied);
+            }
+        },
         // ============================================================
         // 2. 通用交互（物品 / 建筑 / 标记）
         // ============================================================
@@ -626,6 +1008,7 @@
                     guide,
                     sceneName: mapName,
                     sceneDesc: portal.description || '',
+                    isIndoor: portal._isBuilding === true,   // ← 加这一行
                 });
 
                 if (!newMap) {
@@ -1217,6 +1600,7 @@ ${playerInput}
                     guide,
                     sceneName: mapName,
                     sceneDesc: portal.description || '',
+                    isIndoor: portal._isBuilding === true,   // ← 加这一行
                 });
 
                 if (!newMap) {
@@ -1278,7 +1662,14 @@ ${playerInput}
         // ---------- 在目标地图里注入反向 portal ----------
         _injectReturnPortal(newMap, currentMap, sourcePortal, targetRegion) {
             if (!newMap.entities) newMap.entities = [];
-
+            // ★ 记录父地图
+            if (currentMap?.name && !newMap._parentMap) {
+                newMap._parentMap = currentMap.name;
+            }
+            // ★ 加这两行
+            if (currentMap?.name) {
+                newMap._parentMap = currentMap.name;
+            }
             // 反向 portal 要落在"进入区域"（targetRegion 或起点）
             const enterRegionId = targetRegion || newMap.startRegion;
             const enterRegion = newMap.regions.find(r => r.id === enterRegionId);
@@ -1586,25 +1977,39 @@ ${playerInput}
         // ============================================================
         _buildContextParts(map, ent, region) {
             const parts = [];
-
+        
             if (window.StoryManager) {
                 const ctx = window.StoryManager.buildContext(null, {
                     parentStory: false,
-                    mainChars: true,
+                    mainChars: false,
                     scene: false,
-                    interactionDigests: true,
+                    interactionDigests: false,   // ★ 保持关闭，不让它全量输出污染
                     volumes: false,
                     chapters: false,
                     pendingEvents: false,
                 });
                 if (ctx) parts.push(ctx);
             }
-
+        
+            // ★ 单独注入"与该实体的历史交互"（干净，只含目标）
+            if (window.InteractionDigestManager && ent) {
+                const chapterId = window.StoryManager?.currentChapter?.id;
+                if (chapterId) {
+                    // ★ 用地图实体专用函数，查的是"地图:XXX" key
+                    const digest = window.InteractionDigestManager.formatForMapEntityPrompt(
+                        ent.name, chapterId
+                    );
+                    if (digest) {
+                        parts.push(`【与 ${ent.name} 的过往交互】\n${digest}`);
+                    }
+                }
+            }
+        
             let mapCtx = `【地图】${map.name || ''}\n`;
             if (map.description) mapCtx += `${map.description}\n`;
             mapCtx += `\n【当前位置】${region?.name || '未知区域'}`;
             if (region?.description) mapCtx += `\n${region.description}`;
-
+        
             const siblings = map.entities.filter(e =>
                 e.region === region?.id && e.id !== ent.id && !e.isPlayer
             );
@@ -1614,13 +2019,13 @@ ${playerInput}
                     mapCtx += `\n- ${s.emoji} ${s.name}（${s.kind}）${s.description ? '：' + s.description : ''}`;
                 }
             }
-
+        
             parts.push(mapCtx);
-
+        
             if (window.PlayerStateManager) {
                 parts.push(window.PlayerStateManager.formatForPrompt());
             }
-
+        
             return parts.join('\n\n');
         },
 
@@ -1647,7 +2052,7 @@ ${playerInput}
             return lines.length > 0 ? '\n' + lines.join('\n') : '';
         },
     };
-
+    
     // ============================================================
     // ★ 战斗结束回调：地图实体 + 场景实体都处理
     // ============================================================
@@ -1656,25 +2061,34 @@ ${playerInput}
             if (!combat || combat.result !== 'victory') return;
             if (!combat.enemyItemName) return;
 
-            // ---------- 1. 地图实体 ----------
             const map = window.MapLauncher?.getMap?.();
+
+            // ---------- 1. 地图实体 ----------
             if (map) {
                 const ent = map.entities.find(e =>
                     e.name === combat.enemyItemName &&
-                    e.countMode === 'cluster' &&
-                    e.count > 1
+                    e.kind === 'encounter'
                 );
-                if (ent) {
-                    ent.count -= 1;
-                    console.log(`[MapInteract] 地图集群实体 ${ent.name} 剩余 ${ent.count}`);
 
+                if (ent) {
+                    ent.count = (ent.count || 1) - 1;
+                    console.log(`[MapInteract] 遭遇 ${ent.name} 剩余 ${ent.count}`);
+
+                    // ★ 全灭 → 从地图移除 + 记录到刷新队列
                     if (ent.count <= 0) {
                         const idx = map.entities.findIndex(e => e.id === ent.id);
-                        if (idx > -1) map.entities.splice(idx, 1);
+                        if (idx > -1) {
+                            const removed = map.entities.splice(idx, 1)[0];
+                            // ★ 记录到刷新
+                            window.MapSpawn?.onEncounterDefeated(map, removed);
+                        }
                         window.UIManager.showText(`${ent.name} 已被清除`, 1500);
                     } else {
                         window.UIManager.showText(`${ent.name} 还剩 ${ent.count} 个`, 1500);
                     }
+
+                    // 通知 3D
+                    window.CWNotify3D?.('all');
 
                     if (window.MapCanvas?.canvas) window.MapCanvas._render();
                     window.MapLauncher?._saveMapToWorld?.(map);

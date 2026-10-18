@@ -442,6 +442,47 @@
                         style="min-height:auto;padding:10px 14px;width:100%;box-sizing:border-box;">
                 </div>
 
+                <!-- ★ 新增：玩法区类型 -->
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:13px;color:#aaa;margin-bottom:6px;">玩法区类型</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <label class="cw-plot-type-card active" data-type="farm"
+                            style="display:flex;align-items:center;gap:10px;padding:12px;
+                                background:rgba(255,255,255,.04);border-radius:10px;
+                                border:2px solid rgba(120,150,255,.25);cursor:pointer;
+                                transition:all .15s;">
+                            <input type="radio" name="cw-plot-type" value="farm" checked
+                                style="display:none;">
+                            <span style="font-size:28px;">🌾</span>
+                            <div style="flex:1;">
+                                <div style="font-size:13px;color:#fff;font-weight:600;">农场</div>
+                                <div style="font-size:11px;color:#888;margin-top:2px;">
+                                    种植作物 · 浇水施肥 · 收获
+                                </div>
+                            </div>
+                        </label>
+                        <label class="cw-plot-type-card" data-type="factory"
+                            style="display:flex;align-items:center;gap:10px;padding:12px;
+                                background:rgba(255,255,255,.04);border-radius:10px;
+                                border:2px solid rgba(255,255,255,.06);cursor:pointer;
+                                transition:all .15s;">
+                            <input type="radio" name="cw-plot-type" value="factory"
+                                style="display:none;">
+                            <span style="font-size:28px;">🏭</span>
+                            <div style="flex:1;">
+                                <div style="font-size:13px;color:#fff;font-weight:600;">工厂</div>
+                                <div style="font-size:11px;color:#888;margin-top:2px;">
+                                    采集资源 · 加工 · 产出
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    <div id="cw-plot-type-hint"
+                        style="font-size:11px;color:#666;margin-top:6px;line-height:1.6;">
+                        🌾 农场：小时级生长，收获进背包。适合小镇、田野。
+                    </div>
+                </div>
+
                 <div style="margin-bottom:12px;">
                     <div style="font-size:13px;color:#aaa;margin-bottom:6px;">备注（可选）</div>
                     <textarea id="cw-plot-notes" class="cinemaworld-textarea"
@@ -449,7 +490,8 @@
                         style="min-height:60px;"></textarea>
                 </div>
 
-                <div style="margin-bottom:12px;">
+                <!-- ★ 农场专属：配置方式（选工厂时隐藏） -->
+                <div id="cw-plot-farm-config" style="margin-bottom:12px;">
                     <div style="font-size:13px;color:#aaa;margin-bottom:6px;">配置方式</div>
                     <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;
                         background:rgba(255,255,255,.04);border-radius:8px;cursor:pointer;
@@ -494,7 +536,34 @@
                     </button>
                 </div>`;
 
-            // 监听模式切换
+            // ★ 类型卡片切换
+            const typeCards = modal.querySelectorAll('.cw-plot-type-card');
+            typeCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    typeCards.forEach(c => {
+                        c.classList.remove('active');
+                        c.style.borderColor = 'rgba(255,255,255,.06)';
+                        c.style.background = 'rgba(255,255,255,.04)';
+                    });
+                    card.classList.add('active');
+                    card.style.borderColor = 'rgba(120,150,255,.7)';
+                    card.style.background = 'rgba(120,150,255,.1)';
+
+                    const radio = card.querySelector('input[name="cw-plot-type"]');
+                    if (radio) radio.checked = true;
+
+                    this._onTypeChange(card.dataset.type);
+                });
+            });
+
+            // 初始化卡片样式
+            const firstCard = modal.querySelector('.cw-plot-type-card.active');
+            if (firstCard) {
+                firstCard.style.borderColor = 'rgba(120,150,255,.7)';
+                firstCard.style.background = 'rgba(120,150,255,.1)';
+            }
+
+            // ★ 农场配置方式切换
             modal.querySelectorAll('input[name="cw-plot-mode"]').forEach(r => {
                 r.addEventListener('change', () => {
                     const wrap = document.getElementById('cw-plot-template-wrap');
@@ -505,41 +574,89 @@
             modal.className = 'active';
         },
 
+        // ★ 新增：切换类型时更新提示 + 隐藏农场专属配置
+        _onTypeChange(type) {
+            const hintEl = document.getElementById('cw-plot-type-hint');
+            const farmConfig = document.getElementById('cw-plot-farm-config');
+            const guideEl = document.getElementById('cw-plot-guide');
+            const nameEl = document.getElementById('cw-plot-name');
+
+            if (type === 'factory') {
+                if (hintEl) {
+                    hintEl.innerHTML = '🏭 工厂：分钟级生产，采集→加工→产出，资源进入工厂库存，可批量取走。适合工坊、矿场、加工厂。';
+                    hintEl.style.color = '#d8a870';
+                }
+                if (farmConfig) farmConfig.style.display = 'none';
+                if (guideEl) guideEl.placeholder = '例如：一座小型果汁加工厂，采集水果榨成果汁';
+                if (nameEl && (!nameEl.value || nameEl.value === '未命名玩法区')) {
+                    nameEl.placeholder = '例如：老王的铁匠铺';
+                }
+            } else {
+                if (hintEl) {
+                    hintEl.innerHTML = '🌾 农场：小时级生长，收获进背包。适合小镇、田野。';
+                    hintEl.style.color = '#666';
+                }
+                if (farmConfig) farmConfig.style.display = 'block';
+                if (guideEl) guideEl.placeholder = '例如：种小麦和玉米的普通农田';
+                if (nameEl) nameEl.placeholder = '例如：老王家的田';
+            }
+        },
+
         _confirmCreate() {
             const bounds = this._computeBounds();
             if (!bounds) return;
 
             const name = document.getElementById('cw-plot-name')?.value.trim() || '未命名玩法区';
             const notes = document.getElementById('cw-plot-notes')?.value.trim() || '';
-            const modeRadio = document.querySelector('input[name="cw-plot-mode"]:checked');
-            const mode = modeRadio?.value || 'ai';
             const guide = document.getElementById('cw-plot-guide')?.value.trim() || '';
-            const templateId = mode === 'template'
-                ? document.getElementById('cw-plot-template')?.value
-                : null;
+
+            // ★ 读类型
+            const typeRadio = document.querySelector('input[name="cw-plot-type"]:checked');
+            const plotType = typeRadio?.value === 'factory' ? 'factory' : 'farm';
+
+            // ★ 农场专属参数
+            let mode = 'ai';
+            let templateId = null;
+            if (plotType === 'farm') {
+                const modeRadio = document.querySelector('input[name="cw-plot-mode"]:checked');
+                mode = modeRadio?.value || 'ai';
+                templateId = mode === 'template'
+                    ? document.getElementById('cw-plot-template')?.value
+                    : null;
+            }
 
             const plot = this._createPlot({
-                name, type: 'farm', notes, bounds,
+                name,
+                type: plotType,
+                notes,
+                bounds,
                 templateId,
+                guide,   // ★ 传给 _createPlot，工厂用得上
             });
 
             window.UIManager.closeModal();
             this.cancelSelection();
 
-            if (plot) {
-                // ★ 新建的 plot 一定要清空商店状态（防止 id 撞车）
-                plot.shopState = null;
+            if (!plot) return;
 
-                setTimeout(() => {
+            // ★ 新建 plot 一定要清空商店状态（防止 id 撞车）
+            plot.shopState = null;
+
+            setTimeout(() => {
+                if (plotType === 'factory') {
+                    // 工厂：打开工厂界面（未配置会显示"生成"按钮）
+                    window.FactoryUI?.open?.(plot.id);
+                } else {
+                    // 农场：打开农场界面
                     window.MapFarmUI?.open?.(plot.id);
-                }, 300);
-            }
+                }
+            }, 300);
         },
 
         // ============================================================
         // 创建 Plot
         // ============================================================
-        _createPlot({ name, type, notes, bounds, templateId }) {
+        _createPlot({ name, type, notes, bounds, templateId, guide }) {
             const map = window.MapLauncher?.getMap?.();
             if (!map?._generated) return null;
 
@@ -548,6 +665,8 @@
             const id = `plot_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
             const now = this._readTotalMinutes(map);
 
+            const isFactory = type === 'factory';
+
             const plot = {
                 id, name, type, notes, bounds,
                 regionId: this._inferRegion(map, bounds),
@@ -555,8 +674,10 @@
 
                 rules: null,
                 shop: null,
-                emoji: '🌾',
-                color: 'rgba(120,200,120,0.30)',
+                emoji: isFactory ? '🏭' : '🌾',
+                color: isFactory
+                    ? 'rgba(180, 140, 80, 0.30)'
+                    : 'rgba(120, 200, 120, 0.30)',
 
                 env: { _order: [] },
                 status: 'idle',
@@ -568,17 +689,28 @@
                 shopState: null,
             };
 
-            // 用模板 → 复制
-            if (templateId) {
-                const tpl = MapPlotTemplate.get(templateId);
-                if (tpl) {
-                    plot.rules = JSON.parse(JSON.stringify(tpl.rules));
-                    plot.shop = JSON.parse(JSON.stringify(tpl.shop));
-                    plot.emoji = tpl.emoji || '🌾';
-                    plot.color = tpl.color || 'rgba(120,200,120,0.30)';
-                    this._initEnvFromRules(plot);
-                    plot.shopState = null;
+            // ---------- 类型专属初始化 ----------
+            if (isFactory) {
+                // 工厂：初始化运行时
+                if (window.FactorySchema) {
+                    plot.factory = window.FactorySchema.createEmpty(plot);
                 }
+                // 保留 guide 供后续生成用
+                plot._pendingGuide = guide || '';
+            } else {
+                // 农场：走模板
+                if (templateId) {
+                    const tpl = MapPlotTemplate.get(templateId);
+                    if (tpl) {
+                        plot.rules = JSON.parse(JSON.stringify(tpl.rules));
+                        plot.shop = JSON.parse(JSON.stringify(tpl.shop));
+                        plot.emoji = tpl.emoji || '🌾';
+                        plot.color = tpl.color || 'rgba(120,200,120,0.30)';
+                        this._initEnvFromRules(plot);
+                        plot.shopState = null;
+                    }
+                }
+                plot._pendingGuide = guide || '';
             }
 
             map._plots[id] = plot;
@@ -588,8 +720,11 @@
             window.MapLauncher?._saveMapToWorld?.(map);
             if (window.SaveManager) window.SaveManager.save();
 
-            console.log(`[MapPlot] 已创建：${name}`);
-            window.UIManager?.showText?.(`📐 已创建「${name}」`, 2000);
+            console.log(`[MapPlot] 已创建 ${isFactory ? '工厂' : '农场'}：${name}`);
+            window.UIManager?.showText?.(
+                `${isFactory ? '🏭' : '🌾'} 已创建「${name}」`,
+                2000
+            );
 
             if (window.MapCanvas?.canvas) window.MapCanvas._render();
             return plot;
@@ -697,33 +832,44 @@
             const map = window.MapLauncher?.getMap?.();
             const plot = map?._plots?.[plotId];
             if (!plot) return;
-        
+
             const { x, y, w, h } = plot.bounds;
             const el = document.createElement('div');
             el.id = 'cw-plot-info-card';
             el.className = 'cw-plot-info-card';
-        
-            const statusText = {
-                idle: '空地', growing: '生长中', ready: '可收获', dead: '荒废',
-            }[plot.status] || plot.status;
-        
+
+            const isFactory = plot.type === 'factory';
+
+            const statusText = isFactory
+                ? (plot.rules ? '已配置' : '未配置')
+                : ({
+                    idle: '空地', growing: '生长中',
+                    ready: '可收获', dead: '荒废',
+                }[plot.status] || plot.status);
+
             const configured = !!plot.rules;
-        
+
             el.innerHTML = `
                 <div class="cw-plot-info-header">
-                    <span class="cw-plot-info-emoji">${plot.emoji || '🌾'}</span>
+                    <span class="cw-plot-info-emoji">${plot.emoji || (isFactory ? '🏭' : '🌾')}</span>
                     <span class="cw-plot-info-name">${this._esc(plot.name)}</span>
                     <button class="cw-plot-info-close" onclick="MapPlotManager.selectPlot(null)">✕</button>
                 </div>
                 <div class="cw-plot-info-body">
+                    <div class="cw-plot-info-row">
+                        <span>类型</span>
+                        <span style="color:${isFactory ? '#d8a870' : '#7dd87d'};">
+                            ${isFactory ? '🏭 工厂' : '🌾 农场'}
+                        </span>
+                    </div>
                     <div class="cw-plot-info-row"><span>范围</span><span>${w} × ${h}</span></div>
-                    <div class="cw-plot-info-row"><span>状态</span><span>${configured ? statusText : '未配置'}</span></div>
+                    <div class="cw-plot-info-row"><span>状态</span><span>${statusText}</span></div>
                     ${plot.notes ? `<div class="cw-plot-info-notes">${this._esc(plot.notes)}</div>` : ''}
                 </div>
                 <div class="cw-plot-info-actions">
                     <button onclick="MapPlotManager._focusPlot('${plotId}')">📍 定位</button>
-                    <button onclick="UIManager.closeModal(); MapFarmUI.open('${plotId}')">
-                        ${configured ? '🌱 进入' : '⚙️ 配置'}
+                    <button onclick="UIManager.closeModal(); ${isFactory ? 'FactoryUI' : 'MapFarmUI'}.open('${plotId}')">
+                        ${configured ? '进入' : '配置'}
                     </button>
                     <button class="danger" onclick="MapPlotManager.deletePlot('${plotId}')">🗑️ 删除</button>
                 </div>`;
@@ -758,12 +904,12 @@
             const plots = Object.values(map._plots || {});
             const modal = document.getElementById('cinemaworld-modal');
             if (!modal) return;
-        
+
             let html = `<div class="cinemaworld-modal-title">📐 玩法区列表</div>
                 <div style="font-size:12px;color:#888;text-align:center;margin-bottom:14px;">
                     共 ${plots.length} 个玩法区
                 </div>`;
-        
+
             if (plots.length === 0) {
                 html += `<div style="text-align:center;padding:40px 20px;color:#666;font-size:14px;">
                     还没有划定的玩法区。<br>
@@ -774,13 +920,23 @@
                 for (const plot of plots) {
                     const { w, h } = plot.bounds;
                     const configured = !!plot.rules;
+                    const isFactory = plot.type === 'factory';
+
                     html += `
                         <div class="cw-plot-card" style="display:flex;align-items:center;gap:12px;">
                             <div style="flex:1;display:flex;align-items:center;gap:12px;cursor:pointer;"
                                 onclick="UIManager.closeModal(); MapPlotManager._focusPlot('${plot.id}'); MapPlotManager.selectPlot('${plot.id}');">
-                                <div style="font-size:28px;">${plot.emoji || '🌾'}</div>
+                                <div style="font-size:28px;">${plot.emoji || (isFactory ? '🏭' : '🌾')}</div>
                                 <div style="flex:1;min-width:0;">
-                                    <div style="font-size:14px;color:#fff;font-weight:600;">${this._esc(plot.name)}</div>
+                                    <div style="font-size:14px;color:#fff;font-weight:600;">
+                                        ${this._esc(plot.name)}
+                                        <span style="font-size:10px;color:${isFactory ? '#d8a870' : '#7dd87d'};
+                                            margin-left:6px;padding:2px 6px;
+                                            background:${isFactory ? 'rgba(216,168,112,.12)' : 'rgba(125,216,125,.12)'};
+                                            border-radius:4px;">
+                                            ${isFactory ? '工厂' : '农场'}
+                                        </span>
+                                    </div>
                                     <div style="font-size:11px;color:#888;margin-top:3px;">
                                         ${w}×${h} · ${configured ? '已配置' : '<span style="color:#ffd76b;">未配置</span>'}
                                     </div>
@@ -794,7 +950,7 @@
                 }
                 html += `</div>`;
             }
-        
+
             html += `
                 <div style="text-align:center;margin-top:16px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">
                     <button class="cinemaworld-button primary" onclick="UIManager.closeModal(); MapPlotManager.enterSelectMode();">
@@ -805,7 +961,7 @@
                     </button>
                     <button class="cinemaworld-button" onclick="UIManager.closeModal()">关闭</button>
                 </div>`;
-        
+
             modal.className = 'active';
             modal.innerHTML = html;
         },
@@ -820,7 +976,7 @@
         _bakePlotLayer(map) {
             if (!map?._generated) return;
 
-            const BASE_TS = 64;   // ★ 固定基准，与运行时 tileSize 解耦
+            const BASE_TS = 64;
             const mapW = map._generated.width;
             const mapH = map._generated.height;
             const w = mapW * BASE_TS;
@@ -838,10 +994,91 @@
             ctx.clearRect(0, 0, w, h);
 
             for (const plot of Object.values(map._plots || {})) {
-                this._drawPlotCropsToCache(ctx, plot, BASE_TS);   // ★ 用 BASE_TS
+                if (plot.type === 'factory') {
+                    this._drawFactoryToCache(ctx, plot, BASE_TS);
+                } else {
+                    this._drawPlotCropsToCache(ctx, plot, BASE_TS);
+                }
             }
 
             this._plotCacheDirty = false;
+        },
+
+        // ★ 新增：工厂地块画缩略建筑
+        _drawFactoryToCache(ctx, plot, tileSize) {
+            const { x, y, w, h } = plot.bounds;
+
+            // 未配置 → 灰色底
+            if (!plot.rules || !plot.factory) {
+                ctx.fillStyle = 'rgba(100, 100, 100, 0.2)';
+                for (let dy = 0; dy < h; dy++) {
+                    for (let dx = 0; dx < w; dx++) {
+                        ctx.fillRect(
+                            (x + dx) * tileSize + 2,
+                            (y + dy) * tileSize + 2,
+                            tileSize - 4, tileSize - 4
+                        );
+                    }
+                }
+                return;
+            }
+
+            // 工厂：底色 + 每格的建筑 emoji
+            const f = plot.factory;
+            const rules = plot.rules;
+
+            // 底色（工业棕）
+            ctx.fillStyle = 'rgba(180, 140, 80, 0.18)';
+            for (let dy = 0; dy < h; dy++) {
+                for (let dx = 0; dx < w; dx++) {
+                    ctx.fillRect(
+                        (x + dx) * tileSize + 2,
+                        (y + dy) * tileSize + 2,
+                        tileSize - 4, tileSize - 4
+                    );
+                }
+            }
+
+            // 建筑
+            ctx.font = `${Math.floor(tileSize * 0.55)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (let dy = 0; dy < f.height && dy < h; dy++) {
+                for (let dx = 0; dx < f.width && dx < w; dx++) {
+                    const cell = f.cells[dy]?.[dx];
+                    if (!cell?.building) continue;
+
+                    const t = rules.buildingTypes[cell.building.type];
+                    if (!t) continue;
+
+                    const size = cell.building.size || 1;
+                    const cx = (x + dx) * tileSize + tileSize * size / 2;
+                    const cy = (y + dy) * tileSize + tileSize * size / 2;
+
+                    // 建筑底色
+                    if (size > 1) {
+                        ctx.fillStyle = this._kindBg(t.kind);
+                        ctx.fillRect(
+                            (x + dx) * tileSize + 1,
+                            (y + dy) * tileSize + 1,
+                            tileSize * size - 2,
+                            tileSize * size - 2
+                        );
+                    }
+
+                    ctx.fillText(t.emoji, cx, cy);
+                }
+            }
+        },
+
+        _kindBg(kind) {
+            return {
+                extractor: 'rgba(100, 180, 100, 0.25)',
+                processor: 'rgba(220, 140, 80, 0.25)',
+                storage:   'rgba(120, 150, 200, 0.25)',
+                power:     'rgba(255, 215, 100, 0.25)',
+            }[kind] || 'rgba(255,255,255,0.1)';
         },
 
         _drawPlotCropsToCache(ctx, plot, tileSize) {

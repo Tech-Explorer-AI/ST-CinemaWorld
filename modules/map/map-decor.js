@@ -15,104 +15,114 @@
     // ---------- 地形关键词表 ----------
     const TERRAIN_KEYWORDS = {
         // 户外地面
-        grass:        ['草', '草地', '草原', '草坪'],
-        tall_grass:   ['深草', '长草', '荒草'],
-        dry_grass:    ['干草', '枯黄'],
-        dirt:         ['泥土', '土', '泥地', '泥泞'],
-        sand:         ['沙', '沙地', '沙滩', '砂石', '砂土', '沙子'],
-        snow:         ['雪', '雪地', '积雪'],
-        gravel:       ['砾石', '碎石', '碎石地', '碎砾', '石砾', '砾'],
-        dirt_path:    ['土路', '泥路'],
+        grass: ['草', '草地', '草原', '草坪'],
+        tall_grass: ['深草', '长草', '荒草'],
+        dry_grass: ['干草', '枯黄'],
+        dirt: ['泥土', '土', '泥地', '泥泞'],
+        sand: ['沙', '沙地', '沙滩', '砂石', '砂土', '沙子'],
+        snow: ['雪', '雪地', '积雪'],
+        gravel: ['砾石', '碎石', '碎石地', '碎砾', '石砾', '砾'],
+        dirt_path: ['土路', '泥路'],
         // 铺装地面
-        stone:        ['石板', '石地', '石路', '铺装', '青石', '石阶'],
-        cobblestone:  ['鹅卵石', '旧石路', '老街', '卵石'],
-        asphalt:      ['柏油', '沥青', '马路'],
-        concrete:     ['水泥', '混凝土', '水泥地'],
-        brick:        ['砖', '红砖', '砖地'],
-        tile:         ['瓷砖', '地砖'],
-        wooden_deck:  ['木栈道', '木桥', '木板', '栈桥', '木地'],
-        pebble_path:  ['鹅卵石小径', '小径'],
+        stone: ['石板', '石地', '石路', '铺装', '青石', '石阶'],
+        cobblestone: ['鹅卵石', '旧石路', '老街', '卵石'],
+        asphalt: ['柏油', '沥青', '马路'],
+        concrete: ['水泥', '混凝土', '水泥地'],
+        brick: ['砖', '红砖', '砖地'],
+        tile: ['瓷砖', '地砖'],
+        wooden_deck: ['木栈道', '木桥', '木板', '栈桥', '木地'],
+        pebble_path: ['鹅卵石小径', '小径'],
         // 室内
-        wood:         ['木地板', '木地板', '木制地板'],
-        marble:       ['大理石', '华贵', '殿堂'],
-        carpet:       ['地毯', '红毯'],
-        gray_carpet:  ['灰地毯'],
-        ceramic:      ['陶瓷'],
+        wood: ['木地板', '木地板', '木制地板'],
+        marble: ['大理石', '华贵', '殿堂'],
+        carpet: ['地毯', '红毯'],
+        gray_carpet: ['灰地毯'],
+        ceramic: ['陶瓷'],
         concrete_floor: ['水泥地板'],
-        parquet:      ['拼木', '拼花'],
+        parquet: ['拼木', '拼花'],
         patterned_tile: ['花纹地砖', '花砖'],
         // 墙面
-        wall:         ['砖墙', '墙'],
-        stone_wall:   ['石墙'],
-        concrete_wall:['水泥墙'],
-        wood_wall:    ['木墙'],
-        white_wall:   ['白墙'],
-        glass_wall:   ['玻璃幕墙'],
-        metal_wall:   ['铁皮墙', '金属墙'],
-        tile_wall:    ['瓷砖墙'],
+        wall: ['砖墙', '墙'],
+        stone_wall: ['石墙'],
+        concrete_wall: ['水泥墙'],
+        wood_wall: ['木墙'],
+        white_wall: ['白墙'],
+        glass_wall: ['玻璃幕墙'],
+        metal_wall: ['铁皮墙', '金属墙'],
+        tile_wall: ['瓷砖墙'],
         // 水面
-        water:        ['水', '河', '湖', '溪', '海面', '水面', '池'],
-        deep_water:   ['深水'],
-        sea:          ['海', '海水'],
-        lake:         ['湖', '湖泊'],
-        river:        ['河', '河流'],
-        ripple:       ['波纹', '水波'],
-        underwater:   ['水下'],
-        waterfall:    ['瀑布'],
+        water: ['水', '河', '湖', '溪', '海面', '水面', '池'],
+        deep_water: ['深水'],
+        sea: ['海', '海水'],
+        lake: ['湖', '湖泊'],
+        river: ['河', '河流'],
+        ripple: ['波纹', '水波'],
+        underwater: ['水下'],
+        waterfall: ['瀑布'],
         // 自然边缘
-        grass_edge:   ['草边'],
-        shore:        ['岸边', '水岸', '滩涂', '滩', '海滩'],
-        beach_edge:   ['沙滩边缘'],
-        snow_edge:    ['雪边'],
+        grass_edge: ['草边'],
+        shore: ['岸边', '水岸', '滩涂', '滩', '海滩'],
+        beach_edge: ['沙滩边缘'],
+        snow_edge: ['雪边'],
         rocky_ground: ['岩地', '岩石地面', '岩石', '岩'],
-        cliff_top:    ['崖顶', '山顶'],
-        mud_edge:     ['泥边'],
-        fallen_leaves:['落叶', '枯叶', '落花', '花瓣'],
+        cliff_top: ['崖顶', '山顶'],
+        mud_edge: ['泥边'],
+        fallen_leaves: ['落叶', '枯叶', '落花', '花瓣'],
         // 特殊
-        lava:         ['岩浆', '熔岩', '火'],
-        swamp:        ['沼泽', '湿地', '泥沼'],
-        ice:          ['冰', '冰面', '结冰'],
-        snow_field:   ['雪原'],
-        moss:         ['苔藓', '苔', '青苔', '青苔地'],
-        vine_ground:  ['藤蔓', '藤'],
+        lava: ['岩浆', '熔岩', '火'],
+        swamp: ['沼泽', '湿地', '泥沼'],
+        ice: ['冰', '冰面', '结冰'],
+        snow_field: ['雪原'],
+        moss: ['苔藓', '苔', '青苔', '青苔地'],
+        vine_ground: ['藤蔓', '藤'],
         flower_field: ['花田', '花海', '花地'],
-        dead_grass:   ['枯草', '荒草'],
+        dead_grass: ['枯草', '荒草'],
         // 界面
-        void:         ['虚空'],
-        white_floor:  ['纯白地', '白砂', '白沙'],
-        gray_floor:   ['纯灰地'],
+        void: ['虚空'],
+        white_floor: ['纯白地', '白砂', '白沙'],
+        gray_floor: ['纯灰地'],
         checkerboard: ['棋盘格'],
-        warning:      ['警告条纹'],
-        metal_floor:  ['金属地板'],
-        glowing_floor:['发光地板'],
-        transparent:  ['透明'],
+        warning: ['警告条纹'],
+        metal_floor: ['金属地板'],
+        glowing_floor: ['发光地板'],
+        transparent: ['透明'],
     };
 
     // ---------- 装饰关键词表（大类） ----------
     const DECOR_KEYWORDS = {
         // 自然
-        tree:  ['树', '林', '乔木', '樱花', '樱', '梅', '松', '竹', '柳', '枯树', '古树'],
+        tree: ['树', '林', '乔木', '樱花', '樱', '梅', '松', '竹', '柳', '枯树', '古树'],
         plant: ['花', '草', '植', '藤', '芦苇', '苔', '莲', '竹叶', '野花', '灌木', '丛'],
-        rock:  ['石', '岩', '碎', '瓦', '砾', '石块', '碎石', '岩石'],
+        rock: ['石', '岩', '碎', '瓦', '砾', '石块', '碎石', '岩石'],
 
         // 街道
-        lamp:  ['路灯', '街灯'],
+        lamp: ['路灯', '街灯'],
         bench: ['长椅', '凳', '椅', '石凳', '木凳'],
         trash: ['垃圾桶', '垃圾'],
-        sign:  ['告示', '路标', '牌', '标语', '木牌', '告示板', '布幌子', '幌子'],
+        sign: ['告示', '路标', '牌', '标语', '木牌', '告示板', '布幌子', '幌子'],
     };
+
+
 
     // ---------- 装饰变体关键词（细分） ----------
     const DECOR_VARIANT_KEYWORDS = {
+        // map-decor.js · DECOR_VARIANT_KEYWORDS.tree
         tree: [
-            { v: 0, keywords: ['普通', '绿树', '橡树'] },
-            { v: 2, keywords: ['松', '松树', '针叶', '云杉'] },
-            { v: 4, keywords: ['枯', '枯树', '死树'] },
-            { v: 6, keywords: ['樱', '樱花', '粉'] },
+            { v: 0, keywords: ['橡', '橡树', '绿树', '普通', '阔叶', '柞'] },
+            { v: 1, keywords: ['白桦', '桦树', '桦'] },
+            { v: 2, keywords: ['松', '松树', '针叶', '云杉', '油松'] },
+            { v: 3, keywords: ['枫', '枫树', '红枫', '秋树'] },
+            { v: 4, keywords: ['柳', '柳树', '垂柳'] },
+            { v: 5, keywords: ['杉', '杉树', '冷杉', '塔松', '柏'] },
+            { v: 6, keywords: ['樱', '樱花', '粉樱'] },
             { v: 7, keywords: ['梅', '梅花'] },
+            { v: 8, keywords: ['竹', '竹子', '竹丛'] },
+            { v: 9, keywords: ['椰', '椰子', '椰子树', '棕榈', '热带'] },
+            { v: 10, keywords: ['枯', '枯树', '死树', '朽木'] },
+            { v: 11, keywords: ['榕', '榕树', '古树', '老树'] },
         ],
         plant: [
-            { v: 8,  keywords: ['花', '野花', '鲜花'] },
+            { v: 8, keywords: ['花', '野花', '鲜花'] },
             { v: 12, keywords: ['灌木', '丛', '矮树'] },
         ],
         rock: [
@@ -123,57 +133,57 @@
 
     // ---------- 迷你建筑表（1×1） ----------
     const MINI_BUILDING_CATALOG = {
-        kiosk:        { name: '摊位',   emoji: '🏪', decorType: 'small_building', variant: 0, blocking: true,  keywords: ['摊位', '小摊', '货摊', '摊贩'] },
-        well:         { name: '水井',   emoji: '⛲', decorType: 'small_building', variant: 1, blocking: true,  keywords: ['水井', '井', '古井'] },
-        stone_lantern:{ name: '石灯笼', emoji: '🏮', decorType: 'small_building', variant: 2, blocking: true,  keywords: ['石灯笼', '灯笼'] },
-        shrine:       { name: '小祠',   emoji: '⛩️', decorType: 'small_building', variant: 3, blocking: true,  keywords: ['小祠', '神龛', '小庙'] },
-        tent:         { name: '帐篷',   emoji: '⛺', decorType: 'small_building', variant: 4, blocking: true,  keywords: ['帐篷', '营地'] },
-        shed:         { name: '棚屋',   emoji: '🛖', decorType: 'small_building', variant: 5, blocking: true,  keywords: ['棚屋', '棚子', '小屋', '棚'] },
-        stall:        { name: '货摊',   emoji: '🛒', decorType: 'small_building', variant: 6, blocking: true,  keywords: ['货摊', '商铺小摊'] },
-        mailbox:      { name: '信箱',   emoji: '📮', decorType: 'mailbox',       variant: 0, blocking: true,  keywords: ['信箱', '邮筒'] },
-        hydrant:      { name: '消防栓', emoji: '🚒', decorType: 'hydrant',       variant: 0, blocking: true,  keywords: ['消防栓', '消防'] },
-        bus_stop:     { name: '公交站', emoji: '🚌', decorType: 'bus_stop',      variant: 0, blocking: false, keywords: ['公交站', '车站', '候车'] },
-        lamp:         { name: '路灯',   emoji: '💡', decorType: 'lamp',          variant: 0, blocking: true,  keywords: ['路灯', '街灯'] },
-        signboard:    { name: '木牌',   emoji: '🪧', decorType: 'sign',          variant: 0, blocking: false, keywords: ['木牌', '告示板', '告示牌'] },
-        mooring:      { name: '系船桩', emoji: '🪵', decorType: 'rock',          variant: 3, blocking: false, keywords: ['系船桩', '船桩', '缆绳'] },
-        net_rack:     { name: '晾网架', emoji: '🎣', decorType: 'small_building', variant: 7, blocking: true,  keywords: ['晾网架', '渔网', '晾网'] },
-        water_tub:    { name: '水缸',   emoji: '🏺', decorType: 'small_building', variant: 4, blocking: true,  keywords: ['水缸', '缸', '木桶', '桶'] },
-        wood_bench:   { name: '长椅',   emoji: '🪑', decorType: 'bench',         variant: 0, blocking: false, keywords: ['长椅', '石凳', '木凳'] },
-        water_basin:  { name: '水钵',   emoji: '⛲', decorType: 'small_building', variant: 1, blocking: true,  keywords: ['水钵', '手水舍'] },
-        flags:        { name: '旗杆',   emoji: '🚩', decorType: 'small_building', variant: 6, blocking: true,  keywords: ['旗杆', '旗'] },
+        kiosk: { name: '摊位', emoji: '🏪', decorType: 'small_building', variant: 0, blocking: true, keywords: ['摊位', '小摊', '货摊', '摊贩'] },
+        well: { name: '水井', emoji: '⛲', decorType: 'small_building', variant: 1, blocking: true, keywords: ['水井', '井', '古井'] },
+        stone_lantern: { name: '石灯笼', emoji: '🏮', decorType: 'small_building', variant: 2, blocking: true, keywords: ['石灯笼', '灯笼'] },
+        shrine: { name: '小祠', emoji: '⛩️', decorType: 'small_building', variant: 3, blocking: true, keywords: ['小祠', '神龛', '小庙'] },
+        tent: { name: '帐篷', emoji: '⛺', decorType: 'small_building', variant: 4, blocking: true, keywords: ['帐篷', '营地'] },
+        shed: { name: '棚屋', emoji: '🛖', decorType: 'small_building', variant: 5, blocking: true, keywords: ['棚屋', '棚子', '小屋', '棚'] },
+        stall: { name: '货摊', emoji: '🛒', decorType: 'small_building', variant: 6, blocking: true, keywords: ['货摊', '商铺小摊'] },
+        mailbox: { name: '信箱', emoji: '📮', decorType: 'mailbox', variant: 0, blocking: true, keywords: ['信箱', '邮筒'] },
+        hydrant: { name: '消防栓', emoji: '🚒', decorType: 'hydrant', variant: 0, blocking: true, keywords: ['消防栓', '消防'] },
+        bus_stop: { name: '公交站', emoji: '🚌', decorType: 'bus_stop', variant: 0, blocking: false, keywords: ['公交站', '车站', '候车'] },
+        lamp: { name: '路灯', emoji: '💡', decorType: 'lamp', variant: 0, blocking: true, keywords: ['路灯', '街灯'] },
+        signboard: { name: '木牌', emoji: '🪧', decorType: 'sign', variant: 0, blocking: false, keywords: ['木牌', '告示板', '告示牌'] },
+        mooring: { name: '系船桩', emoji: '🪵', decorType: 'rock', variant: 3, blocking: false, keywords: ['系船桩', '船桩', '缆绳'] },
+        net_rack: { name: '晾网架', emoji: '🎣', decorType: 'small_building', variant: 7, blocking: true, keywords: ['晾网架', '渔网', '晾网'] },
+        water_tub: { name: '水缸', emoji: '🏺', decorType: 'small_building', variant: 4, blocking: true, keywords: ['水缸', '缸', '木桶', '桶'] },
+        wood_bench: { name: '长椅', emoji: '🪑', decorType: 'bench', variant: 0, blocking: false, keywords: ['长椅', '石凳', '木凳'] },
+        water_basin: { name: '水钵', emoji: '⛲', decorType: 'small_building', variant: 1, blocking: true, keywords: ['水钵', '手水舍'] },
+        flags: { name: '旗杆', emoji: '🚩', decorType: 'small_building', variant: 6, blocking: true, keywords: ['旗杆', '旗'] },
     };
 
     // ---------- 大建筑部件表 ----------
     const BUILDING_PARTS = {
         wall: [
-            { key: 'brick_wall',    name: '砖墙',     variant: 0, keywords: ['砖', '红砖'] },
-            { key: 'stone_wall',    name: '石墙',     variant: 1, keywords: ['石', '石砌'] },
-            { key: 'concrete_wall', name: '水泥墙',   variant: 2, keywords: ['水泥', '混凝土'] },
-            { key: 'wood_wall',     name: '木墙',     variant: 3, keywords: ['木', '木板'] },
-            { key: 'white_wall',    name: '白墙',     variant: 4, keywords: ['白', '刷白'] },
-            { key: 'glass_wall',    name: '玻璃幕墙', variant: 5, keywords: ['玻璃', '幕墙'] },
-            { key: 'metal_wall',    name: '铁皮墙',   variant: 6, keywords: ['铁', '金属'] },
-            { key: 'tile_wall',     name: '瓷砖墙',   variant: 7, keywords: ['瓷砖', '瓷'] },
+            { key: 'brick_wall', name: '砖墙', variant: 0, keywords: ['砖', '红砖'] },
+            { key: 'stone_wall', name: '石墙', variant: 1, keywords: ['石', '石砌'] },
+            { key: 'concrete_wall', name: '水泥墙', variant: 2, keywords: ['水泥', '混凝土'] },
+            { key: 'wood_wall', name: '木墙', variant: 3, keywords: ['木', '木板'] },
+            { key: 'white_wall', name: '白墙', variant: 4, keywords: ['白', '刷白'] },
+            { key: 'glass_wall', name: '玻璃幕墙', variant: 5, keywords: ['玻璃', '幕墙'] },
+            { key: 'metal_wall', name: '铁皮墙', variant: 6, keywords: ['铁', '金属'] },
+            { key: 'tile_wall', name: '瓷砖墙', variant: 7, keywords: ['瓷砖', '瓷'] },
         ],
         roof: [
-            { key: 'red_roof',     name: '红瓦',   variant: 0, keywords: ['红瓦', '红顶'] },
-            { key: 'gray_roof',    name: '灰瓦',   variant: 1, keywords: ['灰瓦', '灰顶'] },
-            { key: 'flat_roof',    name: '平顶',   variant: 2, keywords: ['平顶', '现代'] },
-            { key: 'pointed_roof', name: '尖顶',   variant: 3, keywords: ['尖顶', '塔'] },
-            { key: 'glass_roof',   name: '玻璃顶', variant: 4, keywords: ['玻璃顶'] },
-            { key: 'metal_roof',   name: '铁皮顶', variant: 5, keywords: ['铁皮顶', '金属顶'] },
-            { key: 'thatch_roof',  name: '茅草顶', variant: 6, keywords: ['茅草', '草顶'] },
-            { key: 'modern_roof',  name: '现代顶', variant: 7, keywords: ['现代', '简约'] },
+            { key: 'red_roof', name: '红瓦', variant: 0, keywords: ['红瓦', '红顶'] },
+            { key: 'gray_roof', name: '灰瓦', variant: 1, keywords: ['灰瓦', '灰顶'] },
+            { key: 'flat_roof', name: '平顶', variant: 2, keywords: ['平顶', '现代'] },
+            { key: 'pointed_roof', name: '尖顶', variant: 3, keywords: ['尖顶', '塔'] },
+            { key: 'glass_roof', name: '玻璃顶', variant: 4, keywords: ['玻璃顶'] },
+            { key: 'metal_roof', name: '铁皮顶', variant: 5, keywords: ['铁皮顶', '金属顶'] },
+            { key: 'thatch_roof', name: '茅草顶', variant: 6, keywords: ['茅草', '草顶'] },
+            { key: 'modern_roof', name: '现代顶', variant: 7, keywords: ['现代', '简约'] },
         ],
         door: [
-            { key: 'wood_door',      name: '木门',   variant: 0, keywords: ['木门'] },
-            { key: 'glass_door',     name: '玻璃门', variant: 1, keywords: ['玻璃门'] },
-            { key: 'iron_door',      name: '铁门',   variant: 2, keywords: ['铁门'] },
-            { key: 'rolling_door',   name: '卷帘门', variant: 3, keywords: ['卷帘'] },
+            { key: 'wood_door', name: '木门', variant: 0, keywords: ['木门'] },
+            { key: 'glass_door', name: '玻璃门', variant: 1, keywords: ['玻璃门'] },
+            { key: 'iron_door', name: '铁门', variant: 2, keywords: ['铁门'] },
+            { key: 'rolling_door', name: '卷帘门', variant: 3, keywords: ['卷帘'] },
             { key: 'revolving_door', name: '旋转门', variant: 4, keywords: ['旋转'] },
-            { key: 'auto_door',      name: '自动门', variant: 5, keywords: ['自动'] },
-            { key: 'double_door',    name: '双开门', variant: 6, keywords: ['双开', '对开'] },
-            { key: 'arch_door',      name: '拱门',   variant: 7, keywords: ['拱门', '拱形'] },
+            { key: 'auto_door', name: '自动门', variant: 5, keywords: ['自动'] },
+            { key: 'double_door', name: '双开门', variant: 6, keywords: ['双开', '对开'] },
+            { key: 'arch_door', name: '拱门', variant: 7, keywords: ['拱门', '拱形'] },
         ],
     };
 
@@ -231,16 +241,82 @@
         hydrant: 'facility',
         bus_stop: 'facility',
     };
+    // ---------- ★ 装饰分布规则 ----------
+    //   role: 'natural' | 'facility' | 'landmark'
+    //   natural:  跟随地形，按密度放
+    //   facility: 沿路等距放
+    //   landmark: 区域中心放
+    const DECOR_PLACEMENT = {
+        // ---------- 自然 ----------
+        tree: {
+            role: 'natural',
+            preferTerrain: ['grass', 'tall_grass', 'dirt', 'moss', 'dead_grass', 'fallen_leaves'],
+            density: 0.12,
+            avoidNearRoad: 2,             // 离路至少 2 格
+        },
+        plant: {
+            role: 'natural',
+            preferTerrain: ['grass', 'tall_grass', 'flower_field', 'moss'],
+            density: 0.18,
+            preferNearRoad: [1, 4],       // ★ 喜欢路边 1~4 格
+        },
+        rock: {
+            role: 'natural',
+            preferTerrain: ['gravel', 'dirt', 'rocky_ground', 'stone', 'pebble_path'],
+            density: 0.10,
+        },
 
+        // ---------- 街道设施 ----------
+        lamp: {
+            role: 'facility',
+            preferNearRoad: [1, 1],       // ★ 只在路 1 格内
+            spacing: 8,                    // ★ 每 8 个道路格放一个
+        },
+        bench: {
+            role: 'facility',
+            preferNearRoad: [1, 2],
+            spacing: 12,
+        },
+        trash: {
+            role: 'facility',
+            preferNearRoad: [1, 2],
+            spacing: 15,
+        },
+        sign: {
+            role: 'facility',
+            preferNearRoad: [1, 2],
+            spacing: 20,
+        },
+        mailbox: {
+            role: 'facility',
+            preferNearRoad: [1, 2],
+            spacing: 25,
+        },
+        hydrant: {
+            role: 'facility',
+            preferNearRoad: [1, 2],
+            spacing: 30,
+        },
+        bus_stop: {
+            role: 'facility',
+            preferNearRoad: [1, 1],
+            spacing: 40,
+        },
+
+        // ---------- 地标 ----------
+        small_building: {
+            role: 'landmark',
+        },
+    };
     // ---------- 装饰 → 兼容地形白名单 ----------
     const DECOR_TERRAIN_AFFINITY = {
-        tree:  ['grass', 'tall_grass', 'dirt', 'moss', 'flower_field', 'snow', 'dead_grass', 'fallen_leaves', 'grass_edge'],
+        tree: ['grass', 'tall_grass', 'dirt', 'moss', 'flower_field', 'snow', 'dead_grass', 'fallen_leaves', 'grass_edge'],
         plant: ['grass', 'tall_grass', 'dirt', 'moss', 'flower_field', 'shore', 'sand', 'fallen_leaves'],
-        rock:  ['stone', 'gravel', 'rock', 'dirt', 'snow', 'sand', 'rocky_ground', 'mud_edge', 'cliff_top', 'pebble_path'],
-        lamp:  ['stone', 'cobblestone', 'concrete', 'brick', 'asphalt', 'tile'],
+        rock: ['stone', 'gravel', 'rock', 'dirt', 'snow', 'sand', 'rocky_ground', 'mud_edge', 'cliff_top', 'pebble_path'],
+        lamp: ['stone', 'cobblestone', 'concrete', 'brick', 'asphalt', 'tile'],
         bench: ['stone', 'grass', 'cobblestone', 'concrete', 'dirt'],
         trash: ['stone', 'cobblestone', 'concrete'],
-        sign:  ['stone', 'dirt', 'grass', 'cobblestone', 'concrete'],
+        sign: ['stone', 'dirt', 'grass', 'cobblestone', 'concrete'],
         small_building: ['stone', 'dirt', 'grass', 'cobblestone', 'concrete', 'sand', 'wooden_deck'],
         mailbox: ['stone', 'cobblestone', 'concrete'],
         hydrant: ['stone', 'cobblestone', 'concrete', 'asphalt'],
@@ -289,6 +365,13 @@
         // 匹配
         // ============================================================
         matchTerrain(word) {
+            if (!word) return null;
+
+            // ★ 如果 word 已经是合法 key（英文），直接返回
+            if (window.MapSchema?.TERRAIN_PRESET?.[word]) {
+                return word;
+            }
+
             return this._matchByKeywords(word, this._terrainTable());
         },
 
@@ -438,22 +521,97 @@
         decorateRegion(grid, regionRect, resources, ctx) {
             const { rng, isRoadAt, isBuildingAt } = ctx;
 
-            // 1. 地形（主地形 + 副地形扩散）
-            this._applyTerrains(grid, regionRect, resources.terrains, rng);
-
-            // 2. 距离场
+            // ★ 1. 先算距离场（因为道路已经在地图里了）
             const distField = this._buildDistanceField(grid, regionRect, {
                 isRoadAt, isBuildingAt,
             });
 
-            // 3. 装饰按角色分层
+            // ★ 2. 地形按道路距离分段铺
+            this._applyTerrainsByRoadDistance(
+                grid, regionRect, resources.terrains, distField, rng
+            );
+
+            // ★ 3. 装饰按角色分层
             const placed = [];
 
             this._placeNaturalDecors(grid, regionRect, resources.decors, distField, rng, placed);
-            this._placeFacilities(grid, regionRect, resources.decors, distField, rng, placed);
             this._placeLandmarks(grid, regionRect, resources.minis, distField, rng, placed);
         },
-        
+
+        // ============================================================
+        // ★ 按道路距离分段铺地形
+        //   dist 1~2  → 主地形
+        //   dist 3    → 副地形 1
+        //   dist 4~5  → 副地形 2
+        //   dist 6+   → 副地形 3
+        // ============================================================
+        _applyTerrainsByRoadDistance(grid, rect, terrains, distField, rng) {
+            if (!terrains || terrains.length === 0) {
+                this._applyTerrains(grid, rect, terrains, rng);
+                return;
+            }
+
+            const presets = window.MapSchema?.TERRAIN_PRESET || {};
+            const main = terrains[0];
+            const subs = terrains.slice(1);
+
+            const mainPreset = presets[main.key];
+            if (!mainPreset) return;
+
+            // ★ 距离分段
+            const lastSub = subs[subs.length - 1] || main;
+            const BANDS = [
+                { maxDist: 3, terrain: main },                       // 1~2 格：主
+                { maxDist: 6, terrain: subs[0] || lastSub },         // 3 格：副 1
+                { maxDist: 9, terrain: subs[1] || lastSub },         // 4~5 格：副 2
+                { maxDist: Infinity, terrain: subs[2] || lastSub },  // 6+ 格：副 3
+            ];
+
+            // 预计算 preset
+            const presetMap = new Map();
+            for (const band of BANDS) {
+                const key = band.terrain?.key;
+                if (!key || presetMap.has(key)) continue;
+                const p = presets[key];
+                if (p) presetMap.set(key, p);
+            }
+
+            for (let y = 0; y < rect.h; y++) {
+                for (let x = 0; x < rect.w; x++) {
+                    const gx = rect.x + x;
+                    const gy = rect.y + y;
+                    const cell = grid[gy]?.[gx];
+                    if (!cell) continue;
+                    if (cell.road) continue;      // 道路格不动
+                    if (cell.regionId && cell.regionId !== rect.regionId) continue;
+
+                    const dist = distField.distRoad[y]?.[x];
+
+                    let band;
+                    if (dist === undefined || dist === Infinity || dist === null) {
+                        band = BANDS[BANDS.length - 1];
+                    } else {
+                        band = BANDS.find(b => dist <= b.maxDist) || BANDS[BANDS.length - 1];
+                    }
+
+                    const key = band.terrain?.key;
+                    const preset = presetMap.get(key);
+                    if (!preset) continue;
+
+                    cell.terrain = key;
+                    cell.regionId = rect.regionId || null;
+                    cell.walkable = preset.walkable;
+                    cell.emoji = preset.emoji;
+                }
+            }
+        },
+
+        _pickOne(mainKey, subs, mainChance, rng) {
+            if (!subs || subs.length === 0) return mainKey;
+            if (rng() < mainChance) return mainKey;
+            return subs[Math.floor(rng() * subs.length)].key;
+        },
+
 
         // ---------- 地形 ----------
         _applyTerrains(grid, rect, terrains, rng) {
@@ -611,26 +769,137 @@
         },
 
         // ---------- 自然装饰（3×3 簇） ----------
+        // ---------- 自然装饰 + 街道设施 ----------
         _placeNaturalDecors(grid, rect, decors, distField, rng, placed) {
             if (!decors || decors.length === 0) return;
 
-            const naturals = decors.filter(d =>
-                (DECOR_TYPE_ROLE[d.type] || 'natural') === 'natural'
-            );
-            if (naturals.length === 0) return;
+            // 分两类
+            const naturals = [];
+            const facilities = [];
 
-            // 限制种类：一个区域最多 2 种
-            const picked = this._pickN(naturals, 2, rng);
+            for (const d of decors) {
+                const rule = DECOR_PLACEMENT[d.type];
+                const role = rule?.role || DECOR_TYPE_ROLE[d.type] || 'natural';
+                if (role === 'facility') facilities.push({ ...d, _rule: rule });
+                else naturals.push({ ...d, _rule: rule });
+            }
 
-            const area = rect.w * rect.h;
-            // 每种的簇数：小区域 1 簇，大区域 2~3 簇
-            const clusterCount = Math.max(1, Math.min(3, Math.floor(area / 200)));
+            // ★ 自然装饰：跟随地形
+            const pickedNaturals = this._pickN(naturals, 2, rng);
+            for (const d of pickedNaturals) {
+                this._placeByTerrain(grid, rect, d, distField, rng, placed);
+            }
 
-            for (const d of picked) {
-                for (let c = 0; c < clusterCount; c++) {
-                    const seed = this._findSeed(grid, rect, distField, rng, placed, 3, d);
-                    if (!seed) continue;
-                    this._growCluster3x3(grid, seed, d, rng, placed);
+            // ★ 街道设施：沿路等距
+            for (const d of facilities) {
+                this._placeAlongRoad(grid, rect, d, distField, rng, placed);
+            }
+        },
+
+        // ============================================================
+        // ★ 按地形放装饰
+        // ============================================================
+        _placeByTerrain(grid, rect, decor, distField, rng, placed) {
+            const rule = decor._rule || DECOR_PLACEMENT[decor.type] || {};
+            const density = rule.density ?? 0.1;
+            const prefer = rule.preferTerrain || [];
+            const avoidNearRoad = rule.avoidNearRoad || 0;
+            const preferNearRoad = rule.preferNearRoad;
+
+            if (prefer.length === 0 && !preferNearRoad) {
+                // 没规则 → 用旧逻辑（3×3 簇）
+                const seed = this._findSeed(grid, rect, distField, rng, placed, 3, decor);
+                if (seed) this._growCluster3x3(grid, seed, decor, rng, placed);
+                return;
+            }
+
+            for (let y = 0; y < rect.h; y++) {
+                for (let x = 0; x < rect.w; x++) {
+                    const gx = rect.x + x;
+                    const gy = rect.y + y;
+                    const cell = grid[gy]?.[gx];
+                    if (!cell) continue;
+                    if (cell.road || cell.decor || !cell.walkable) continue;
+                    if (cell.terrain === 'void') continue;
+                    if (cell.regionId && cell.regionId !== rect.regionId) continue;
+
+                    // 地形筛选
+                    if (prefer.length > 0 && !prefer.includes(cell.terrain)) continue;
+
+                    // 距离筛选
+                    const dist = distField.distRoad[y]?.[x] ?? Infinity;
+
+                    if (avoidNearRoad > 0 && dist <= avoidNearRoad) continue;
+
+                    if (preferNearRoad) {
+                        const [min, max] = preferNearRoad;
+                        if (dist < min || dist > max) continue;
+                    }
+
+                    // 密度判定
+                    if (rng() > density) continue;
+
+                    // 放
+                    this._applyDecorCell(cell, decor, rng);
+                    placed.push({ x: gx, y: gy });
+                }
+            }
+        },
+
+        // ============================================================
+        // ★ 沿路等距放装饰（设施）
+        // ============================================================
+        _placeAlongRoad(grid, rect, decor, distField, rng, placed) {
+            const rule = decor._rule || DECOR_PLACEMENT[decor.type] || {};
+            const spacing = rule.spacing || 10;
+            const preferNearRoad = rule.preferNearRoad || [1, 2];
+            const [minDist, maxDist] = preferNearRoad;
+
+            // 收集区域内的道路格
+            const roads = [];
+            for (let y = 0; y < rect.h; y++) {
+                for (let x = 0; x < rect.w; x++) {
+                    const gx = rect.x + x;
+                    const gy = rect.y + y;
+                    if (grid[gy]?.[gx]?.road) {
+                        roads.push({ x: gx, y: gy });
+                    }
+                }
+            }
+
+            if (roads.length === 0) return;
+
+            // 按 spacing 等距选点
+            const step = Math.max(1, Math.floor(spacing));
+            for (let i = 0; i < roads.length; i += step) {
+                const road = roads[i];
+
+                // 在路周围找位置
+                const offsets = [
+                    [0, -1], [0, 1], [1, 0], [-1, 0],
+                    [1, -1], [-1, -1], [1, 1], [-1, 1],
+                ];
+
+                for (const [dx, dy] of offsets) {
+                    const px = road.x + dx;
+                    const py = road.y + dy;
+                    const cell = grid[py]?.[px];
+                    if (!cell) continue;
+                    if (cell.decor || cell.road || !cell.walkable) continue;
+                    if (cell.terrain === 'void') continue;
+                    if (cell.regionId && cell.regionId !== rect.regionId) continue;
+
+                    // 距离检查
+                    const localX = px - rect.x;
+                    const localY = py - rect.y;
+                    if (localX < 0 || localX >= rect.w || localY < 0 || localY >= rect.h) continue;
+                    const dist = distField.distRoad[localY]?.[localX] ?? Infinity;
+                    if (dist < minDist || dist > maxDist) continue;
+
+                    // 放
+                    this._applyDecorCell(cell, decor, rng);
+                    placed.push({ x: px, y: py });
+                    break;   // 每个路点只放一个
                 }
             }
         },
@@ -822,24 +1091,54 @@
             return null;
         },
 
+        // map-decor.js · _applyDecorCell
         _applyDecorCell(cell, decor, rng) {
             const variants = window.MapTiles?.DECOR_INDEX?.[decor.type];
             if (!variants) return;
 
-            // 地形兼容检查（双保险）
             if (!this._isDecorTerrainCompatible(decor.type, cell.terrain)) return;
 
             let variant;
+
+            // ★ 明确指定（AI 写了关键词）→ 用指定的
             if (decor.variant !== null && decor.variant !== undefined) {
                 variant = decor.variant;
-            } else {
-                variant = Math.floor(rng() * 8);
+            }
+            // ★ 没指定 → 从通用池里挑
+            else {
+                variant = this._pickDefaultVariant(decor.type, cell, rng);
             }
 
             const blocking = ['tree', 'rock', 'small_building'].includes(decor.type);
-
             cell.decor = { type: decor.type, variant };
             if (blocking) cell.walkable = false;
+        },
+
+        // ★ 通用池：跟地形挂钩
+        _pickDefaultVariant(decorType, cell, rng) {
+            const POOLS = {
+                tree: {
+                    default: [0, 0, 0, 1, 2, 5, 11],              // 橡树为主，混白桦/松/杉/榕
+                    'snow': [2, 5, 10],                          // 雪地：松/杉/枯树
+                    'sand': [9, 9, 10],                          // 沙地：椰子树/枯树
+                    'rocky_ground': [5, 10, 10],                   // 岩石地：杉/枯树
+                    'moss': [0, 11],                             // 苔藓：橡树/榕树
+                    'flower_field': [6, 7, 0],                     // 花地：樱/梅/橡
+                },
+                plant: {
+                    default: [8, 9, 12, 14],
+                },
+                rock: {
+                    default: [16, 17, 18],
+                },
+            };
+
+            const pools = POOLS[decorType];
+            if (!pools) return Math.floor(rng() * 8);
+
+            const terrainPool = pools[cell.terrain];
+            const pool = terrainPool || pools.default;
+            return pool[Math.floor(rng() * pool.length)];
         },
 
         _pickN(arr, n, rng) {

@@ -220,7 +220,7 @@
         _catchUpPlot(plot, hoursDelta, mapEnv, map) {
             const rule = plot.rules;
             if (!rule) return false;
-            
+
             // ★ 新增：hoursDelta 异常保护
             const ONE_YEAR_HOURS = 365 * 24;
             if (!isFinite(hoursDelta) || hoursDelta <= 0) {
@@ -801,9 +801,20 @@
             const itemDef = plot.shop.items.find(i => i.id === itemId);
             if (!itemDef) return { ok: false, message: '商品不存在' };
 
-            if (!plot.shopState) this._tickShopRestock(plot, this._readTotalMinutes(window.MapLauncher.getMap()));
+            // ★ 先确保 shopState 初始化（内部会迁移数组 → 对象）
+            if (!plot.shopState
+                || typeof plot.shopState.items !== 'object'
+                || Array.isArray(plot.shopState.items)) {
+                this._tickShopRestock(plot, this._readTotalMinutes(window.MapLauncher.getMap()));
+            }
 
-            const state = plot.shopState.items.find(s => s.id === itemId);
+            // ★ 从对象结构里按 id 取
+            const stateMap = (plot.shopState && typeof plot.shopState.items === 'object'
+                && !Array.isArray(plot.shopState.items))
+                ? plot.shopState.items
+                : {};
+
+            const state = stateMap[itemId];
             if (!state || state.stock <= 0) return { ok: false, message: '已售罄' };
 
             const player = window.PlayerStateManager?.player;
@@ -1774,7 +1785,36 @@
             if (window.SaveManager) window.SaveManager.save();
         }
     });
+    // ★ 全局时间跳跃 → 补算当前地图的农田
+    window.addEventListener('cw:time-jump', (e) => {
+        const { delta } = e.detail || {};
+        if (!delta || delta <= 0) return;
 
+        const map = window.MapLauncher?.getMap?.();
+        if (!map?._plots) return;
+
+        const hoursDelta = delta / 60;
+        const env = window.CWEnv?.ensureEnvData?.(map);
+
+        let changed = 0;
+        for (const plot of Object.values(map._plots)) {
+            if (plot.type !== 'farm') continue;
+            if (!plot.rules) continue;
+            try {
+                if (MapFarmManager._catchUpPlot(plot, hoursDelta, env, map)) changed++;
+            } catch (err) {
+                console.error(`[MapFarm] plot ${plot.id} 补算失败:`, err);
+            }
+        }
+
+        if (changed > 0) {
+            window.MapPlotManager?.markDirty?.();
+            window.MapFarmUI?.refresh?.();
+            window.MapLauncher?._saveMapToWorld?.(map);
+            if (window.SaveManager) window.SaveManager.save();
+        }
+        console.log(`[MapFarm] time-jump ${delta}分钟，补算 ${changed} 个 plot`);
+    });
     // 保留 hour 事件用于 UI 刷新（可选）
     // ★ 每小时 tick：推进当前地图的农田（玩家在地图上时实时生长）
     window.addEventListener('cw:env-hour', () => {

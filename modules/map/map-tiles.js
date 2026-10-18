@@ -245,21 +245,24 @@
         // ============================================================
         getDecorRect(decor) {
             if (!decor) return null;
-
-            const entry = this.DECOR_INDEX[decor.type];
+        
+            let entry = this.DECOR_INDEX[decor.type];
             if (entry === undefined) return null;
-
+        
             let idx;
             if (Array.isArray(entry)) {
-                // 数组 → 用 variant 选
-                const v = (decor.variant ?? 0) % entry.length;
-                idx = entry[v];
+                let v = decor.variant ?? 0;
+        
+                // ★ 树的 variant 超过 2D 数组长度 → 兜底
+                if (decor.type === 'tree' && v >= entry.length) {
+                    const fallback = { 8: 2, 9: 2, 10: 4, 11: 0 };
+                    v = fallback[v] ?? 0;
+                }
+        
+                idx = entry[v % entry.length];
             } else {
-                // 单值
                 idx = entry;
             }
-
-            if (idx === undefined || idx < 0) return null;
             return this._indexToRect(idx, this.decorConfig);
         },
 

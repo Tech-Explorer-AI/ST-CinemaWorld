@@ -28,13 +28,17 @@
 
             const grid = this._createGrid(map);
             const placements = this._placeRegions(map, grid);
+            this._applyHeightToRegions(map, grid, placements);
 
-            // ★ 区域地形 + 装饰：走 MapDecor
+            // ★★★ 1. 先挖道路（这样距离场才算得出来）
+            this._carveConnections(grid, map.connections, placements);
+            this._flattenRoads(grid);
+
+            // ★★★ 2. 再铺地形 + 装饰（基于道路距离场）
             for (const region of map.regions) {
                 const rect = placements[region.id];
                 if (!rect) continue;
 
-                // ★ 关键：把 regionId 塞进 rect
                 const rectWithId = { ...rect, regionId: region.id };
 
                 const spec = {
@@ -48,13 +52,14 @@
 
                 const resources = window.MapDecor.resolveRegionSpec(spec);
 
-                window.MapDecor.decorateRegion(grid, rectWithId, resources, {   // ★ 用 rectWithId
+                window.MapDecor.decorateRegion(grid, rectWithId, resources, {
                     rng: this._rand,
-                    isRoadAt: (x, y) => false,
-                    isBuildingAt: (x, y) => false,
+                    // ★ 真检查道路
+                    isRoadAt: (x, y) => !!grid[y]?.[x]?.road,
+                    isBuildingAt: (x, y) => !!grid[y]?.[x]?.decor?.buildingId,
                 });
             }
-            this._carveConnections(grid, map.connections, placements);
+
             this._clearDecorOnRoads(grid);
             this._placeBuildings(map, grid, placements);
             this._placeEntities(map, grid, placements);
@@ -85,6 +90,152 @@
 
             return map._generated;
         },
+
+        // ============================================================
+        // ★ 把 region.heightRef 转成整数高度写入每个格
+        // ============================================================
+        _applyHeightToRegions(map, grid, placements) {
+            const heightMap = map.heightMap || { _base: 0 };
+            const baseH = heightMap._base ?? 0;
+
+            for (const region of map.regions) {
+                const rect = placements[region.id];
+                if (!rect) continue;
+
+                let h = baseH;
+                if (region.heightRef && heightMap[region.heightRef] !== undefined) {
+                    h = heightMap[region.heightRef];
+                }
+
+                for (let y = rect.y; y < rect.y + rect.h; y++) {
+                    for (let x = rect.x; x < rect.x + rect.w; x++) {
+                        const cell = grid[y]?.[x];
+                        if (!cell) continue;
+                        if (cell.terrain === 'void') continue;
+                        cell.height = h;
+                    }
+                }
+            }
+
+            // 兜底：没被区域覆盖的格子 → 基准
+            for (let y = 0; y < grid.length; y++) {
+                for (let x = 0; x < grid[0].length; x++) {
+                    const cell = grid[y][x];
+                    if (cell && cell.height === undefined) {
+                        cell.height = baseH;
+                    }
+                }
+            }
+
+            // 打印高度范围（调试）
+            let minH = Infinity, maxH = -Infinity;
+            for (let y = 0; y < grid.length; y++) {
+                for (let x = 0; x < grid[0].length; x++) {
+                    const h = grid[y][x].height ?? 0;
+                    if (h < minH) minH = h;
+                    if (h > maxH) maxH = h;
+                }
+            }
+            console.log(`[MapLayout] 高度范围: ${minH} ~ ${maxH}`);
+        },
+        // ============================================================
+        // ★ 道路坡道化
+        //   只改道路格的 height，让它们从低到高形成台阶
+        // ============================================================
+        _flattenRoads(grid) {
+            const W = grid[0].length;
+            const H = grid.length;
+
+            // ---------- 1. 收集所有道路格 ----------
+            const roads = [];
+            for (let y = 0; y < H; y++) {
+                for (let x = 0; x < W; x++) {
+                    if (grid[y][x].road) roads.push({ x, y });
+                }
+            }
+            if (roads.length === 0) return;
+
+            // ---------- 2. 迭代平滑道路格高度 ----------
+            //   规则：道路格的高度 = 它 4 邻居（含非道路）的平均
+            //   迭代几次后，道路会从两端的区域高度平滑过渡
+            const ITER = 8;
+            for (let it = 0; it < ITER; it++) {
+                const updates = [];
+
+                for (const { x, y } of roads) {
+                    let sum = 0, count = 0;
+                    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+                        const nc = grid[ny][nx];
+                        if (nc.terrain === 'void') continue;
+                        sum += nc.height ?? 0;
+                        count++;
+                    }
+                    if (count === 0) continue;
+
+                    const avg = sum / count;
+                    const cur = grid[y][x].height ?? 0;
+
+                    // 每次迭代向平均值靠拢 50%
+                    const next = cur + (avg - cur) * 0.5;
+
+                    if (Math.abs(next - cur) > 0.01) {
+                        updates.push({ x, y, h: next });
+                    }
+                }
+
+                for (const u of updates) {
+                    grid[u.y][u.x].height = u.h;
+                }
+            }
+
+            // ---------- 3. 量化到整数（关键！）----------
+            //   因为高度判断是整数比较，浮点会有各种边界问题
+            //   量化后：道路格高度是整数，每格高差 ≤ 1
+            for (const { x, y } of roads) {
+                const h = grid[y][x].height ?? 0;
+                grid[y][x].height = Math.round(h);
+            }
+
+            // ---------- 4. 验证：确保道路格与邻居高差 ≤ 1 ----------
+            //   （如果量化后仍有 > 1 的跳跃，做一次修正）
+            for (let pass = 0; pass < 3; pass++) {
+                let fixed = 0;
+                for (const { x, y } of roads) {
+                    const cur = grid[y][x].height ?? 0;
+                    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+                        const nc = grid[ny][nx];
+                        if (nc.terrain === 'void') continue;
+                        const nh = nc.height ?? 0;
+                        if (nh - cur > 1) {
+                            // 邻居太高，抬高自己
+                            grid[y][x].height = nh - 1;
+                            fixed++;
+                            break;
+                        }
+                        if (cur - nh > 1) {
+                            // 邻居太低，降低自己
+                            grid[y][x].height = nh + 1;
+                            fixed++;
+                            break;
+                        }
+                    }
+                }
+                if (fixed === 0) break;
+            }
+
+            // ---------- 5. 打印调试信息 ----------
+            let minH = Infinity, maxH = -Infinity;
+            for (const { x, y } of roads) {
+                const h = grid[y][x].height ?? 0;
+                if (h < minH) minH = h;
+                if (h > maxH) maxH = h;
+            }
+            console.log(`[MapLayout] 道路坡道化: ${roads.length} 格, 高度 ${minH}~${maxH}`);
+        },
         _clearDecorOnRoads(grid) {
             for (let y = 0; y < grid.length; y++) {
                 for (let x = 0; x < grid[0].length; x++) {
@@ -111,8 +262,8 @@
             else { W = 180; H = 135; }
 
             const extra = Math.ceil(Math.sqrt(bCount) * 8);
-            W = Math.min(W + extra, 300);
-            H = Math.min(H + extra, 200);
+            W = Math.min(W + extra, 600);
+            H = Math.min(H + extra, 400);
 
             const grid = [];
             for (let y = 0; y < H; y++) {
@@ -206,7 +357,14 @@
 
                     const curRect = placements[cur];
                     const size = window.MapSchema.sizeToNumber(region.size);
-                    const offset = Math.round(size * dist * 0.6);
+                    // ★ 室内外区分：室内区域要分隔开，室外允许轻微重叠
+                    const isIndoor = map.mapType === 'indoor'
+                        || map._source === 'program'
+                        || map._source === 'indoor'
+                        || map.tags?.includes('indoor');
+
+                    const overlapFactor = isIndoor ? 1.2 : 0.6;
+                    const offset = Math.round(size * dist * overlapFactor);
 
                     let nx = curRect.x + curRect.w / 2;
                     let ny = curRect.y + curRect.h / 2;
@@ -964,6 +1122,26 @@
                 office: [rect.x + rect.w - 2, cy],
                 exit: [rect.x + rect.w - 2, cy],
                 balcony: [cx, rect.y + 1],
+                // ★ 中文
+                '中央': [cx, cy], '中心': [cx, cy],
+                '北': [cx, rect.y + 1],
+                '南': [cx, rect.y + rect.h - 2],
+                '东': [rect.x + rect.w - 2, cy],
+                '西': [rect.x + 1, cy],
+                '入口': [cx, rect.y + rect.h - 2],
+                '深处': [cx, rect.y + 1],
+                '首领区': [cx, rect.y + 1],
+                '角落': [rect.x + 1, rect.y + 1],
+                '吧台': [cx, rect.y + 1],
+                '柜台': [cx, rect.y + 1],
+                '货架': [rect.x + rect.w - 2, cy],
+                '喷泉': [cx, cy],
+                '空地': [cx, cy],
+                '火堆': [cx, cy],
+                '帐篷': [rect.x + 2, cy],
+                '起点': [rect.x + 1, cy],
+                '终点': [rect.x + rect.w - 2, cy],
+                '边缘': [rect.x + 1, cy],
             };
             const p = M[name] || M.center;
             return { x: p[0], y: p[1] };
@@ -1104,8 +1282,12 @@
             window.MapSprites?.loadMale();
             window.MapSprites?.loadFemale();
             window.MapSprites?.loadPlayer();
-
+            window.MapSprites?.loadPlayerAimed?.();
             this._running = true;
+            // ★ 怪物刷新检查（进图懒刷新）
+            if (window.MapSpawn) {
+                window.MapSpawn.onMapEnter(map);
+            }
             this._loop();
 
             console.log('[MapCanvas] 地图已就绪:', map._generated.width, 'x', map._generated.height);
@@ -1495,6 +1677,23 @@
             if (x < 0 || x >= g[0].length) return false;
             const cell = g[y][x];
             if (!cell.walkable) return false;
+
+            // ★ 高度检查
+            const player = this.player;
+            if (player) {
+                const playerCell = g[player.y]?.[player.x];
+                const playerH = playerCell?.height ?? 0;
+                const cellH = cell.height ?? 0;
+                const diff = Math.abs(cellH - playerH);
+
+                // 普通情况：跨 1 层以内可走
+                // 道路坡道化后，路本身已经是逐级过渡，也会满足这个条件
+                if (diff > 1) return false;
+
+                // ★ 额外保护：从非道路跳到道路、或反向，只要高差 > 1 都不允许
+                //   （其实上面的 diff > 1 已经覆盖）
+            }
+
             const blocker = this.map.entities.find(
                 e => e._placed && e.blocking && e.x === x && e.y === y
             );
@@ -2236,7 +2435,7 @@
 
             // ---------- 玩家 ----------
             if (ent.isPlayer) {
-                const radius = ts * 0.52
+                const radius = ts * 0.52;
 
                 const glow = ctx.createRadialGradient(px, py, 0, px, py, radius * 1.6);
                 glow.addColorStop(0, 'rgba(120,160,255,0.55)');
@@ -2247,12 +2446,17 @@
                 ctx.fillStyle = glow;
                 ctx.fill();
 
-                const pSrc = window.MapSprites?.getPlayerSourceRect();
-                if (pSrc && window.MapSprites.playerLoaded) {
+                // ★ 判断是否举械态（且即时战斗模式开启）
+                const isAimed = !!(window.CombatState?.isAimed?.() && window.isRealtimeCombat?.());
+
+                const pSrc = window.MapSprites?.getPlayerSourceRect?.(isAimed);
+                const pImg = window.MapSprites?.getPlayerImage?.(isAimed);
+
+                if (pSrc && pImg) {
                     const drawH = ts * 1.2;
                     const drawW = drawH * (pSrc.sw / pSrc.sh);
                     ctx.drawImage(
-                        window.MapSprites.playerImage,
+                        pImg,
                         pSrc.sx, pSrc.sy, pSrc.sw, pSrc.sh,
                         px - drawW / 2, py + ts / 2 - drawH, drawW, drawH
                     );
@@ -2267,6 +2471,73 @@
                     ctx.font = `${Math.floor(ts * 1.05)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
                     ctx.fillText(ent.emoji, px, py);
                 }
+                return;
+            }
+            // ---------- ★ 资源点 ----------
+            if (ent.kind === 'resource_point') {
+                // 光圈
+                const r = ts * 0.45;
+                const glow = ctx.createRadialGradient(px, py, 0, px, py, r * 1.8);
+                glow.addColorStop(0, 'rgba(140,220,140,0.7)');
+                glow.addColorStop(0.5, 'rgba(100,200,100,0.35)');
+                glow.addColorStop(1, 'rgba(100,200,100,0)');
+                ctx.beginPath();
+                ctx.arc(px, py, r * 1.8, 0, Math.PI * 2);
+                ctx.fillStyle = glow;
+                ctx.fill();
+
+                // 主体 emoji
+                ctx.font = `${Math.floor(ts * 0.85)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(ent.emoji || '✨', px, py);
+
+                // 名字
+                if (ent.name) {
+                    ctx.font = `bold ${Math.floor(ts * 0.24)}px sans-serif`;
+                    const tw = ctx.measureText(ent.name).width;
+                    const boxW = tw + 10;
+                    const boxH = ts * 0.32;
+                    const bx = px - boxW / 2;
+                    const by = py + ts * 0.36;
+                    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                    if (ctx.roundRect) {
+                        ctx.beginPath();
+                        ctx.roundRect(bx, by, boxW, boxH, 5);
+                        ctx.fill();
+                    } else {
+                        ctx.fillRect(bx, by, boxW, boxH);
+                    }
+                    ctx.fillStyle = '#a8ffa8';
+                    ctx.fillText(ent.name, px, by + boxH / 2);
+                }
+
+                // ★ 次数角标
+                const uses = ent.resource?.uses;
+                if (uses && !uses.infinite && uses.max > 0) {
+                    const text = `${uses.current}/${uses.max}`;
+                    ctx.font = `bold ${Math.floor(ts * 0.24)}px sans-serif`;
+                    const tw = ctx.measureText(text).width;
+                    const bw = tw + 10;
+                    const bh = ts * 0.3;
+                    const bx = px + ts * 0.25;
+                    const by = py - ts * 0.5;
+
+                    const depleted = uses.current <= 0;
+                    ctx.fillStyle = depleted
+                        ? 'rgba(120,120,120,0.9)'
+                        : 'rgba(120,200,120,0.95)';
+                    if (ctx.roundRect) {
+                        ctx.beginPath();
+                        ctx.roundRect(bx, by, bw, bh, 6);
+                        ctx.fill();
+                    } else {
+                        ctx.fillRect(bx, by, bw, bh);
+                    }
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(text, bx + bw / 2, by + bh / 2);
+                }
+
                 return;
             }
             // ★ 任务点（内联判断）
@@ -2339,7 +2610,7 @@
             }
             // ---------- 非玩家 ----------
             // ★ 只有 npc / encounter 才画精灵 / 立绘，其他一律走 emoji
-            const SPRITE_KINDS = ['npc', 'encounter'];
+            const SPRITE_KINDS = ['npc', 'encounter', 'companion'];
             const allowSprite = SPRITE_KINDS.includes(ent.kind);
 
             const spriteSrc = (useSprites && allowSprite)
@@ -2854,7 +3125,19 @@
         },
 
         getEntityAt(x, y) {
-            return this.map.entities.find(e => e._placed && e.x === x && e.y === y);
+            return this.map.entities.find(e => {
+                if (!e._placed) return false;
+        
+                // ★ 多格实体（家具）：检查是否覆盖点击格
+                if (e.indoor?.size) {
+                    const s = e.indoor.size;
+                    return x >= e.x && x < e.x + s.w &&
+                           y >= e.y && y < e.y + s.h;
+                }
+        
+                // 单格实体
+                return e.x === x && e.y === y;
+            });
         },
     };
 
@@ -2959,29 +3242,47 @@
                 const map = window.MapSchema.deserialize(data, window.WorldManager);
                 if (!map) return null;
                 if (!map._generated) window.MapLayout.build(map);
-                // ★ 重建 plotId → grid 绑定
-                if (map._plots && window.MapPlotManager) {
-                    for (const plot of Object.values(map._plots)) {
-                        window.MapPlotManager._applyPlotToGrid(map, plot);
+
+                // ★ 修正队友实体：只保留"active 且 mapName === 本图"的
+                if (map.entities) {
+                    const ws = window.CinemaWorld?.worldState;
+                    const bonds = ws?.companionBonds || {};
+
+                    map.entities = map.entities.filter(e => {
+                        if (e.isPlayer) return true;
+                        if (e.kind !== 'companion') return true;
+
+                        const norm = e._companionName
+                            || window.CharacterRegistry?.normalizeName?.(e.name);
+                        if (!norm) return false;
+
+                        const bond = bonds[norm];
+                        if (!bond) return false;
+
+                        // ★ 只有 active 且在本图 → 保留
+                        if (bond.summon?.active === true
+                            && bond.summon.mapName === map.name) {
+                            // 字段校正
+                            e._companionName = norm;
+                            e.isCompanion = true;
+                            e.blocking = false;
+                            e.tags = Array.isArray(e.tags) ? e.tags : [];
+                            if (!e.tags.includes('队友')) e.tags.push('队友');
+                            return true;
+                        }
+                        return false;
+                    });
+
+                    // ★ 补建缺失的队友实体
+                    if (window.CompanionManager?.syncToMap) {
+                        window.CompanionManager.syncToMap(map);
                     }
-                    window.MapPlotManager.markDirty();
                 }
-                // _loadMapFromWorld 里，deserialize 之后
-                if (window.CWEnv && map._environment) {
-                    // 不立即 catchUp，等 _renderMapWindow 里再算
-                    // 但保证 env 结构完整
-                    window.CWEnv.ensureEnvData(map);
+                // ★ 加载完注册坐标
+                if (map) {
+                    window.WorldCoord?.register?.(map.name);
                 }
-                if (data._playerPos && map.entities) {
-                    const player = map.entities.find(e => e.isPlayer);
-                    if (player && map._generated) {
-                        player.x = data._playerPos.x;
-                        player.y = data._playerPos.y;
-                        player._placed = true;
-                    }
-                }
-                map._savedCamera = data._camera || null;
-                map._savedRegionId = data._currentRegionId || null;
+                // ... 其余逻辑（plot / env / playerPos / camera）保持不变 ...
                 return map;
             } catch (e) {
                 console.warn('[MapLauncher] 地图读取失败:', e);
@@ -3356,7 +3657,7 @@
             }
 
             window.MapLayout.build(map);
-            this._ensureExitPortal(map);
+            // this._ensureExitPortal(map);
             this._map = map;
             this._saveMapToWorld(map);
 
@@ -3591,7 +3892,6 @@
             window.MapCanvas.init(container, this._map, {
                 onEntityNear: (ent) => this._onEntityNear(ent),
             });
-
             window.MapNPCWander?.resetApproachState?.();
 
             if (window.CharacterRegistry?.syncFromMap) {

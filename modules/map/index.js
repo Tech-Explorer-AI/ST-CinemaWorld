@@ -24,7 +24,10 @@
         'map/map-entities.js',
         'map/map-buildings.js',
         'map/map-sprites.js',
+        'map/map-resource.js',
         'map/map-interact.js',
+        'map/VN/map-dialogue.js',
+        'map/VN/map-mainquest-dialogue.js',
         'map/map-portrait.js',
         'map/map-manager.js',
         'map/map-pickup.js',
@@ -32,13 +35,37 @@
         'map/map-environment.js',
         'map/map-npc-wander.js',
         'map/map-encounter-chase.js',
-        'map/map-plot.js',              
+        'map/map-plot.js',
         'map/map-farm.js',
         'map/map-farm-gen.js',
+        'map/factory/factory-schema.js',
+        'map/factory/factory-gen.js',
+        'map/factory/factory-manager.js',
+        'map/factory/factory-ui.js',
+        'map/map-spawn.js',
         'map/map-quest.js',
         'map/main-quest.js',
+        
+        'map/world/world-coord.js',
+        'map/world/world-direction.js',
+        'map/world/world-graph.js',
+        'map/world/world-exits.js',
+        
+        'map/indoor/indoor-hooks.js',
+        'map/indoor/indoor-objects.js',
+        'map/indoor/map-3d-furniture.js',
+        'map/indoor/crafting.js',
+
+
+
         'map/map-canvas.js',
+
+        'map/indoor/map-walls.js',
+
+        'map/world/world-map-hooks.js',
+        'map/VN/map-mainquest-hijack.js',
         'map/3d/index.js',
+        'map/combat/index.js',
     ];
 
     // 用 'map/' 前缀 + 完整相对路径做去重 key

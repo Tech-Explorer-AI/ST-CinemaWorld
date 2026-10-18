@@ -511,7 +511,246 @@
             };
         },
     };
+    // ============================================================
+    // 时间操纵面板
+    // ============================================================
+    const TimeControlPanel = {
+        open() {
+            const map = getActiveMap();
+            if (!map) {
+                window.UIManager?.showText?.('需要先进入地图', 1500);
+                return;
+            }
 
+            const env = ensureEnvData(map);
+            if (!env) return;
+
+            const tr = getTimeRules();
+            const total = parseTotalMinutes(env) ?? 0;
+
+            // 拆解当前时间
+            const { year, month, day, hour, minute } = this._splitTime(total, tr);
+
+            const modal = document.getElementById('cinemaworld-modal');
+            if (!modal) return;
+
+            modal.className = 'active';
+            modal.innerHTML = `
+            <div class="cinemaworld-modal-title">⏰ 时间操纵</div>
+
+            <div style="text-align:center;padding:16px;
+                background:rgba(120,150,255,.08);border-radius:10px;
+                margin-bottom:18px;">
+                <div style="font-size:12px;color:#888;margin-bottom:4px;">当前时间</div>
+                <div style="font-size:22px;color:#fff;font-weight:700;
+                    font-family:monospace;letter-spacing:1px;">
+                    ${year}年${month}月${day}日 ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}
+                </div>
+                <div style="font-size:11px;color:#7da8ff;margin-top:4px;">
+                    总分钟数: ${total}
+                </div>
+            </div>
+
+            <!-- 快捷前进 -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:13px;color:#aaa;margin-bottom:8px;">
+                    ⏩ 前进
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                    ${this._quickBtn('+10分钟', 10, 'forward')}
+                    ${this._quickBtn('+1小时', 60, 'forward')}
+                    ${this._quickBtn('+6小时', 360, 'forward')}
+                    ${this._quickBtn('+1天', 1440, 'forward')}
+                    ${this._quickBtn('+7天', 10080, 'forward')}
+                    ${this._quickBtn('+30天', 43200, 'forward')}
+                </div>
+            </div>
+
+            <!-- 快捷后退 -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:13px;color:#aaa;margin-bottom:8px;">
+                    ⏪ 后退
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                    ${this._quickBtn('-10分钟', -10, 'back')}
+                    ${this._quickBtn('-1小时', -60, 'back')}
+                    ${this._quickBtn('-6小时', -360, 'back')}
+                    ${this._quickBtn('-1天', -1440, 'back')}
+                    ${this._quickBtn('-7天', -10080, 'back')}
+                    ${this._quickBtn('-30天', -43200, 'back')}
+                </div>
+            </div>
+
+            <!-- 手动编辑 -->
+            <div style="margin-bottom:14px;">
+                <div style="font-size:13px;color:#aaa;margin-bottom:8px;">
+                    ✏️ 直接编辑
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
+                    <div>
+                        <div style="font-size:11px;color:#666;margin-bottom:3px;">年</div>
+                        <input type="number" id="cw-time-year" value="${year}"
+                            style="${this._inputStyle()}">
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#666;margin-bottom:3px;">月</div>
+                        <input type="number" id="cw-time-month" value="${month}" min="1" max="${tr.monthsPerYear}"
+                            style="${this._inputStyle()}">
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#666;margin-bottom:3px;">日</div>
+                        <input type="number" id="cw-time-day" value="${day}" min="1" max="${tr.daysPerMonth}"
+                            style="${this._inputStyle()}">
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#666;margin-bottom:3px;">时</div>
+                        <input type="number" id="cw-time-hour" value="${hour}" min="0" max="${tr.hoursPerDay - 1}"
+                            style="${this._inputStyle()}">
+                    </div>
+                    <div>
+                        <div style="font-size:11px;color:#666;margin-bottom:3px;">分</div>
+                        <input type="number" id="cw-time-minute" value="${minute}" min="0" max="59"
+                            style="${this._inputStyle()}">
+                    </div>
+                </div>
+                <div style="text-align:center;margin-top:10px;">
+                    <button class="cinemaworld-button primary"
+                        onclick="TimeControlPanel._applyEdit()">
+                        跳转到此时间
+                    </button>
+                </div>
+            </div>
+
+            <div style="text-align:center;margin-top:16px;">
+                <button class="cinemaworld-button"
+                    onclick="UIManager.closeModal()">关闭</button>
+            </div>
+        `;
+        },
+
+        _quickBtn(label, deltaMinutes, mode) {
+            const color = mode === 'forward' ? '#7dd87d' : '#d87d7d';
+            return `
+            <button class="cinemaworld-button"
+                style="color:${color};padding:8px 4px;font-size:12px;"
+                onclick="TimeControlPanel.jump(${deltaMinutes})">
+                ${label}
+            </button>
+        `;
+        },
+
+        _inputStyle() {
+            return `
+            width:100%;box-sizing:border-box;padding:8px;
+            background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.15);
+            border-radius:6px;color:#fff;font-size:14px;text-align:center;
+            font-family:monospace;
+        `;
+        },
+
+        // ============================================================
+        // 快捷跳跃
+        // ============================================================
+        jump(deltaMinutes) {
+            const map = getActiveMap();
+            if (!map) return;
+            const env = ensureEnvData(map);
+            if (!env) return;
+
+            const cur = parseTotalMinutes(env) ?? 0;
+            const target = Math.max(0, cur + deltaMinutes);   // ★ 不允许 < 0
+
+            window.TimeControlPanel._doJump(target, map);
+        },
+
+        // ============================================================
+        // 手动编辑 → 计算目标 totalMinutes
+        // ============================================================
+        _applyEdit() {
+            const tr = getTimeRules();
+
+            const year = parseInt(document.getElementById('cw-time-year').value) || 1;
+            const month = parseInt(document.getElementById('cw-time-month').value) || 1;
+            const day = parseInt(document.getElementById('cw-time-day').value) || 1;
+            const hour = parseInt(document.getElementById('cw-time-hour').value) || 0;
+            const minute = parseInt(document.getElementById('cw-time-minute').value) || 0;
+
+            // 边界检查
+            if (month < 1 || month > tr.monthsPerYear) {
+                window.UIManager?.showText?.(`月份必须在 1-${tr.monthsPerYear} 之间`, 1500);
+                return;
+            }
+            if (day < 1 || day > tr.daysPerMonth) {
+                window.UIManager?.showText?.(`日期必须在 1-${tr.daysPerMonth} 之间`, 1500);
+                return;
+            }
+            if (hour < 0 || hour >= tr.hoursPerDay) {
+                window.UIManager?.showText?.(`小时必须在 0-${tr.hoursPerDay - 1} 之间`, 1500);
+                return;
+            }
+            if (minute < 0 || minute > 59) {
+                window.UIManager?.showText?.('分钟必须在 0-59 之间', 1500);
+                return;
+            }
+
+            const total = ((year - 1) * tr.monthsPerYear * tr.daysPerMonth
+                + (month - 1) * tr.daysPerMonth
+                + (day - 1)) * tr.hoursPerDay * 60
+                + hour * 60 + minute;
+
+            const map = getActiveMap();
+            if (!map) return;
+
+            window.TimeControlPanel._doJump(total, map);
+        },
+
+        // ============================================================
+        // 执行跳跃
+        // ============================================================
+        _doJump(targetTotal, map) {
+            // 关闭模态框
+            window.UIManager?.closeModal?.();
+
+            // 调 EnvironmentClock
+            if (window.EnvironmentClock?.jumpTo) {
+                window.EnvironmentClock.jumpTo(targetTotal);
+            } else {
+                console.warn('[TimeControlPanel] EnvironmentClock.jumpTo 不存在');
+                return;
+            }
+
+            // HUD 刷新
+            window.EnvironmentHUD?.refresh?.();
+
+            // 提示
+            const env = ensureEnvData(map);
+            const date = readField(env, '日期');
+            const time = readField(env, '时间');
+            window.UIManager?.showText?.(`⏰ ${date} ${time}`, 2000);
+        },
+
+        // ============================================================
+        // 拆解 totalMinutes → { year, month, day, hour, minute }
+        // ============================================================
+        _splitTime(total, tr) {
+            const minutesPerDay = tr.hoursPerDay * 60;
+            const minutesPerMonth = tr.daysPerMonth * minutesPerDay;
+            const minutesPerYear = tr.monthsPerYear * minutesPerMonth;
+
+            const year = Math.floor(total / minutesPerYear) + 1;
+            const remAfterYear = total % minutesPerYear;
+            const month = Math.floor(remAfterYear / minutesPerMonth) + 1;
+            const remAfterMonth = remAfterYear % minutesPerMonth;
+            const day = Math.floor(remAfterMonth / minutesPerDay) + 1;
+            const remAfterDay = remAfterMonth % minutesPerDay;
+            const hour = Math.floor(remAfterDay / 60);
+            const minute = remAfterDay % 60;
+
+            return { year, month, day, hour, minute };
+        },
+    };
+
+    window.TimeControlPanel = TimeControlPanel;
     // ============================================================
     // 5. 世界时钟（懒更新核心）
     // ============================================================
@@ -547,7 +786,43 @@
             this.tick(dtRealSec);
             this._rafId = requestAnimationFrame(() => this._loop());
         },
+        jumpTo(totalMinutes) {
+            const ws = window.CinemaWorld?.worldState;
+            if (!ws) return;
 
+            // 确保 worldMinutes 已初始化
+            if (typeof ws.worldMinutes !== 'number') {
+                const map0 = getActiveMap();
+                const env0 = map0 ? ensureEnvData(map0) : null;
+                ws.worldMinutes = parseTotalMinutes(env0) || 0;
+            }
+
+            const oldTotal = ws.worldMinutes;
+            const delta = totalMinutes - oldTotal;
+            if (delta === 0) return;
+
+            ws.worldMinutes = totalMinutes;
+
+            // ★ 广播世界 tick
+            window.dispatchEvent(new CustomEvent('cw:world-tick', {
+                detail: { deltaMinutes: delta, worldMinutes: totalMinutes }
+            }));
+
+            // ★ 当前地图对齐
+            const map = getActiveMap();
+            if (map) {
+                this.catchUpMap(map);
+            }
+
+            // ★ 广播一个"跳跃完成"事件，让 farm 等系统知道
+            window.dispatchEvent(new CustomEvent('cw:time-jump', {
+                detail: { from: oldTotal, to: totalMinutes, delta }
+            }));
+
+            DayNightFilter.refresh();
+
+            console.log(`[EnvClock] 时间跳跃: ${oldTotal} → ${totalMinutes} (${delta > 0 ? '+' : ''}${delta} 分钟)`);
+        },
         // ============================================================
         // ★ 暂停判定：VN / 战斗 / 模态框 / 子面板
         // ============================================================
@@ -560,7 +835,13 @@
 
             // 模态框打开
             const modal = document.getElementById('cinemaworld-modal');
-            if (modal?.classList.contains('active')) return true;
+            if (modal?.classList.contains('active')) {
+                // ★ 工厂界面不暂停时间（生产要实时推进）
+                if (modal.classList.contains('cw-factory-modal')) {
+                    return false;
+                }
+                return true;
+            }
 
             // 地图子面板打开
             if (window.MapLauncher?._subState) return true;
@@ -600,7 +881,13 @@
         // ★ 核心：worldMinutes 是唯一真相，地图只是跟随
         // ============================================================
         advance(minutes) {
-            if (!minutes || minutes <= 0) return;
+            if (!minutes || minutes === 0) return;
+            if (minutes < 0) {
+                console.warn('[EnvClock] advance 收到负数，改用 jumpTo');
+                const cur = parseTotalMinutes(null) ?? 0;
+                this.jumpTo(Math.max(0, cur + minutes));
+                return;
+            }
 
             const ws = window.CinemaWorld?.worldState;
             if (!ws) return;
@@ -727,11 +1014,17 @@
             }
 
             const delta = worldMinutes - lastTick;
-            if (delta <= 0) {
-                // 已经同步（或时间异常）→ 至少刷新派生字段
+            if (delta === 0) {
+                // 已同步 → 只刷新派生字段
                 const derived = writeTimeFields(env, worldMinutes);
                 rebuildRaw(env);
                 return;
+            }
+
+            if (delta < 0) {
+                console.log(`[EnvClock] catchUp ${map.name}: 时间回拨 ${delta} 分钟`);
+            } else {
+                console.log(`[EnvClock] catchUp ${map.name}: +${delta} 分钟`);
             }
 
             console.log(`[EnvClock] catchUp ${map.name}: +${delta} 分钟`);
@@ -1066,7 +1359,10 @@
                         ws.worldMinutes = localTotal;
                     }
                     writeTimeFields(env, ws.worldMinutes);
-                    env._runtime.lastTickAt = ws.worldMinutes;
+                    // ★ 只在首次进入时初始化 lastTickAt
+                    if (typeof env._runtime.lastTickAt !== 'number') {
+                        env._runtime.lastTickAt = ws.worldMinutes;
+                    }
                     rebuildRaw(env);
                 }
 
@@ -1225,7 +1521,16 @@
 
                 <div class="cw-env-hud-extra"></div>
             `;
-
+            // ★ 时间区域可点击
+            const timeEl = el.querySelector('.cw-env-hud-time');
+            if (timeEl) {
+                timeEl.style.pointerEvents = 'auto';
+                timeEl.style.cursor = 'pointer';
+                timeEl.title = '点击操作时间';
+                timeEl.addEventListener('click', () => {
+                    window.TimeControlPanel?.open?.();
+                });
+            }
             const container = document.getElementById('cinemaworld-container') || document.body;
             container.appendChild(el);
             this._el = el;
