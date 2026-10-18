@@ -290,7 +290,19 @@
             // 新结构：bucket 级时间戳（如果没有，退化为 0）
             return b.lastActiveAt || 0;
         },
-
+        formatForItemPrompt(name, chapterId) {
+            const { compact, items } = this.getForItem(name, chapterId);
+            const lines = [];
+            if (compact) lines.push(`（过往回顾）${compact}`);
+            items.forEach((d, i) => lines.push(`${i + 1}. ${d.summary}`));
+            return lines.join('\n');
+        },
+        
+        // ★ 地图实体专用：读取"地图:XXX"的摘要
+        //   地图交互摘要（map-dialogue / map-interact）都存到 byItem['地图:XXX']
+        formatForMapEntityPrompt(name, chapterId) {
+            return this.formatForItemPrompt(`地图:${name}`, chapterId);
+        },
         // ★ 计算一个角色的"上下文权重分数"
         //   - 压缩过（长线角色）   → +1000
         //   - 每条已压缩消息       → +2
@@ -331,6 +343,7 @@
 
             return score;
         },
+
         // ---------- 归档：清掉不属于"保留章节"的旧摘要 ----------
         // keepChapterIds: 需要保留的 chapterId 数组（通常是"当前卷里所有章节"）
         archiveOldChapters(keepChapterIds = []) {
@@ -1300,7 +1313,9 @@ ${prevSummaries ? `【与该目标的过往交互】\n${prevSummaries}\n` : ''}
             const mainQuest = mqOptions.mainQuest || window.CinemaWorld.worldState.mainQuest;
 
             const parentStory = parentId ? this.storyList.find(s => s.id === parentId) : null;
-            const context = this.buildContext(parentStory);
+            const context = this.buildContext(parentStory, {
+                companions: true,   // ★ 主线/场景剧情：注入同行者名单
+            });
 
             const scene = window.LocationModalManager.currentLocation;
             const envLine = WorldManager.getEnvDataText(scene);
@@ -1686,6 +1701,7 @@ ${playMode === 'map' ? '× 输出【场景切换】或【场景更新】（当�
             if (!req.name) return null;
             return req;
         },
+        
         // ============================================================
         // ★ 解析主线推进
         // ============================================================
@@ -1705,20 +1721,20 @@ ${playMode === 'map' ? '× 输出【场景切换】或【场景更新】（当�
                 targetMap: null,
                 targetRegion: null,
             };
-        
+
             const kv = (key) => {
                 const re = new RegExp(`^\\s*${key}\\s*[:：]\\s*(.+)$`, 'm');
                 const m = text.match(re);
                 return m ? m[1].trim() : '';
             };
-        
+
             adv.title = kv('目标');
             adv.hint = kv('提示');
-        
+
             // ★ 地图/区域：为空时兜底到当前地图
             adv.mapName = kv('地图') || kv('目标地图');
             adv.regionId = kv('区域');
-        
+
             // ★★ 关键修复：AI 没写地图名 → 用当前地图
             if (!adv.mapName) {
                 const curMap = window.MapLauncher?.getMap?.();
@@ -1727,7 +1743,7 @@ ${playMode === 'map' ? '× 输出【场景切换】或【场景更新】（当�
                     console.log('[MainQuest] AI 未指定地图，兜底到当前地图:', curMap.name);
                 }
             }
-        
+
             // ★★ 关键修复：AI 没写区域 → 用 startRegion
             if (!adv.regionId) {
                 const curMap = window.MapLauncher?.getMap?.();
@@ -1736,12 +1752,12 @@ ${playMode === 'map' ? '× 输出【场景切换】或【场景更新】（当�
                     console.log('[MainQuest] AI 未指定区域，兜底到 startRegion:', curMap.startRegion);
                 }
             }
-        
+
             const kindStr = kv('落点');
             if (/格子/.test(kindStr)) adv.kind = 'cell';
             else if (/实体/.test(kindStr)) adv.kind = 'entity';
             else if (/出入口/.test(kindStr)) adv.kind = 'portal';
-        
+
             if (adv.kind === 'cell') {
                 adv.position = kv('位置') || 'center';
             } else if (adv.kind === 'entity') {
@@ -1754,7 +1770,7 @@ ${playMode === 'map' ? '× 输出【场景切换】或【场景更新】（当�
                 adv.targetRegion = kv('目标区域') || null;
                 adv.targetMap = kv('目标地图') || null;
             }
-        
+
             if (!adv.title || !adv.kind) return null;
             return adv;
         },
@@ -2902,7 +2918,12 @@ ${playMode === 'map' ? '× 输出【场景切换】或【场景更新】（当�
                     return `- 【${meta}】：${desc}${tags}`;
                 }).join('\n')
                 : '（无）';
-            const worldCtx = this.buildContext(null, { mainChars: false, scene: false, pendingEvents: false, volumes: true, interactionDigests: false });
+            const worldCtx = this.buildContext(null, {
+                mainChars: false,
+                scene: false, pendingEvents: false, volumes: true, interactionDigests: false,
+                companions: true,
+                fullCompanions: false,
+            });
             const itemLines = presetItems.length > 0
                 ? presetItems.map(i => {
                     const status = i.status ? `，(${i.status})` : '';
@@ -3019,6 +3040,8 @@ ${itemLines}
         //   5. scene                  —— 当前场景（名/描述/人物/实体）
         //   6. pendingEvents          —— 待处理事件（升级、昏迷等）
         //   7. interactionDigests     —— 本章交互历史（角色/物品/行动）
+        //   8. companions             —— 同行者名单
+        //   9. ifullCompanions        —— 同行者档案
         // ==================== 构建上下文 ====================
         buildContext(parentStory = null, options = {}) {
             const opt = {
@@ -3032,6 +3055,10 @@ ${itemLines}
                 scene: true,
                 mainChars: true,
                 pendingEvents: true,
+
+                companions: false,          // 默认开启（L0 名单）
+                fullCompanions: false,
+
                 ...options,
             };
 
@@ -3265,7 +3292,16 @@ ${itemLines}
                     ctx += '\n★ 请在剧情中自然地反映这些事件，处理完后标记为已处理。\n';
                 }
             }
-
+            // ========== 第 6.7 层：同行者 ==========
+            if (opt.companions && window.CompanionContext) {
+                const roster = window.CompanionContext.buildRosterBlock();
+                if (roster) ctx += '\n\n' + roster;
+            }
+            // ★ 新增：第 6.65 层：专注角色档案
+            if (opt.focusCharacter && window.CompanionContext) {
+                const focus = window.CompanionContext.buildFocusBlock(opt.focusCharacter);
+                if (focus) ctx += '\n\n' + focus;
+            }
             // ========== 第 7 层：本章交互摘要 ==========
             if (opt.interactionDigests) {
                 const chapterId = this.currentChapter?.id;
@@ -3292,7 +3328,6 @@ ${itemLines}
 
             return ctx;
         },
-
         // ==================== 剧情列表 ====================
         openStoryList() {
             const scene = window.LocationModalManager.currentLocation;

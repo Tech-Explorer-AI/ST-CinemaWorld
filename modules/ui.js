@@ -94,10 +94,10 @@
         closeModal() {
             const modal = document.getElementById('cinemaworld-modal');
             if (!modal) return;
-        
+
             // ★ 彻底清空所有类，包括 cw-inv-modal / cw-modal-map 等
             modal.className = '';
-        
+
             // ★ 清掉可能残留的内联样式
             modal.style.width = '';
             modal.style.maxWidth = '';
@@ -108,7 +108,7 @@
             modal.style.pointerEvents = '';
             modal.style.display = '';
             modal.style.zIndex = '';
-        
+
             modal.innerHTML = '';
         },
 
@@ -259,7 +259,7 @@
         resetWorld() {
             if (!confirm('确定要重置世界吗？所有数据将丢失！')) return;
             if (!confirm('再确认一次：所有地图、剧情、角色、背包、模板都会清空。')) return;
-        
+
             // ============================================================
             // 1. 清空核心状态
             // ============================================================
@@ -267,11 +267,11 @@
             PlayerStateManager.player = SaveManager.getEmptyPlayer();
             PlayerStateManager.player.name = CinemaWorld.currentUserName || '主人公';
             PlayerStateManager.displayedBars = [0, 1];
-        
+
             CinemaWorld.ui.currentLocation = null;
             LocationModalManager.currentLocation = null;
             CinemaWorld.worldState.mainQuest = null;
-        
+
             // 剧情
             StoryManager.storyList = [];
             StoryManager.chapters = [];
@@ -280,7 +280,7 @@
             StoryManager.volumes = [];
             StoryManager.currentVolume = null;
             StoryManager._listIndex = 0;
-        
+
             // 规则引擎
             if (typeof RuleEngine !== 'undefined') {
                 RuleEngine.parse('');
@@ -291,7 +291,7 @@
             if (typeof TagEffectManager !== 'undefined') {
                 TagEffectManager.syncFromRules();
             }
-        
+
             // ============================================================
             // 2. 清空视觉层
             // ============================================================
@@ -299,7 +299,7 @@
             BackgroundManager.cache = {};
             BackgroundManager.preloaded = {};
             BackgroundManager.current = null;
-        
+
             MusicManager.setSceneMusic(null);
             MusicManager.clearAllOverrides?.();
             MusicManager.cache = {};
@@ -310,28 +310,28 @@
             if (MusicManager.audio) {
                 try { MusicManager.audio.pause(); MusicManager.audio.src = ''; } catch (e) { }
             }
-        
+
             SceneSpriteLayerManager.clear();
             SceneAvatarBarManager.clear();
             SceneActionManager.refresh();
-        
+
             // VN 层：如果有正在播放的，强制停
             if (typeof VisualNovelManager !== 'undefined') {
                 try { VisualNovelManager.stop?.(); } catch (e) { }
             }
-        
+
             // ============================================================
             // 3. 重置地图系统
             // ============================================================
             if (window.MapLauncher?.reset) {
                 window.MapLauncher.reset();
             }
-        
+
             // MapLauncher 里的规则缓存（如果有）
             if (window.MapLauncher) {
                 window.MapLauncher._mapRules = {};
             }
-        
+
             // 玩法区
             if (window.MapPlotManager) {
                 window.MapPlotManager._selectedPlotId = null;
@@ -340,12 +340,12 @@
                 window.MapPlotManager.cancelSelection?.();
                 window.MapPlotManager._hideInfoCard?.();
             }
-        
+
             // 玩法区模板库（内存 + localStorage）
             if (window.MapPlotTemplate) {
                 window.MapPlotTemplate.clearCustom?.();
             }
-        
+
             // NPC 漫步 & 遭遇追击 的运行时状态
             if (window.MapNPCWander?._approach) {
                 window.MapNPCWander._approach.activeId = null;
@@ -360,7 +360,7 @@
                 window.MapEncounterChase._state.chasing = {};
                 window.MapEncounterChase._state.cooldowns = {};
             }
-        
+
             // 地图任务 & 主线
             if (window.MapQuestManager) {
                 window.MapQuestManager._generating = false;
@@ -368,7 +368,7 @@
             if (window.MainQuestManager) {
                 window.MainQuestManager._generating = false;
             }
-        
+
             // 环境时钟
             if (window.EnvironmentClock) {
                 window.EnvironmentClock._accumulator = 0;
@@ -382,7 +382,7 @@
             if (window.EnvironmentHUD) {
                 window.EnvironmentHUD._lastOtherSig = null;
             }
-        
+
             // ============================================================
             // 4. 清空运行时缓存
             // ============================================================
@@ -396,17 +396,17 @@
                 SpriteManager.playerSprite = undefined;
                 SpriteManager.playerAvatar = undefined;
             }
-        
+
             if (typeof BattleManager !== 'undefined') {
                 BattleManager._runtime = { defending: false, playerCooldowns: {}, enemyCooldowns: {} };
                 BattleManager._activeCombat = null;
             }
-        
+
             // 立绘层
             if (window.MapCanvas?._portraitImages) {
                 window.MapCanvas._portraitImages.clear();
             }
-        
+
             // 手机 UI
             if (typeof PhoneUIManager !== 'undefined') {
                 if (PhoneUIManager.isOpen) {
@@ -416,12 +416,12 @@
                 PhoneUIManager.viewingFriend = null;
                 PhoneUIManager._contactFilter = 'all';
             }
-        
+
             // ============================================================
             // 5. 删除存档（清 localStorage）
             // ============================================================
             SaveManager.deleteSave();
-        
+
             // ============================================================
             // 6. 刷新 UI
             // ============================================================
@@ -429,14 +429,14 @@
             this.createFloatingButtons();
             this.updateWorldStateDisplay();
             this.closeModal();
-        
+
             // 手机 / 战斗浮层残留
             document.querySelectorAll('.cw-battle-root, #cw-battle-rule-overlay').forEach(el => el.remove());
             document.querySelectorAll('.cw-phone-modal').forEach(el => el.remove());
-        
+
             // 触发场景选择 / 初始创建
             StartupManager.checkInitialization();
-        
+
             console.log('[CinemaWorld] 世界已重置');
         },
 
@@ -827,13 +827,13 @@
         async _applyVNBackground() {
             const url = await this._getVNBackground();
             if (!url) return;   // 没背景就不显示
-        
+
             const el = document.getElementById('cinemaworld-vn-background');
             if (!el) return;
-        
+
             el.style.backgroundImage = `url('${url}')`;
             el.classList.add('active');
-        
+
             console.log('[VN] 已应用 VN 背景:', url.slice(0, 60));
         },
         async playNext() {
@@ -1056,7 +1056,7 @@
         },
         async _getVNBackground() {
             const playMode = window.CinemaWorld?.worldState?.playMode;
-        
+
             // ---------- 场景模式 ----------
             if (playMode === 'scene') {
                 const scene = window.LocationModalManager?.currentLocation;
@@ -1065,7 +1065,7 @@
                         try {
                             const rec = await window.BackgroundImageStore.get(scene.generatedBackgroundId);
                             if (rec?.dataUrl) return rec.dataUrl;
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                     if (scene.generatedBackground) return scene.generatedBackground;
                     if (scene.background && window.BackgroundManager) {
@@ -1075,18 +1075,18 @@
                 }
                 return null;
             }
-        
+
             // ---------- 地图模式 ----------
             if (playMode === 'map') {
                 const map = window.MapLauncher?.getMap?.();
-        
+
                 // 1. 地图 AI 生成的背景
                 if (map) {
                     if (map.generatedBackgroundId && window.BackgroundImageStore) {
                         try {
                             const rec = await window.BackgroundImageStore.get(map.generatedBackgroundId);
                             if (rec?.dataUrl) return rec.dataUrl;
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                     if (map.generatedBackground) return map.generatedBackground;
                     if (map.background && window.BackgroundManager) {
@@ -1094,7 +1094,7 @@
                         if (url) return url;
                     }
                 }
-        
+
                 // ★ 兜底：用当前场景背景
                 const scene = window.LocationModalManager?.currentLocation;
                 if (scene) {
@@ -1103,7 +1103,7 @@
                         try {
                             const rec = await window.BackgroundImageStore.get(scene.generatedBackgroundId);
                             if (rec?.dataUrl) return rec.dataUrl;
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                     if (scene.generatedBackground) return scene.generatedBackground;
                     if (scene.background && window.BackgroundManager) {
@@ -1113,7 +1113,7 @@
                 }
                 return null;
             }
-        
+
             return null;
         },
         _hideVNBackground() {
@@ -1248,6 +1248,7 @@
 
             const apps = [
                 { id: 'social', icon: '📱', name: '社交', badge: this._getSocialBadge() },
+                { id: 'companion', icon: '🤝', name: '队伍', badge: this._getCompanionBadge() },
                 { id: 'bond', icon: '💫', name: '羁绊', badge: 0 },
                 { id: 'contacts', icon: '💬', name: '通讯录', badge: unread },
                 { id: 'story', icon: '📖', name: '剧情', badge: 0 },
@@ -1290,6 +1291,20 @@
             if (typeof SocialDataManager === 'undefined') return 0;
             const store = SocialDataManager.ensureStore();
             return (store.unread.total || 0) + (store.unread.moments || 0);
+        },
+        _getCompanionBadge() {
+            // ★ 显示"有可用养成行动"的队友数量
+            if (!window.CompanionManager || !window.BondManager) return 0;
+
+            let count = 0;
+            const members = window.CompanionManager.getAll();
+            for (const bond of members) {
+                const hasAvailable = (bond.actions || []).some(a =>
+                    window.BondManager.isActionAvailable(bond, a.id)
+                );
+                if (hasAvailable) count++;
+            }
+            return count;
         },
         renderShopApp() {
             const shops = ShopManager.getAll();
@@ -1355,6 +1370,7 @@
                 case 'rules': return this.renderRulesApp();
                 case 'bggen': return BackgroundGenAppUI.render();
                 case 'settings': return this.renderSettingsApp();
+                case 'companion': return CompanionUI.render();
                 default: return '<div style="padding:20px;color:#fff;">未知应用</div>';
             }
         },
@@ -1753,7 +1769,9 @@
             const roleBadge = f.role === 'main' ? '⭐'
                 : f.role === 'npc' ? '🏷️'
                     : '';
-
+            const companionBadge = (f._isCompanion || window.CompanionManager?.isMember?.(f.name))
+                ? '<span style="color:#7dd87d;font-size:10px;margin-right:4px;">🤝</span>'
+                : '';
             return `
                 <div class="cw-contact-item" onclick="PhoneUIManager.viewFriend('${f.name.replace(/'/g, "\\'")}')">
                     <div class="cw-contact-avatar" data-contact-avatar="${f.name}"
@@ -1761,6 +1779,9 @@
                         ${avatarHTML}
                         ${isInScene ? '<div class="cw-contact-online"></div>' : ''}
                     </div>
+                          <div class="cw-contact-name">
+            ${companionBadge}${roleBadge ? `<span style="margin-right:4px;">${roleBadge}</span>` : ''}${f.name}
+        </div>
                     <div class="cw-contact-info">
                         <div class="cw-contact-name">
                             ${roleBadge ? `<span style="margin-right:4px;">${roleBadge}</span>` : ''}${f.name}
@@ -1784,7 +1805,7 @@
             this.viewingFriend = name;
             this.render();
         },
-        
+
         renderFriendDetail(name) {
             const friend = this.getAllFriends().find(f => f.name === name);
             if (!friend) {
@@ -1824,7 +1845,7 @@
                     }
                 });
             }
-
+            
             return `
                 <div class="cw-phone-app-header">
                     <button class="cw-phone-back" onclick="PhoneUIManager.backToContacts()">←</button>
@@ -2018,30 +2039,65 @@
         // 从手机界面直接发起交互
         async interactWithFriend(name) {
             const playMode = window.CinemaWorld?.worldState?.playMode;
-            const record = window.CharacterRegistry.get(name);
-        
-            // ---------- 地图模式 + 地图 NPC ----------
-            if (playMode === 'map' && record?.source === 'map') {
+
+            // ============================================================
+            // ★ 1. 队友（不管在不在当前地图）
+            // ============================================================
+            if (window.CompanionManager?.isMember?.(name)) {
+                const map = window.MapLauncher?.getMap?.();
+                const ent = map?.entities?.find(e =>
+                    (e.kind === 'companion' || e.isCompanion) &&
+                    (e.meta?.companionName === name || e.name === name)
+                );
+
+                if (ent && playMode === 'map') {
+                    // 队友在当前地图 → 走地图对话
+                    this.close();
+                    window.MapInteract?.talkTo?.(ent.id);
+                    return;
+                }
+
+                // 队友不在当前地图 → 走手机私聊
+                const conv = window.SocialDataManager?.ensureSingleChat?.(name);
+                if (!conv) {
+                    await UIManager.showText('社交系统未加载', 1500);
+                    return;
+                }
+                // 手机已开着 → 直接切 App
+                this.currentApp = 'social';
+                this.viewingFriend = null;
+                if (window.SocialAppUI) {
+                    window.SocialAppUI.openChat(conv.id);
+                }
+                this.render();
+                return;
+            }
+
+            // ============================================================
+            // ★ 2. 地图 NPC
+            // ============================================================
+            if (playMode === 'map') {
                 const map = window.MapLauncher?.getMap?.();
                 const ent = map?.entities?.find(e =>
                     e.kind === 'npc' && e.name === name
                 );
-                if (!ent) {
-                    await UIManager.showText(`${name} 不在当前地图上`, 2000);
+                if (ent) {
+                    this.close();
+                    window.MapInteract?.talkTo?.(ent.id);
                     return;
                 }
-                this.close();
-                window.MapInteract?.talkTo?.(ent.id);
-                return;
+                // 地图上没有 → 往下走场景逻辑
             }
-        
-            // ---------- 场景模式 ----------
+
+            // ============================================================
+            // ★ 3. 场景角色
+            // ============================================================
             const scene = LocationModalManager.currentLocation;
             if (!scene) {
                 await UIManager.showText('你不在任何场景中', 2000);
                 return;
             }
-            const charIndex = scene.sceneCharacters.findIndex(c => c.name === name);
+            const charIndex = scene.sceneCharacters?.findIndex(c => c.name === name) ?? -1;
             if (charIndex === -1) {
                 await UIManager.showText(`${name} 不在当前场景`, 2000);
                 return;
@@ -2061,36 +2117,104 @@
             const sceneChars = CharacterRegistry.getAll();
             const playMode = window.CinemaWorld?.worldState?.playMode;
             const map = playMode === 'map' ? window.MapLauncher?.getMap?.() : null;
-        
-            // ★ 地图 NPC 转成和 CharacterRegistry 一样的结构
-            const mapNpcs = [];
+
+            // ★ 从地图拉 NPC + 队友
+            const mapEnts = [];
             if (map?.entities) {
                 const seen = new Set(sceneChars.map(c => c.name));
+
                 for (const e of map.entities) {
-                    if (e.kind !== 'npc') continue;
                     if (e.isPlayer) continue;
                     if (!e._placed) continue;
-                    if (seen.has(e.name)) continue;   // 场景里已存在的同名角色不重复
-        
-                    mapNpcs.push({
+
+                    // ★ 只收 NPC 和队友
+                    const isCompanion = e.kind === 'companion' || e.isCompanion;
+                    const isNPC = e.kind === 'npc';
+                    if (!isCompanion && !isNPC) continue;
+
+                    if (seen.has(e.name)) continue;
+                    seen.add(e.name);
+
+                    // ★ 队友：从 bond 里拿更准确的档案
+                    let gender = e.meta?.gender || e.fields?.['性别'] || '';
+                    let mood = e.meta?.mood || e.fields?.['心情'] || '';
+                    let status = e.status || '';
+                    let description = e.description || '';
+                    let favorability = e.fields?.['好感度'] || '';
+                    let tags = e.tags || [];
+
+                    if (isCompanion) {
+                        const companionName = e.meta?.companionName || e.name;
+                        const bond = window.BondManager?.getBond?.(companionName);
+                        if (bond) {
+                            gender = bond.profile?.gender || gender;
+                            mood = bond.profile?.mood || mood;
+                            status = bond.profile?.status || status;
+                            description = bond.profile?.background || description;
+                            // ★ 好感度用 bondStats 里的值
+                            const favStat = bond.bondStats?.['好感度'];
+                            if (favStat) favorability = favStat.value;
+                            tags = ['队友', ...tags.filter(t => t !== '队友')];
+                        }
+                    }
+
+                    mapEnts.push({
                         name: e.name,
-                        gender: e.meta?.gender || e.fields?.['性别'] || '',
-                        mood: e.meta?.mood || e.fields?.['心情'] || '',
-                        favorability: e.fields?.['好感度'] || '',
-                        status: e.status || '',
-                        description: e.description || '',
-                        tags: e.tags || [],
-                        role: 'npc',                       // 地图 NPC 默认当路人/次要
+                        gender,
+                        mood,
+                        favorability,
+                        status,
+                        description,
+                        tags,
+                        role: isCompanion ? 'minor' : 'npc',
                         lastScene: map.name,
                         lastSeenAt: Date.now(),
                         _source: 'map',
                         _entityId: e.id,
+                        _isCompanion: isCompanion,   // ★ 标记
                     });
                 }
+
+                // ★ 兼容：被召唤到别的地图的队友（不在当前地图，但仍是队员）
+                if (window.CompanionManager && window.BondManager) {
+                    const members = window.CompanionManager.getAll();
+                    const seenNames = new Set([
+                        ...sceneChars.map(c => c.name),
+                        ...mapEnts.map(e => e.name),
+                    ]);
+
+                    for (const bond of members) {
+                        if (!bond) continue;
+                        if (seenNames.has(bond.name)) continue;
+                        seenNames.add(bond.name);
+
+                        const favStat = bond.bondStats?.['好感度'];
+                        mapEnts.push({
+                            name: bond.name,
+                            gender: bond.profile?.gender || '',
+                            mood: bond.profile?.mood || '',
+                            favorability: favStat ? favStat.value : '',
+                            status: bond.profile?.status || '',
+                            description: bond.profile?.background || '',
+                            tags: ['队友'],
+                            role: 'minor',
+                            lastScene: bond.summon?.mapName || '(别的地图)',
+                            lastSeenAt: bond.summon?.lastSummonedAt || bond.joinedAt || 0,
+                            _source: 'companion',
+                            _isCompanion: true,
+                        });
+                    }
+                }
             }
-        
-            const all = [...sceneChars, ...mapNpcs];
-        
+
+            const all = [...sceneChars, ...mapEnts].map(f => {
+                // ★ 补一个"是不是队友"的标记
+                if (window.CompanionManager?.isMember?.(f.name)) {
+                    f._isCompanion = true;
+                }
+                return f;
+            });
+
             const history = CinemaWorld.worldState.interactions || [];
             const interactionMap = {};
             for (const rec of history) {
@@ -2099,7 +2223,7 @@
                     interactionMap[rec.target].push(rec);
                 }
             }
-        
+
             return all.map(f => ({
                 ...f,
                 interactions: interactionMap[f.name] || [],

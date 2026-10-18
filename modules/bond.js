@@ -204,7 +204,52 @@ ${newText}
 
             return parts.join('\n');
         },
-
+        _buildFullCharacterBlock(name) {
+            // ★ 队友 → 完整档案
+            if (window.CompanionManager?.isMember?.(name)
+                && window.BondManager) {
+                const bond = window.BondManager.getBond(name);
+                const record = CharacterRegistry.get(name);
+        
+                if (bond) {
+                    const parts = [`【${name} · 完整档案】`];
+        
+                    // 定位 / 标签 / 最近位置
+                    if (record) {
+                        const base = [];
+                        if (record.role) {
+                            const roleName = { main: '主要角色', minor: '次要角色', npc: '路人' }[record.role] || record.role;
+                            base.push(`- 定位：${roleName}`);
+                        }
+                        if (record.tags?.length) {
+                            const tags = record.tags.map(t => typeof t === 'string' ? t : t.name).join('、');
+                            base.push(`- 标签：${tags}`);
+                        }
+                        if (record.lastScene) base.push(`- 最近位置：${record.lastScene}`);
+                        if (base.length > 0) parts.push(base.join('\n'));
+                    }
+        
+                    // 档案 + 养成数据
+                    if (window.CompanionAIManager) {
+                        const profileBlock = window.CompanionAIManager._buildProfileBlock?.(bond);
+                        const bondBlock = window.CompanionAIManager._buildBondBlock?.(bond);
+                        if (profileBlock) parts.push(profileBlock);
+                        if (bondBlock) parts.push(bondBlock);
+                    }
+        
+                    // ★ 羁绊独有：与玩家的近期互动
+                    const digest = window.InteractionDigestManager?.getForCharacter?.(name, null, 2);
+                    if (digest?.compact) {
+                        parts.push(`- 与玩家的近期互动：${digest.compact}`);
+                    }
+        
+                    return parts.join('\n\n');
+                }
+            }
+        
+            // ★ 非队友 → 走旧版
+            return this._buildCharacterBlock(name);
+        },
         _buildBondHistoryBlock(bond) {
             const parts = [];
             if (bond.compactSummary) {
@@ -226,7 +271,7 @@ ${newText}
                 const bond = BondDataManager.ensureBond(members);
                 const memberCount = members.length;
 
-                const memberBlocks = members.map(m => this._buildCharacterBlock(m)).join('\n\n---\n\n');
+                const memberBlocks = members.map(m => this._buildFullCharacterBlock(m)).join('\n\n');
                 const historyBlock = this._buildBondHistoryBlock(bond);
                 const worldCtx = window.StoryManager?.buildContext(null, {
                     parentStory: false,

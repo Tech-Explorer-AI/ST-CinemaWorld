@@ -11,7 +11,7 @@
 
     const SaveManager = {
         SAVE_KEY: 'CinemaWorld_save',
-        VERSION: 4,
+        VERSION: 5,
         timer: null,
         _applying: false,
 
@@ -27,7 +27,7 @@
                 mainQuest: null,               // 主线
                 quests: {},                    // ★ 新增：地图任务表
                 _mapQuestGenerated: {},        // ★ 新增：每张地图是否已生成过任务 
-                playMode: 'scene', 
+                playMode: 'scene',
                 narrativeLog: [],
                 characters: {},
                 interactions: [],
@@ -44,6 +44,10 @@
                     history: [],
                 },
                 bonds: {},
+                companionBonds: {},
+                party: {
+                    members: []
+                },
                 shops: {},                    // ★ 修复 2：商店
                 pendingEvents: [],            // ★ 修复 3a：待处理事件
                 pendingUpdates: [],           // ★ 修复 3b：待应用场景更新
@@ -154,7 +158,7 @@
             if (!map) return;
             if (!window.CinemaWorld?.worldState) return;
             if (!window.MapSchema?.serialize) return;
-        
+
             try {
                 // 存玩家位置
                 if (window.MapCanvas?.player) {
@@ -163,7 +167,7 @@
                         y: window.MapCanvas.player.y,
                     };
                 }
-        
+
                 const serialized = window.MapSchema.serialize(map);
                 const ws = window.CinemaWorld.worldState;
                 ws.maps = ws.maps || {};
@@ -181,8 +185,19 @@
             1: (d) => SaveManager._migrateV3ToV4(d),
             2: (d) => SaveManager._migrateV3ToV4(d),
             3: (d) => SaveManager._migrateV3ToV4(d),
-        },
 
+            // ★ 新增：v4 → v5
+            4: (d) => SaveManager._migrateV4ToV5(d),
+        },
+        // ★★★ 新增方法
+        _migrateV4ToV5(d) {
+            // v4 → v5 只是新增 party 字段，其他结构不变
+            // 具体补齐交给 _normalize 做
+            if (!d._meta) d._meta = {};
+            d._meta.migratedFrom = d._meta.migratedFrom || 4;
+            d._meta.version = 5;
+            return d;
+        },
         _migrateV3ToV4(d) {
             // 旧结构：{ version, timestamp, world, player, displayedBars,
             //           currentScene, storyList, chapters, currentChapter,
@@ -268,7 +283,7 @@
                 quests: (ws.quests && typeof ws.quests === 'object') ? ws.quests : {},                    // ★ 新增
                 _mapQuestGenerated: (ws._mapQuestGenerated && typeof ws._mapQuestGenerated === 'object')
                     ? ws._mapQuestGenerated : {},                                                          // ★ 新增
-                playMode: typeof ws.playMode === 'string' ? ws.playMode : 'scene', 
+                playMode: typeof ws.playMode === 'string' ? ws.playMode : 'scene',
                 narrativeLog: Array.isArray(ws.narrativeLog) ? ws.narrativeLog : [],
                 characters: (ws.characters && typeof ws.characters === 'object') ? ws.characters : {},
                 interactions: Array.isArray(ws.interactions) ? ws.interactions : [],
@@ -281,7 +296,10 @@
                 shops: (ws.shops && typeof ws.shops === 'object') ? ws.shops : {},
                 pendingEvents: Array.isArray(ws.pendingEvents) ? ws.pendingEvents : [],
                 pendingUpdates: Array.isArray(ws.pendingUpdates) ? ws.pendingUpdates : [],
-                bonds: this._normalizeBonds(ws.bonds), 
+                bonds: this._normalizeBonds(ws.bonds),
+                party: this._normalizeParty(ws.party),
+                companionBonds: (ws.companionBonds && typeof ws.companionBonds === 'object')
+                    ? ws.companionBonds : {},
                 strategy: ws.strategy || {
                     factions: {}, regions: {}, actions: [],
                     rules: { raw: '', parsed: null },
@@ -297,7 +315,7 @@
                             ? ws.ttsVoiceAssign.female : {},
                         male: (ws.ttsVoiceAssign.male && typeof ws.ttsVoiceAssign.male === 'object')
                             ? ws.ttsVoiceAssign.male : {},
-                      }
+                    }
                     : { female: {}, male: {} },
                 ttsCharacterMode: (ws.ttsCharacterMode && typeof ws.ttsCharacterMode === 'object')
                     ? ws.ttsCharacterMode : {},
@@ -335,7 +353,7 @@
                 attributes: (pRaw.attributes && typeof pRaw.attributes === 'object') ? pRaw.attributes : {},
                 inventory: Array.isArray(pRaw.inventory) ? pRaw.inventory : [],
                 inventorySlots: (typeof pRaw.inventorySlots === 'number' && pRaw.inventorySlots >= 1)
-                ? pRaw.inventorySlots : 40,
+                    ? pRaw.inventorySlots : 40,
                 tags: this._normalizeTags(pRaw.tags),
                 extraStats: this._normalizeExtra(pRaw.extraStats),
                 nameCustomized: !!pRaw.nameCustomized,
@@ -367,15 +385,36 @@
 
             return { _meta: meta, cinema, player: playerSection, story };
         },
+        // ★★★ 新增：归一化队伍
+        _normalizeParty(raw) {
+            const out = { members: [] };
+            if (!raw || typeof raw !== 'object') return out;
 
+            if (Array.isArray(raw.members)) {
+                const seen = new Set();
+                for (const name of raw.members) {
+                    if (!name) continue;
+                    let norm = String(name).trim();
+                    if (typeof window.CharacterRegistry?.normalizeName === 'function') {
+                        norm = window.CharacterRegistry.normalizeName(norm);
+                    }
+                    if (!norm) continue;
+                    if (seen.has(norm)) continue;
+                    seen.add(norm);
+                    out.members.push(norm);
+                }
+            }
+
+            return out;
+        },
         _normalizeBonds(raw) {
             const out = {};
             if (!raw || typeof raw !== 'object') return out;
-        
+
             for (const [key, bond] of Object.entries(raw)) {
                 if (!bond || typeof bond !== 'object') continue;
                 if (!Array.isArray(bond.members) || bond.members.length < 2) continue;
-        
+
                 out[key] = {
                     id: bond.id || `bond_${key}`,
                     members: bond.members.slice(),
@@ -411,7 +450,7 @@
                 },
             };
             if (!raw || typeof raw !== 'object') return out;
-        
+
             // conversations
             if (raw.conversations && typeof raw.conversations === 'object') {
                 for (const [id, conv] of Object.entries(raw.conversations)) {
@@ -433,7 +472,7 @@
                     };
                 }
             }
-        
+
             // moments
             if (Array.isArray(raw.moments)) {
                 out.moments = raw.moments.map(m => ({
@@ -447,18 +486,18 @@
                     seenByPlayer: !!m.seenByPlayer,
                 }));
             }
-        
+
             // unread
             if (raw.unread) {
                 out.unread.total = raw.unread.total || 0;
                 out.unread.moments = raw.unread.moments || 0;
             }
-        
+
             // settings
             if (raw.settings) {
                 Object.assign(out.settings, raw.settings);
             }
-        
+
             return out;
         },
         // ---------- 归一化辅助 ----------
@@ -539,19 +578,19 @@
             return {
                 activeCombat: raw.activeCombat || null,
                 battleRules: raw.battleRules || null,
-        
+
                 // 旧：整包缓存
                 battlePackages: (raw.battlePackages && typeof raw.battlePackages === 'object')
                     ? raw.battlePackages : {},
-        
+
                 // ★ 新：战斗骨架（可复用）
                 battleSkeletons: (raw.battleSkeletons && typeof raw.battleSkeletons === 'object')
                     ? raw.battleSkeletons : {},
-        
+
                 // ★ 新：战斗叙事
                 battleNarratives: (raw.battleNarratives && typeof raw.battleNarratives === 'object')
                     ? raw.battleNarratives : {},
-        
+
                 history: Array.isArray(raw.history) ? raw.history : [],
             };
         },
@@ -690,7 +729,7 @@
                     MusicManager.mapMusic = null;         // ★ 加这一行
                     MusicManager.overrideScopes = {};     // ★ 顺便修一下（原来是 overrideMusic，已经不用了）
                 }
-                
+
                 // ---------- 2. 应用 cinema ----------
                 CinemaWorld.worldState = data.cinema.worldState;
                 CinemaWorld.ui.currentLocation = data.cinema.ui.currentLocation;
@@ -698,7 +737,7 @@
                 CinemaWorld.currentUserName = data.cinema.currentUserName;
 
                 // ★ 恢复地图
-                this._restoreMapFromState();    
+                this._restoreMapFromState();
                 // ---------- 3. 应用 player ----------
                 PlayerStateManager.player = data.player.data;
                 PlayerStateManager.displayedBars = data.player.displayedBars;
@@ -764,19 +803,19 @@
             if (!ws?.currentMapName) return;
             if (!window.MapSchema?.deserialize) return;
             if (!window.MapLayout?.build) return;
-        
+
             const data = ws.maps?.[ws.currentMapName];
             if (!data) return;
-        
+
             try {
                 const map = window.MapSchema.deserialize(data, window.WorldManager);
                 if (!map) return;
-        
+
                 // 重建网格
                 if (!map._generated) {
                     window.MapLayout.build(map);
                 }
-        
+
                 window.MapLauncher._map = map;
                 console.log('[SaveManager] 地图已恢复:', map.name);
             } catch (e) {
@@ -855,7 +894,7 @@
             try {
                 const str = localStorage.getItem(this.SAVE_KEY);
                 if (!str) return false;
-        
+
                 const parsed = JSON.parse(str);
                 const migrated = this._migrate(parsed);
                 if (!migrated) {
@@ -864,12 +903,12 @@
                 }
                 const normalized = this._normalize(migrated);
                 this.apply(normalized);
-        
+
                 // ★ 兜底：如果 apply 里没恢复成功，再试一次
                 if (!window.MapLauncher._map && window.CinemaWorld.worldState?.currentMapName) {
                     this._restoreMapFromState();
                 }
-        
+
                 console.log('[CinemaWorld] 存档已加载');
                 return true;
             } catch (e) {

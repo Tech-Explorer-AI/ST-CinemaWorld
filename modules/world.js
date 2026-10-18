@@ -34,7 +34,7 @@
             './' + subPath.replace(/^\//, ''),
         ];
     }
-    
+
     // ==================== 世界数据管理 ====================
     const WorldManager = {
         // 添加场景（唯一的添加入口）
@@ -59,7 +59,7 @@
             this.addToNarrativeLog(`[创建场景] ${scene.name}`);
             return scene;
         },
-        
+
         // WorldManager 里加
         getMap(name) {
             const ws = window.CinemaWorld?.worldState;
@@ -876,23 +876,27 @@
             }
         },
 
-        // ============ 播放 ============
+        _failedMusic: new Set(),
+
         async play(name) {
             if (!name) return this.stop();
 
-            // 相同曲目正在播 → 跳过
             if (this.currentMusic === name && this.audio && !this.audio.paused) {
+                return;
+            }
+
+            if (this._failedMusic.has(name)) {
                 return;
             }
 
             const url = await this.find(name);
             if (!url) {
-                console.log(`[CinemaWorld] 未找到音乐: ${name}`);
-                // ★ 找不到也要把 currentMusic 设成 name，避免反复重试
-                this.currentMusic = name;
+                console.log(`[CinemaWorld] 未找到音乐: ${name}，保持当前音乐`);
+                this._failedMusic.add(name);
                 return;
             }
 
+            this._failedMusic.delete(name);
             this.currentMusic = name;
             this.audio.src = url;
 

@@ -341,7 +341,7 @@
 
         resolveTarget(name) {
             if (!name) return null;
-        
+
             // ---------- 1. 玩家 ----------
             const playerName = PlayerStateManager.player?.name;
             const userName = CinemaWorld.currentUserName;
@@ -352,14 +352,14 @@
                 || name === aiName) {
                 return { type: 'player', ref: PlayerStateManager.player };
             }
-        
+
             // ---------- 2. 场景角色 ----------
             const scene = window.LocationModalManager?.currentLocation;
             if (scene && scene.sceneCharacters) {
                 const ch = scene.sceneCharacters.find(c => c.name === name || name.includes(c.name));
                 if (ch) return { type: 'character', ref: ch };
             }
-        
+
             // ---------- 3. 地图实体兜底 ----------
             const map = window.MapLauncher?.getMap?.();
             if (map) {
@@ -370,7 +370,7 @@
                         ent.extraStats = { _order: [], _raw: '' };
                     }
                     if (!ent.tags) ent.tags = [];
-        
+
                     // ★ 把 fields 里的关键字段提到顶层，供 applyNumberChange / applyStatusChange 用
                     if (ent.fields) {
                         if (ent.favorability === undefined && ent.fields['好感度'] !== undefined) {
@@ -392,15 +392,15 @@
                             ent.mood = ent.meta.mood;
                         }
                     }
-        
+
                     // ★ 标记来源，便于后续区分
                     ent._source = 'map';
-        
+
                     // ★ 返回 type: 'character'，复用 character 分支
                     return { type: 'character', ref: ent, _isMapEntity: true };
                 }
             }
-        
+
             return null;
         },
 
@@ -782,34 +782,34 @@
                 status: change.name,
                 operation: change.type,
             };
-        
+
             const tags = target.ref.tags || (target.ref.tags = []);
             const getName = (t) => typeof t === 'string' ? t : t.name;
-        
+
             if (change.type === 'addStatus') {
                 const exists = tags.some(t => getName(t) === change.name);
                 if (exists) {
                     result.reason = '状态已存在';
                     return result;
                 }
-        
+
                 let effect = change.effect;
                 if (!effect && typeof window.TagEffectManager !== 'undefined') {
                     effect = window.TagEffectManager.getEffect(change.name);
                 }
-        
+
                 const duration = effect?.持续 ?? null;
-        
+
                 tags.push({
                     name: change.name,
                     effect: effect || null,
                     duration: duration,
                 });
-        
+
                 result.success = true;
                 result.effect = effect;
                 result.duration = duration;
-        
+
             } else if (change.type === 'removeStatus') {
                 const idx = tags.findIndex(t => getName(t) === change.name);
                 if (idx > -1) {
@@ -819,7 +819,7 @@
                     result.reason = '状态不存在';
                 }
             }
-        
+
             // ---------- 同步到 CharacterRegistry ----------
             if (target.type === 'character' && typeof CharacterRegistry !== 'undefined') {
                 // ★ sceneName 兜底：优先场景，其次地图
@@ -828,16 +828,16 @@
                     const map = window.MapLauncher?.getMap?.();
                     sceneName = map?.name || '';
                 }
-        
+
                 try {
                     CharacterRegistry.upsert(target.ref, sceneName, true);
                 } catch (e) {
                     console.warn('[EffectSystem] CharacterRegistry.upsert 失败:', e);
                 }
-        
+
                 // ★ 状态变化 → 刷立绘（场景模式才有立绘）
                 window.SpriteManager?.notifySceneSpriteUpdate?.(target.ref.name);
-        
+
                 // ★ 地图模式：刷新地图渲染 + 头像栏
                 const playMode = window.CinemaWorld?.worldState?.playMode;
                 if (playMode === 'map') {
@@ -849,13 +849,13 @@
                     }
                 }
             }
-        
+
             // ---------- 玩家 ----------
             if (target.type === 'player' && typeof PlayerStateManager !== 'undefined') {
                 PlayerStateManager.refreshAvatarArea();
                 window.SpriteManager?.notifySceneSpriteUpdate?.(PlayerStateManager.player.name);
             }
-        
+
             return result;
         },
 
@@ -941,6 +941,8 @@
                     inventoryItems: false,
                     characterFilter: 'onlySelf',
                     targetName: ch.name,
+                    companions: false,          // 默认开启（L0 名单）
+                    fullCompanions: ch.name,
                 },
                 volumes: true,
             });
@@ -1809,6 +1811,7 @@ ${worldCtx}
                     inventoryItems: false,
                 },
                 volumes: false, chapters: false,
+                companions: true, fullCompanions: false,          // 默认开启（L0 名单）
             });
 
             await window.UIManager.showText(`正在${modeLabel} ${item.name}...`, 1000);
@@ -2080,7 +2083,9 @@ ${input ? `玩家补充：${input}` : ''}
                     interactionDigests: true,
                     volumes: false,
                     chapters: false,
-                    pendingEvents: false,
+                    pendingEvents: false, 
+                    companions: false, 
+                    fullCompanions: false, 
                 });
                 const playerBlock = PlayerStateManager.formatForPrompt();
                 const envLine = WorldManager.getEnvDataText(scene);
@@ -2600,6 +2605,8 @@ ${guide || '根据当前场景和剧情，生成一个合理的敌人。'}
                 volumes: true,
                 chapters: true,
                 pendingEvents: false,
+                companions: true, 
+                fullCompanions: false, 
             });
 
             const playerBlock = PlayerStateManager.formatForPrompt();
@@ -2779,6 +2786,8 @@ ${equipBlock}
                 volumes: true,
                 chapters: true,
                 pendingEvents: false,
+                companions: true, 
+                fullCompanions: false, 
             });
 
             const playerBlock = PlayerStateManager.formatForPrompt();
@@ -2978,11 +2987,14 @@ ${enemyBlock}
         // ★ 开始战斗
         //   source: 场景实体的 index（旧）或地图实体的 id（fromMap: true）
         // ============================================================
-        // ============================================================
-        // ★ 开始战斗
-        //   source: 场景实体的 index（旧）或地图实体的 id（fromMap: true）
-        // ============================================================
         async startEncounter(source, options = {}) {
+            // ============================================================
+            // ★ 即时战斗模式拦截
+            // ============================================================
+            const combatMode = window.CinemaWorld?.worldState?.settings?.combatMode;
+            if (combatMode === 'realtime') {
+                return this._startRealtimeCombat(source, options);
+            }
             let rawItem, sourceType;
             this._fromMap = !!options.fromMap;
             // ---------- 1. 按来源查找 ----------
@@ -3048,7 +3060,73 @@ ${enemyBlock}
 
             await this._openPreviewModal(item, pkg, false);
         },
+        // ============================================================
+        // ★ 即时战斗模式：不进回合制，只让敌人 aggro
+        // ============================================================
+        _startRealtimeCombat(source, options = {}) {
+            const fromMap = !!options.fromMap;
 
+            // ---------- 找敌人实体 ----------
+            let ent = null;
+
+            if (fromMap) {
+                const map = window.MapLauncher?.getMap?.();
+                ent = map?.entities?.find(e => e.id === source);
+            } else {
+                // 场景模式进即时战斗：先看是不是地图实体
+                const scene = window.LocationModalManager?.currentLocation;
+                const sceneItem = scene?.sceneItems?.[source];
+
+                if (sceneItem) {
+                    // 场景实体 → 检查它是不是从地图进来的
+                    const map = window.MapLauncher?.getMap?.();
+                    ent = map?.entities?.find(e => e.name === sceneItem.name);
+                }
+
+                if (!ent) {
+                    const map = window.MapLauncher?.getMap?.();
+                    ent = map?.entities?.find(e => e.id === source);
+                }
+            }
+
+            if (!ent) {
+                console.warn('[EncounterManager] 即时战斗找不到敌人实体:', source);
+                window.UIManager.showText('找不到敌人', 2000);
+                return;
+            }
+
+            // ---------- 让敌人进入战斗状态 ----------
+            ent.meta = ent.meta || {};
+            ent.meta._combatAggro = true;
+            ent.meta._combatAggroAt = Date.now();
+
+            // ---------- 玩家自动举械 ----------
+            if (window.CombatState && !window.CombatState.isAimed()) {
+                const main = window.EquipmentManager?.getMainWeapon?.();
+                const off = window.EquipmentManager?.getOffWeapon?.();
+                if (main || off) {
+                    window.CombatState.enterAimed();
+                } else {
+                    window.UIManager.showText('⚔️ 遭遇敌人！但没有装备武器', 2000);
+                }
+            }
+
+            // ---------- 关闭模态框（如果在的话）----------
+            window.UIManager.closeModal();
+
+            // ---------- 提示 ----------
+            window.UIManager.showText(
+                `⚔️ ${ent.name} 追了上来！\nQ 举械/收械 · 空格攻击`,
+                2500
+            );
+
+            // ---------- 重绘 ----------
+            if (window.MapCanvas?.canvas) {
+                window.MapCanvas._render();
+            }
+
+            console.log(`[EncounterManager] 即时战斗：${ent.name} aggro`);
+        },
         // ============================================================
         // ★ 把地图实体 / 场景实体统一成一个"战斗用"结构
         // ============================================================
@@ -4001,6 +4079,35 @@ ${enemyBlock}
             const icon = item.icon || '📦';
             const count = item.count || 1;
 
+            // ============================================================
+            // ★ 新增：即时战斗数据区块
+            // ============================================================
+            let combatBlockHTML = '';
+            if (window.CombatGen) {
+                const isWeapon = window.CombatGen._isWeapon(item);
+                const hasCombat = window.CombatGen.hasCombatData(item);
+
+                if (isWeapon && !hasCombat) {
+                    // 是武器，但没生成
+                    combatBlockHTML = `
+                        ${window.CombatGen.renderMissingHint()}
+                        <button class="cinemaworld-button primary"
+                            style="width:100%;font-size:12px;padding:8px;margin-bottom:10px;"
+                            onclick="CombatGen.generateOne(${this.selectedIndex}, 'inventory')">
+                            ⚔️ 生成战斗数据
+                        </button>`;
+                } else if (hasCombat) {
+                    // 有数据
+                    combatBlockHTML = `
+                        ${window.CombatGen.renderCombatInfo(item)}
+                        <button class="cinemaworld-button"
+                            style="width:100%;font-size:11px;padding:6px;margin-bottom:10px;"
+                            onclick="CombatGen.generateOne(${this.selectedIndex}, 'inventory')">
+                            🔄 重新生成战斗数据
+                        </button>`;
+                }
+            }
+
             const descHTML = item.description
                 ? `<div class="cw-inv-detail-section">
                     <div class="cw-inv-detail-section-label">📝 描述</div>
@@ -4028,14 +4135,13 @@ ${enemyBlock}
                         ${rows.join('')}
                     </div>
                     ${item.fields?.['效果'] ? `
-                <div class="cw-inv-detail-section">
-                    <div class="cw-inv-detail-section-label">⚡ 使用效果</div>
-                    <div class="cw-inv-detail-desc" style="color:#ffd76b;">
-                        ${this._formatEffectDisplay(item.fields['效果'])}
-                    </div>
-                </div>
-            ` : ''}
-                    `;
+                        <div class="cw-inv-detail-section">
+                            <div class="cw-inv-detail-section-label">⚡ 使用效果</div>
+                            <div class="cw-inv-detail-desc" style="color:#ffd76b;">
+                                ${this._formatEffectDisplay(item.fields['效果'])}
+                            </div>
+                        </div>
+                    ` : ''}`;
                 }
             }
 
@@ -4061,6 +4167,7 @@ ${enemyBlock}
                             <div class="cw-inv-detail-count">数量：<strong>${count}</strong></div>
                         </div>
                     </div>
+                    ${combatBlockHTML}
                     ${descHTML}
                     ${fieldsHTML}
                     ${interactionsHTML}
@@ -4674,18 +4781,43 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
             const player = PlayerStateManager.player;
             const eq = EquipmentManager.ensureStructure();
 
+            // ============================================================
+            // 格子渲染
+            // ============================================================
             let gridHTML = '';
             eq.slots.forEach((item, i) => {
                 const icon = item?.icon || '📦';
                 const isSelected = i === (this._equipSelectedIndex ?? 0);
+
+                // ★ 前两格标记：✋主 / 🤚副
+                let slotTag = '';
+                if (i === 0) {
+                    slotTag = `<div class="cw-weapon-slot-tag" style="position:absolute;top:2px;left:2px;
+                        font-size:9px;padding:1px 4px;background:rgba(255,140,140,0.85);
+                        color:#fff;border-radius:3px;line-height:1.2;pointer-events:none;">✋主</div>`;
+                } else if (i === 1) {
+                    const main = eq.slots[0];
+                    const mainData = main && window.CombatWeapon ? window.CombatWeapon.getCombatData(main) : null;
+                    const disabled = mainData?.twoHanded;
+                    slotTag = `<div class="cw-weapon-slot-tag" style="position:absolute;top:2px;left:2px;
+                        font-size:9px;padding:1px 4px;
+                        background:${disabled ? 'rgba(80,80,80,0.85)' : 'rgba(255,180,60,0.85)'};
+                        color:#fff;border-radius:3px;line-height:1.2;pointer-events:none;">🤚副</div>`;
+                }
+
                 gridHTML += `
                     <div class="cw-inv-slot ${item ? '' : 'empty'} ${isSelected ? 'selected' : ''}"
+                         style="position:relative;"
                          onclick="InventoryManager._selectEquipSlot(${i})"
                          title="${item ? this._escapeAttr(item.name) : '空'}">
+                        ${slotTag}
                         ${item ? `<div class="cw-inv-slot-icon">${icon}</div>` : ''}
                     </div>`;
             });
 
+            // ============================================================
+            // 加成汇总
+            // ============================================================
             const bonuses = eq.bonuses || {};
             let bonusHTML = '';
             if (Object.keys(bonuses).length > 0) {
@@ -4703,18 +4835,54 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
                 bonusHTML = '<span style="color:#666;font-size:12px;">暂无加成</span>';
             }
 
+            // ============================================================
+            // 选中格详情
+            // ============================================================
             const sel = this._equipSelectedIndex ?? 0;
             const selItem = eq.slots[sel];
 
+            // ★ 战斗数据区块
+            let combatBlockHTML = '';
+            if (selItem && window.CombatGen) {
+                const isWeapon = window.CombatGen._isWeapon(selItem);
+                const hasCombat = window.CombatGen.hasCombatData(selItem);
+
+                if (isWeapon && !hasCombat) {
+                    combatBlockHTML = `
+                        ${window.CombatGen.renderMissingHint()}
+                        <button class="cinemaworld-button primary"
+                            style="width:100%;font-size:12px;padding:8px;margin-bottom:10px;"
+                            onclick="CombatGen.generateOne(${sel}, 'equipment')">
+                            ⚔️ 生成战斗数据
+                        </button>`;
+                } else if (hasCombat) {
+                    combatBlockHTML = `
+                        ${window.CombatGen.renderCombatInfo(selItem)}
+                        <button class="cinemaworld-button"
+                            style="width:100%;font-size:11px;padding:6px;margin-bottom:10px;"
+                            onclick="CombatGen.generateOne(${sel}, 'equipment')">
+                            🔄 重新生成战斗数据
+                        </button>`;
+                }
+            }
+
+            // ============================================================
+            // 组装
+            // ============================================================
             modal.className = 'active cw-inv-modal';
             modal.innerHTML = `
                 <div class="cinemaworld-modal-title">⚔️ 装备栏</div>
-
+        
                 <div style="text-align:center;margin-bottom:12px;">
                     <div style="font-size:12px;color:#888;margin-bottom:6px;">
                         共 ${eq.slots.length} 格
                     </div>
                     <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;">
+                        <button class="cinemaworld-button"
+                            style="font-size:12px;padding:6px 16px;color:#ff9999;"
+                            onclick="CombatGen.generateAll()">
+                            ⚔️ 批量生成战斗数据
+                        </button>
                         <button class="cinemaworld-button" style="font-size:12px;padding:5px 12px;"
                             onclick="EquipmentManager.expandSlots(1); InventoryManager.openEquipment();">
                             ➕ 扩容 +1
@@ -4734,8 +4902,9 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
                             </button>
                         ` : ''}
                     </div>
+    
                 </div>
-
+        
                 <div style="margin-bottom:12px;padding:10px 12px;background:rgba(255,180,80,.08);
                      border:1px solid rgba(255,180,80,.25);border-radius:10px;">
                     <div style="font-size:12px;color:#ffcf80;margin-bottom:6px;font-weight:600;">
@@ -4743,7 +4912,7 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
                     </div>
                     <div>${bonusHTML}</div>
                 </div>
-
+        
                 <div class="cw-inv-layout" style="grid-template-columns: 1fr 340px;">
                     <div class="cw-inv-left">
                         <div class="cw-inv-grid">
@@ -4760,6 +4929,7 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
                                         <div class="cw-inv-detail-count">第 ${sel + 1} 格</div>
                                     </div>
                                 </div>
+                                ${combatBlockHTML}
                                 ${selItem.description ? `
                                     <div class="cw-inv-detail-section">
                                         <div class="cw-inv-detail-section-label">📝 描述</div>
@@ -4786,7 +4956,7 @@ ${input && modeLine ? `玩家补充：${input}` : ''}
                         </div>
                     </div>
                 </div>
-
+        
                 <div style="text-align:center;margin-top:16px;">
                     <button class="cinemaworld-button" onclick="InventoryManager.open()">← 返回背包</button>
                     <button class="cinemaworld-button" onclick="UIManager.closeModal()">关闭</button>
@@ -5329,7 +5499,7 @@ ${fieldLines ? `\n已有字段：\n${fieldLines}` : ''}
             if (extra._order.includes('金币')) return '金币';
 
             for (const k of extra._order) {
-                if (/金币|银两|铜钱|金钱|货币|币|元/.test(k)) return k;
+                if (/金币|银两|铜币|银币|铜钱|金钱|货币|币|元/.test(k)) return k;
             }
 
             return extra._order[0] || null;
@@ -5352,7 +5522,7 @@ ${fieldLines ? `\n已有字段：\n${fieldLines}` : ''}
 
             if (name === playerKey) return playerKey;
 
-            const currencyRegex = /金币|银两|铜钱|金钱|货币|币|元/;
+            const currencyRegex = /金币|银两|铜币|银币|铜钱|金钱|货币|币|元/;
             if (currencyRegex.test(name) && currencyRegex.test(playerKey)) {
                 return playerKey;
             }
@@ -6263,13 +6433,13 @@ ${context || '根据当前场景，生成一个自然的商店（可以是店铺
             const result = this.sell(shop, invIndex, count);
             if (!result.ok) {
                 window.UIManager.showText(`❌ ${result.reason}`, 2500);
-                return;
+                return; 
             }
 
-            window.UIManager.showText(
-                `✅ 卖出 ${result.itemName} ×${result.count}\n获得 ${result.total}`,
-                2500
-            );
+            // window.UIManager.showText(
+            //     `✅ 卖出 ${result.itemName} ×${result.count}\n获得 ${result.total}`,
+            //     2500
+            // );
             this._render();
         },
 

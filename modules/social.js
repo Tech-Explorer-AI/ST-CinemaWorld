@@ -429,6 +429,98 @@
 
             return `【${authorName} 与玩家的近期互动】\n${body}`;
         },
+
+        // ============================================================
+        // 单聊：单个角色深度档案（队友走完整档案，非队友走旧版）
+        // ============================================================
+        _buildSingleCharBlock(characterName) {
+            // ★ 队友 → 完整档案
+            if (window.CompanionManager?.isMember?.(characterName)
+                && window.BondManager) {
+                const bond = window.BondManager.getBond(characterName);
+                const record = CharacterRegistry.get(characterName);
+
+                if (bond) {
+                    const parts = [`【${characterName} · 完整档案】`];
+
+                    // 定位 / 标签 / 最近位置（来自 CharacterRegistry）
+                    if (record) {
+                        const base = [];
+                        if (record.role) {
+                            const roleName = { main: '主要角色', minor: '次要角色', npc: '路人' }[record.role] || record.role;
+                            base.push(`- 定位：${roleName}`);
+                        }
+                        if (record.tags?.length) {
+                            const tags = record.tags.map(t => typeof t === 'string' ? t : t.name).join('、');
+                            base.push(`- 标签：${tags}`);
+                        }
+                        if (record.lastScene) base.push(`- 最近位置：${record.lastScene}`);
+                        if (base.length > 0) parts.push(base.join('\n'));
+                    }
+
+                    // 档案 + 养成数据
+                    if (window.CompanionAIManager) {
+                        const profileBlock = window.CompanionAIManager._buildProfileBlock?.(bond);
+                        const bondBlock = window.CompanionAIManager._buildBondBlock?.(bond);
+                        if (profileBlock) parts.push(profileBlock);
+                        if (bondBlock) parts.push(bondBlock);
+                    }
+
+                    return parts.join('\n\n');
+                }
+            }
+
+            // ★ 非队友 → 走旧版
+            return this._buildCharacterBlock(characterName);
+        },
+        // ============================================================
+        // 群聊：群成员精简简介
+        //   队友：旧版 + 性格 + 一句外貌
+        //   非队友：旧版
+        // ============================================================
+        // ============================================================
+        // 群聊：群成员（队友走完整档案，非队友走旧版）
+        // ============================================================
+        _buildGroupMemberBlock(characterName) {
+            // ★ 队友 → 完整档案
+            if (window.CompanionManager?.isMember?.(characterName)
+                && window.BondManager) {
+                const bond = window.BondManager.getBond(characterName);
+                const record = CharacterRegistry.get(characterName);
+
+                if (bond) {
+                    const parts = [`【${characterName} · 完整档案】`];
+
+                    // 定位 / 标签 / 最近位置
+                    if (record) {
+                        const base = [];
+                        if (record.role) {
+                            const roleName = { main: '主要角色', minor: '次要角色', npc: '路人' }[record.role] || record.role;
+                            base.push(`- 定位：${roleName}`);
+                        }
+                        if (record.tags?.length) {
+                            const tags = record.tags.map(t => typeof t === 'string' ? t : t.name).join('、');
+                            base.push(`- 标签：${tags}`);
+                        }
+                        if (record.lastScene) base.push(`- 最近位置：${record.lastScene}`);
+                        if (base.length > 0) parts.push(base.join('\n'));
+                    }
+
+                    // 档案 + 养成数据
+                    if (window.CompanionAIManager) {
+                        const profileBlock = window.CompanionAIManager._buildProfileBlock?.(bond);
+                        const bondBlock = window.CompanionAIManager._buildBondBlock?.(bond);
+                        if (profileBlock) parts.push(profileBlock);
+                        if (bondBlock) parts.push(bondBlock);
+                    }
+
+                    return parts.join('\n\n');
+                }
+            }
+
+            // ★ 非队友 → 走旧版
+            return this._buildCharacterBlock(characterName);
+        },
         _buildHistoryBlock(conv) {
             const parts = [];
 
@@ -456,7 +548,7 @@
             this.isGenerating = true;
             try {
                 const characterName = conv.members[0];
-                const charBlock = this._buildCharacterBlock(characterName);
+                const charBlock = this._buildSingleCharBlock(characterName);
                 const historyBlock = this._buildHistoryBlock(conv);
                 const playerBlock = PlayerStateManager.formatForPrompt();
 
@@ -470,6 +562,8 @@
                     chapter: true,
                     chapters: true,
                     pendingEvents: false,
+                    companions: false,          // 默认开启（L0 名单）
+
                 }) || '';
 
                 const now = new Date();
@@ -535,7 +629,7 @@ ${playerMessage || '（玩家没有主动说话，只是打开了聊天窗口，
             this.isGenerating = true;
             try {
                 const members = conv.members || [];
-                const memberBlocks = members.map(m => this._buildCharacterBlock(m)).join('\n\n---\n\n');
+                const memberBlocks = members.map(m => this._buildGroupMemberBlock(m)).join('\n');
                 const historyBlock = this._buildHistoryBlock(conv);
                 const playerBlock = PlayerStateManager.formatForPrompt();
 
@@ -675,8 +769,7 @@ ${playerMessage || '（玩家没有主动说话，只是打开了群聊，请你
                     chapters: true,
                     pendingEvents: false,
                 }) || '';
-
-                const charBlock = this._buildCharacterBlock(author.name);
+                const charBlock = this._buildSingleCharBlock(author.name);
                 const playerBlock = PlayerStateManager.formatForPrompt();
 
                 // ★ 新增：注入历史
@@ -777,7 +870,7 @@ COMMENT: 王五|注意身体啊，别太拼了
                     .slice(0, 5)
                     .map(c => c.name);
 
-                const charBlock = this._buildCharacterBlock(moment.author);
+                const charBlock = this._buildSingleCharBlock(moment.author);
 
                 const prevComments = (moment.comments || [])
                     .slice(-5)
