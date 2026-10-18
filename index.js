@@ -71,8 +71,6 @@
         'item-effect.js',            // L4：效果系统 + 交互 + 背包 + 商店
         'battle.js',                 // L4：战斗系统
         'simulation.js',             // L4：模拟经营
-        'city.js',                   // L4：模拟经营
-        'industry.js',               // L4：模拟经营
         'background-gen.js',         // L4：AI 背景图生成（引擎层）
         'background-ui.js',          // L5：AI 背景图生成（UI 层）
         'social.js',                 // L5：虚拟社交
@@ -80,10 +78,10 @@
         'ui.js',                     // L5：UI + VN + 手机 + 玩家创建 + 启动
 
         // ↓ 子目录聚合入口（各自内部自己加载）
+        'companion/index.js',
         'TTS/index.js',
         'map/index.js',
         'strategy/index.js',
-
         'click.js',
         'save.js',                   // L6：存档（依赖所有模块）
     ];
