@@ -1,0 +1,1271 @@
+/* ============================================================
+   CinemaWorld · 队友与养成系统
+   前缀：cw-companion-
+   ============================================================ */
+
+/* ---------- 队伍数量角标 ---------- */
+.cw-companion-count {
+    margin-left: auto;
+    font-size: 15px;
+    color: #a8c4ff;
+    font-weight: 700;
+    padding: 3px 10px;
+    background: rgba(120, 150, 255, 0.15);
+    border: 1px solid rgba(120, 150, 255, 0.4);
+    border-radius: 10px;
+}
+
+/* ---------- 主体容器 ---------- */
+.cw-companion-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* ---------- 空状态 ---------- */
+.cw-companion-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 40px 20px;
+    color: #888;
+    text-align: center;
+}
+.cw-companion-empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+.cw-companion-empty-text {
+    font-size: 17px;
+    color: #aaa;
+    margin-bottom: 10px;
+}
+.cw-companion-empty-hint {
+    font-size: 15px;
+    color: #777;
+    line-height: 1.8;
+}
+
+.cw-companion-empty-line {
+    font-size: 15px;
+    color: #777;
+    padding: 14px 0;
+    text-align: center;
+}
+
+/* ============================================================
+   卡片列表（队伍列表页）
+   ============================================================ */
+.cw-companion-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+.cw-companion-card:hover {
+    background: rgba(120, 150, 255, 0.15);
+    border-color: rgba(120, 150, 255, 0.5);
+    transform: translateX(3px);
+}
+.cw-companion-card:active {
+    transform: translateX(3px) scale(0.99);
+}
+
+.cw-companion-card-avatar {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #3a3a5a, #2a2a45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    border: 2px solid rgba(120, 150, 255, 0.4);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.cw-companion-card-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cw-companion-card-main {
+    flex: 1;
+    min-width: 0;
+}
+.cw-companion-card-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cw-companion-card-stage {
+    font-size: 14px;
+    color: #a8c4ff;
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cw-companion-card-stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.cw-companion-stat-mini {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+    color: #ddd;
+}
+.cw-companion-stat-icon {
+    font-size: 15px;
+}
+.cw-companion-stat-val {
+    font-family: 'Menlo', 'Consolas', monospace;
+    color: #ffd76b;
+    font-weight: 700;
+    min-width: 24px;
+}
+.cw-companion-stat-mini .cw-companion-stat-bar {
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.cw-companion-stat-mini .cw-companion-stat-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7da8ff, #a8c4ff);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+.cw-companion-card-arrow {
+    font-size: 26px;
+    color: #667;
+    flex-shrink: 0;
+    transition: color 0.18s, transform 0.18s;
+}
+.cw-companion-card:hover .cw-companion-card-arrow {
+    color: #7da8ff;
+    transform: translateX(3px);
+}
+
+/* ============================================================
+   详情页
+   ============================================================ */
+.cw-companion-detail {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.cw-companion-detail-body {
+    padding: 20px 18px 28px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ---------- 立绘区 ---------- */
+.cw-companion-portrait {
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 18px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #2a2a45 0%, #1a1a30 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 90px;
+    border: 2px solid rgba(120, 150, 255, 0.45);
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+.cw-companion-portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+}
+
+/* ---------- 当前阶段 ---------- */
+.cw-companion-stage-current {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 18px;
+    background: linear-gradient(135deg,
+        rgba(255, 215, 100, 0.12),
+        rgba(255, 180, 60, 0.08));
+    border: 1px solid rgba(255, 215, 100, 0.35);
+    border-radius: 14px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+.cw-companion-stage-current-icon {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+.cw-companion-stage-current-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: #ffd76b;
+    margin-bottom: 4px;
+}
+.cw-companion-stage-current-desc {
+    font-size: 15px;
+    color: #ffd76b;
+    opacity: 0.8;
+}
+
+/* ---------- Section ---------- */
+.cw-companion-section {
+    margin-bottom: 22px;
+}
+.cw-companion-section-title {
+    font-size: 15px;
+    color: #a8c4ff;
+    font-weight: 700;
+    margin-bottom: 12px;
+    padding-left: 2px;
+    letter-spacing: 0.5px;
+}
+
+/* ============================================================
+   ★ 档案表格（字号加大）
+   ============================================================ */
+.cw-companion-profile-table {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.cw-companion-profile-row {
+    display: flex;
+    gap: 14px;
+    font-size: 15px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cw-companion-profile-row:last-child {
+    border-bottom: none;
+}
+.cw-companion-profile-key {
+    color: #999;
+    min-width: 70px;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+.cw-companion-profile-val {
+    color: #f0f0f0;
+    flex: 1;
+    word-break: break-word;
+    line-height: 1.6;
+}
+
+/* ---------- 背景故事 ---------- */
+.cw-companion-bg {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: rgba(120, 150, 255, 0.08);
+    border-left: 4px solid rgba(120, 150, 255, 0.6);
+    border-radius: 8px;
+}
+.cw-companion-bg-label {
+    font-size: 15px;
+    color: #a8c4ff;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+.cw-companion-bg-text {
+    font-size: 15px;
+    color: #e0e0e0;
+    line-height: 1.8;
+    white-space: pre-wrap;
+}
+
+/* ---------- 经历 ---------- */
+.cw-companion-exp {
+    margin-top: 14px;
+}
+.cw-companion-exp-label {
+    font-size: 15px;
+    color: #a8c4ff;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+.cw-companion-exp-item {
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    border-left: 3px solid rgba(255, 215, 100, 0.55);
+}
+.cw-companion-exp-title {
+    font-size: 15px;
+    color: #ffd76b;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.cw-companion-exp-text {
+    font-size: 15px;
+    color: #ccc;
+    line-height: 1.7;
+}
+
+/* ============================================================
+   ★ 养成属性 —— 网格布局
+   ============================================================ */
+.cw-companion-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.cw-companion-stat-card {
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    transition: all 0.18s ease;
+}
+.cw-companion-stat-card:hover {
+    background: rgba(120, 150, 255, 0.12);
+    border-color: rgba(120, 150, 255, 0.4);
+}
+
+.cw-companion-stat-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.cw-companion-stat-card-icon {
+    font-size: 20px;
+    line-height: 1;
+}
+.cw-companion-stat-card-label {
+    flex: 1;
+    font-size: 15px;
+    color: #f0f0f0;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cw-companion-stat-card-value {
+    font-size: 16px;
+    font-family: 'Menlo', 'Consolas', monospace;
+    color: #ffd76b;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+}
+.cw-companion-stat-card-value .max {
+    font-size: 13px;
+    color: #888;
+    font-weight: 500;
+}
+
+.cw-companion-stat-card-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.cw-companion-stat-card-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7da8ff, #a8c4ff);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+/* ============================================================
+   养成行动按钮
+   ============================================================ */
+.cw-companion-action-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.cw-companion-action-btn {
+    flex: 1;
+    min-width: 0;              /* ★ 关键 */
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.18s ease;
+    font-family: inherit;
+    color: inherit;
+    box-sizing: border-box;
+    overflow: hidden;          /* ★ 兜底 */
+}
+.cw-companion-action-btn:hover:not(.disabled) {
+    background: rgba(120, 150, 255, 0.15);
+    border-color: rgba(120, 150, 255, 0.5);
+}
+.cw-companion-action-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.cw-companion-action-icon {
+    font-size: 30px;
+    flex-shrink: 0;
+    width: 40px;
+    text-align: center;
+}
+.cw-companion-action-info {
+    flex: 1;
+    min-width: 0;
+}
+.cw-companion-action-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+}
+.cw-companion-action-meta {
+    font-size: 14px;
+    color: #bbb;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cw-companion-action-sub {
+    font-size: 12px;
+    color: #888;
+}
+.cw-companion-action-cd {
+    font-size: 12px;
+    color: #d87d7d;
+    padding: 3px 8px;
+    background: rgba(216, 125, 125, 0.15);
+    border-radius: 6px;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+
+/* ★ 快速行动按钮 */
+.cw-companion-quick-btn {
+    flex: 0 0 60px;            /* ★ 用 flex-basis 固定 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: auto;
+    min-width: 0;
+    padding: 8px 4px;
+    background: linear-gradient(135deg, rgba(255, 215, 100, 0.15), rgba(255, 180, 60, 0.1));
+    border: 1px solid rgba(255, 215, 100, 0.4);
+    border-radius: 12px;
+    color: #ffd76b;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.18s ease;
+    box-sizing: border-box;
+}
+.cw-companion-quick-btn:hover {
+    background: linear-gradient(135deg, rgba(255, 215, 100, 0.25), rgba(255, 180, 60, 0.2));
+    border-color: rgba(255, 215, 100, 0.7);
+    transform: scale(1.03);
+}
+.cw-companion-quick-btn:active {
+    transform: scale(0.98);
+}
+.cw-companion-quick-btn .icon {
+    font-size: 20px;
+    line-height: 1;
+}
+
+/* ---------- 阶段剧情块 ---------- */
+.cw-companion-stage-block {
+    margin-top: 24px;
+    padding: 16px;
+    background: linear-gradient(135deg,
+        rgba(255, 215, 100, 0.1) 0%,
+        rgba(255, 150, 60, 0.06) 100%);
+    border: 1px solid rgba(255, 215, 100, 0.35);
+    border-radius: 14px;
+}
+.cw-companion-stage-info {
+    margin-bottom: 14px;
+}
+.cw-companion-stage-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffd76b;
+    margin-bottom: 6px;
+}
+.cw-companion-stage-desc {
+    font-size: 15px;
+    color: #e0e0e0;
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+.cw-companion-stage-cond {
+    font-size: 14px;
+    color: #a8c4ff;
+}
+.cw-companion-stage-btn {
+    width: 100%;
+    padding: 12px 18px;
+    background: linear-gradient(135deg, #ffd76b, #ffb84d);
+    border: none;
+    border-radius: 10px;
+    color: #2a1f0a;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.18s ease;
+    box-shadow: 0 4px 14px rgba(255, 180, 60, 0.35);
+}
+.cw-companion-stage-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(255, 180, 60, 0.5);
+}
+
+/* ============================================================
+   确认框
+   ============================================================ */
+.cw-companion-confirm-body {
+    padding: 14px 16px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 12px;
+    margin-bottom: 14px;
+}
+.cw-companion-confirm-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cw-companion-confirm-row:last-child {
+    border-bottom: none;
+}
+.cw-companion-confirm-row > span:first-child {
+    color: #999;
+}
+.cw-companion-confirm-row > span:last-child {
+    color: #f0f0f0;
+    font-weight: 600;
+}
+.cw-companion-confirm-hint {
+    font-size: 15px;
+    color: #888;
+    line-height: 1.8;
+    padding: 10px 4px;
+    text-align: center;
+}
+
+/* ---------- 日志 ---------- */
+.cw-companion-log-line {
+    display: flex;
+    gap: 12px;
+    padding: 8px 10px;
+    font-size: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cw-companion-log-line:last-child {
+    border-bottom: none;
+}
+.cw-companion-log-time {
+    color: #888;
+    font-family: 'Menlo', 'Consolas', monospace;
+    flex-shrink: 0;
+}
+.cw-companion-log-text {
+    color: #e0e0e0;
+    flex: 1;
+}
+
+/* ============================================================
+   队友独立模态框（从地图打开）
+   ============================================================ */
+.cw-companion-modal-card {
+    background: linear-gradient(180deg,
+        rgba(30, 30, 50, 0.98) 0%,
+        rgba(20, 20, 35, 0.98) 100%);
+    border: 1px solid rgba(120, 150, 255, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 94vh;
+}
+.cw-companion-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
+}
+.cw-companion-modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+}
+.cw-companion-modal-close {
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #ddd;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+}
+.cw-companion-modal-close:hover {
+    background: rgba(216, 125, 125, 0.25);
+    border-color: rgba(216, 125, 125, 0.6);
+    color: #fff;
+}
+.cw-companion-modal-body {
+    padding: 24px 28px 32px;
+    overflow-y: auto;
+    flex: 1;
+}
+/* ============================================================
+   ★ 属性卡片（带等级）
+   ============================================================ */
+   .cw-companion-stat-card.max {
+    background: linear-gradient(135deg, rgba(255, 215, 100, 0.15), rgba(255, 180, 60, 0.1));
+    border-color: rgba(255, 215, 100, 0.55);
+}
+
+.cw-companion-stat-card-level {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 0 8px;
+    font-size: 13px;
+}
+.cw-companion-stat-card-level .lv {
+    color: #ffd76b;
+    font-weight: 700;
+    font-family: 'Menlo', 'Consolas', monospace;
+    padding: 2px 6px;
+    background: rgba(255, 215, 100, 0.15);
+    border-radius: 6px;
+}
+.cw-companion-stat-card-level .name {
+    color: #ffd76b;
+    font-weight: 600;
+    flex: 1;
+}
+.cw-companion-stat-card-level .max-level {
+    color: #888;
+    font-size: 12px;
+}
+
+.cw-companion-stat-card-desc {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.5;
+    font-style: italic;
+}
+
+/* 列表卡片的小等级标签 */
+.cw-companion-stat-lv {
+    font-size: 12px;
+    color: #ffd76b;
+    font-family: 'Menlo', 'Consolas', monospace;
+    font-weight: 700;
+    padding: 1px 5px;
+    background: rgba(255, 215, 100, 0.15);
+    border-radius: 4px;
+}
+
+/* ============================================================
+   ★ 里程碑
+   ============================================================ */
+.cw-companion-milestone-item {
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    border-left: 3px solid rgba(255, 215, 100, 0.55);
+}
+.cw-companion-milestone-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.cw-companion-milestone-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+.cw-companion-milestone-title {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffd76b;
+}
+.cw-companion-milestone-time {
+    font-size: 12px;
+    color: #888;
+    font-family: 'Menlo', 'Consolas', monospace;
+}
+.cw-companion-milestone-detail {
+    font-size: 13px;
+    color: #bbb;
+    line-height: 1.6;
+    padding-left: 26px;
+}
+
+/* ============================================================
+   ★ 属性卡片 · 描述 + 阶段锁
+   ============================================================ */
+   .cw-companion-stat-card-desc {
+    margin: 6px 0 8px;
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.5;
+    font-style: italic;
+}
+
+.cw-companion-stat-card-level-desc {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #bbb;
+    line-height: 1.5;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    border-left: 2px solid rgba(255, 215, 100, 0.4);
+}
+
+.cw-companion-stat-card.capped {
+    border-color: rgba(255, 150, 100, 0.5);
+    background: linear-gradient(135deg,
+        rgba(255, 150, 100, 0.06),
+        rgba(255, 100, 80, 0.04));
+}
+
+.cw-companion-stat-card-cap-warn {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #ffb08a;
+    line-height: 1.5;
+    padding: 6px 10px;
+    background: rgba(255, 150, 100, 0.12);
+    border: 1px solid rgba(255, 150, 100, 0.3);
+    border-radius: 6px;
+}
+
+/* 列表卡片 · capped 标记 */
+.cw-companion-stat-mini.capped {
+    color: #ffb08a;
+}
+.cw-companion-stat-mini.capped .cw-companion-stat-val {
+    color: #ffb08a;
+}
+.cw-companion-stat-lock {
+    font-size: 11px;
+    margin-left: 2px;
+}
+
+/* 行动按钮 · capped 角标 */
+.cw-companion-action-cd.capped {
+    color: #ffb08a;
+    background: rgba(255, 150, 100, 0.15);
+}
+
+/* ============================================================
+   ★ 阶段块：可触发状态
+   ============================================================ */
+   .cw-companion-stage-block.ready {
+    background: linear-gradient(135deg,
+        rgba(255, 215, 100, 0.18) 0%,
+        rgba(255, 180, 60, 0.12) 100%);
+    border-color: rgba(255, 215, 100, 0.6);
+    box-shadow: 0 0 20px rgba(255, 200, 80, 0.2);
+}
+
+.cw-companion-stage-block.ready .cw-companion-stage-name {
+    font-size: 17px;
+    text-shadow: 0 0 10px rgba(255, 200, 80, 0.4);
+}
+
+/* ============================================================
+   ★ 列表卡片：可触发标记
+   ============================================================ */
+.cw-companion-pending-badge {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 14px;
+    animation: cw-pending-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes cw-pending-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.15); opacity: 0.8; }
+}
+
+/* ============================================================
+   ★ 召唤 - 装备面板
+   ============================================================ */
+   .cw-summon-equip-section {
+    margin-bottom: 16px;
+}
+.cw-summon-equip-section-title {
+    font-size: 14px;
+    color: #a8c4ff;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.cw-summon-equip-slot {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+}
+.cw-summon-equip-slot.filled {
+    background: linear-gradient(135deg, rgba(255, 215, 100, 0.12), rgba(255, 180, 60, 0.08));
+    border-color: rgba(255, 215, 100, 0.4);
+}
+.cw-summon-equip-slot.empty {
+    border-style: dashed;
+    opacity: 0.7;
+}
+.cw-summon-equip-slot-icon {
+    font-size: 36px;
+    flex-shrink: 0;
+}
+.cw-summon-equip-slot-info {
+    flex: 1;
+    min-width: 0;
+}
+.cw-summon-equip-slot-name {
+    font-size: 15px;
+    color: #fff;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.cw-summon-equip-slot-desc {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.cw-summon-stats-preview {
+    padding: 14px;
+    background: rgba(120, 150, 255, 0.08);
+    border: 1px solid rgba(120, 150, 255, 0.25);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+.cw-summon-stats-title {
+    font-size: 14px;
+    color: #a8c4ff;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+.cw-summon-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.cw-summon-stats-grid > div {
+    text-align: center;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+}
+.cw-summon-stats-grid > div > span {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 4px;
+}
+.cw-summon-stats-grid > div > b {
+    font-size: 16px;
+    color: #ffd76b;
+    font-family: 'Menlo', 'Consolas', monospace;
+}
+.cw-summon-weapon-badge {
+    font-size: 12px;
+    color: #a8c4ff;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    text-align: center;
+}
+.cw-summon-weapon-badge.warn {
+    color: #ffb08a;
+    background: rgba(255, 150, 100, 0.12);
+}
+
+.cw-summon-weapon-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+.cw-summon-weapon-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+.cw-summon-weapon-info {
+    flex: 1;
+    min-width: 0;
+}
+.cw-summon-weapon-name {
+    font-size: 14px;
+    color: #fff;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+.cw-summon-weapon-desc {
+    font-size: 11px;
+    color: #888;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ============================================================
+   ★ 召唤状态栏（详情页顶部）
+   ============================================================ */
+   .cw-companion-summon-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    transition: all 0.18s ease;
+}
+
+.cw-companion-summon-bar.ready {
+    background: linear-gradient(135deg,
+        rgba(120, 220, 140, 0.12),
+        rgba(90, 200, 120, 0.08));
+    border-color: rgba(120, 220, 140, 0.4);
+}
+
+.cw-companion-summon-bar.active {
+    background: linear-gradient(135deg,
+        rgba(120, 150, 255, 0.15),
+        rgba(90, 120, 220, 0.1));
+    border-color: rgba(120, 150, 255, 0.5);
+}
+
+.cw-companion-summon-bar.cooldown {
+    background: linear-gradient(135deg,
+        rgba(216, 125, 125, 0.1),
+        rgba(180, 100, 100, 0.06));
+    border-color: rgba(216, 125, 125, 0.35);
+}
+
+.cw-companion-summon-bar.disabled {
+    opacity: 0.6;
+}
+
+.cw-companion-summon-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+.cw-companion-summon-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.cw-companion-summon-text {
+    font-size: 14px;
+    color: #e0e0e0;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cw-companion-summon-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.cw-companion-summon-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: #ddd;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.cw-companion-summon-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+.cw-companion-summon-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.cw-companion-summon-btn.primary {
+    background: linear-gradient(135deg, #5ad880, #3cb86c);
+    border-color: rgba(90, 216, 128, 0.6);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(90, 216, 128, 0.3);
+}
+.cw-companion-summon-btn.primary:hover:not(:disabled) {
+    box-shadow: 0 6px 16px rgba(90, 216, 128, 0.45);
+    transform: translateY(-1px);
+}
+
+.cw-companion-summon-btn.secondary {
+    color: #a8c4ff;
+    border-color: rgba(120, 150, 255, 0.4);
+    background: rgba(120, 150, 255, 0.12);
+}
+
+.cw-companion-summon-btn.danger {
+    color: #ffb8b8;
+    border-color: rgba(216, 125, 125, 0.4);
+    background: rgba(216, 125, 125, 0.15);
+}
+.cw-companion-summon-btn.danger:hover:not(:disabled) {
+    background: rgba(216, 125, 125, 0.25);
+    border-color: rgba(216, 125, 125, 0.6);
+}
+
+/* ============================================================
+   ★ 队伍列表 - 已召唤标记
+   ============================================================ */
+.cw-companion-summoned-badge {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 14px;
+    animation: cw-summoned-pulse 2s ease-in-out infinite;
+}
+
+@keyframes cw-summoned-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.15); }
+}
+/* ============================================================ */
+/* 队友装备面板 v2 */
+/* ============================================================ */
+
+.cw-summon-equip-slots {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.cw-summon-equip-slot {
+    display: grid;
+    grid-template-columns: 40px 40px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.03);
+}
+
+.cw-summon-equip-slot.empty {
+    opacity: 0.65;
+}
+
+.cw-summon-equip-slot.filled {
+    border-color: rgba(140,180,255,.35);
+    background: rgba(120,150,255,.08);
+}
+
+.cw-summon-equip-slot-label {
+    font-size: 11px;
+    color: #8fa8d8;
+    white-space: nowrap;
+    grid-column: 1 / -1;
+    margin-bottom: 2px;
+}
+
+.cw-summon-equip-slot-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    background: rgba(0,0,0,.3);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.cw-summon-equip-slot-info {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.cw-summon-equip-slot-name {
+    font-size: 13px;
+    color: #e8ecff;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cw-summon-equip-slot-desc {
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 装备 tab */
+.cw-summon-slot-tabs {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 12px;
+}
+
+.cw-summon-slot-tab {
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,.15);
+    background: rgba(0,0,0,.25);
+    color: #aaa;
+    cursor: pointer;
+    transition: all .15s;
+}
+
+.cw-summon-slot-tab:hover {
+    background: rgba(120,150,255,.15);
+    color: #fff;
+}
+
+.cw-summon-slot-tab.active {
+    background: rgba(120,150,255,.3);
+    color: #fff;
+    border-color: rgba(140,180,255,.6);
+}
+
+.cw-summon-inventory-list {
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* 属性加成预览 */
+.cw-summon-item-bonus {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.cw-summon-item-bonus span {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(120,220,140,.12);
+    color: #7dd87d;
+    border: 1px solid rgba(120,220,140,.25);
+}
+/* ============================================================
+   手机小屏适配
+   ============================================================ */
+@media (max-width: 480px) {
+    .cw-companion-card-avatar {
+        width: 54px;
+        height: 54px;
+        font-size: 26px;
+    }
+    .cw-companion-card-name {
+        font-size: 16px;
+    }
+    .cw-companion-card-stats {
+        gap: 8px;
+    }
+    .cw-companion-stat-mini .cw-companion-stat-bar {
+        width: 28px;
+    }
+    .cw-companion-portrait {
+        width: 140px;
+        height: 140px;
+        font-size: 70px;
+    }
+    .cw-companion-action-icon {
+        font-size: 26px;
+        width: 34px;
+    }
+    .cw-companion-stats-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    .cw-companion-quick-btn {
+        width: 52px;
+        font-size: 11px;
+    }
+    .cw-companion-quick-btn .icon {
+        font-size: 18px;
+    }
+}

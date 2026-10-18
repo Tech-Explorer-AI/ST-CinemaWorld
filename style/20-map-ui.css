@@ -425,3 +425,295 @@
         font-size: 12px;
     }
 }
+
+/* ============================================================
+   世界地图网格视图
+   ============================================================ */
+   .cw-worldmap-view {
+    display: flex;
+    flex-direction: column;
+    height: 70vh;
+    gap: 10px;
+}
+
+.cw-worldmap-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.cw-worldmap-toolbar button {
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+}
+
+.cw-worldmap-toolbar button:hover {
+    background: rgba(120, 150, 255, 0.15);
+    border-color: rgba(120, 150, 255, 0.4);
+}
+
+.cw-worldmap-toolbar button.active {
+    background: rgba(120, 150, 255, 0.25);
+    border-color: rgba(120, 150, 255, 0.6);
+    color: #fff;
+}
+
+.cw-worldmap-zoom {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+}
+
+.cw-worldmap-zoom button {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    font-size: 16px;
+}
+
+.cw-worldmap-zoom .zoom-val {
+    min-width: 44px;
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    font-family: monospace;
+}
+
+/* ---------- 画布区 ---------- */
+.cw-worldmap-canvas {
+    flex: 1;
+    position: relative;
+    overflow: auto;
+    background:
+        radial-gradient(circle at 50% 50%,
+            rgba(120, 150, 255, 0.05) 0%,
+            rgba(0, 0, 0, 0.2) 70%),
+        repeating-linear-gradient(0deg,
+            transparent 0px,
+            transparent 39px,
+            rgba(255, 255, 255, 0.02) 40px),
+        repeating-linear-gradient(90deg,
+            transparent 0px,
+            transparent 39px,
+            rgba(255, 255, 255, 0.02) 40px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: grab;
+}
+
+.cw-worldmap-canvas:active {
+    cursor: grabbing;
+}
+
+.cw-worldmap-grid {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: 0 0;
+    display: grid;
+    gap: 6px;
+    padding: 20px;
+    /* transition: transform 0.2s; */  /* 拖拽时禁用 */
+}
+
+/* ---------- 单个格子 ---------- */
+.cw-worldmap-cell {
+    width: 110px;
+    height: 90px;
+    border-radius: 8px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 6px;
+    box-sizing: border-box;
+    transition: all 0.15s;
+    user-select: none;
+    overflow: hidden;
+}
+
+/* 空位 */
+.cw-worldmap-cell.empty {
+    border: 1px dashed rgba(255, 255, 255, 0.05);
+    background: transparent;
+}
+
+/* 已探索 */
+.cw-worldmap-cell.visited {
+    background: rgba(120, 150, 255, 0.08);
+    border: 1px solid rgba(120, 150, 255, 0.25);
+    cursor: pointer;
+}
+
+.cw-worldmap-cell.visited:hover {
+    background: rgba(120, 150, 255, 0.2);
+    border-color: rgba(120, 150, 255, 0.55);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(120, 150, 255, 0.25);
+}
+
+/* 当前所在 */
+.cw-worldmap-cell.current {
+    background: linear-gradient(135deg,
+        rgba(120, 200, 255, 0.35),
+        rgba(80, 160, 220, 0.25));
+    border: 2px solid rgba(120, 200, 255, 0.85);
+    box-shadow:
+        0 0 0 3px rgba(120, 200, 255, 0.15),
+        0 4px 20px rgba(80, 180, 255, 0.4);
+}
+
+.cw-worldmap-cell.current::before {
+    content: '📍';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 14px;
+    filter: drop-shadow(0 0 4px rgba(120, 200, 255, 0.8));
+}
+
+/* 重叠 */
+.cw-worldmap-cell.overlap {
+    background: rgba(255, 200, 100, 0.12);
+    border: 1px solid rgba(255, 200, 100, 0.4);
+    cursor: pointer;
+}
+
+.cw-worldmap-cell.overlap:hover {
+    background: rgba(255, 200, 100, 0.25);
+    border-color: rgba(255, 200, 100, 0.7);
+}
+
+.cw-worldmap-cell.overlap::before {
+    content: '⚠️';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 11px;
+}
+
+/* 格子内容 */
+.cw-worldmap-cell .cell-name {
+    font-size: 12px;
+    color: #fff;
+    text-align: center;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-all;
+}
+
+.cw-worldmap-cell .cell-coord {
+    font-size: 9px;
+    color: #666;
+    font-family: monospace;
+    margin-top: 2px;
+}
+
+.cw-worldmap-cell .cell-badge {
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-top: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #888;
+}
+
+.cw-worldmap-cell .cell-badge.main-quest {
+    background: rgba(255, 200, 80, 0.2);
+    color: #ffd76b;
+}
+
+.cw-worldmap-cell .cell-badge.overlap-count {
+    background: rgba(255, 200, 100, 0.25);
+    color: #ffd76b;
+}
+
+/* ---------- 方位指示 ---------- */
+.cw-worldmap-compass {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 44px;
+    height: 44px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #888;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.cw-worldmap-compass .n { position: absolute; top: 2px; color: #ff8080; }
+.cw-worldmap-compass .s { position: absolute; bottom: 2px; }
+.cw-worldmap-compass .e { position: absolute; right: 3px; }
+.cw-worldmap-compass .w { position: absolute; left: 3px; }
+.cw-worldmap-compass .center { font-size: 10px; color: #666; }
+
+/* ---------- 图例 ---------- */
+.cw-worldmap-legend {
+    display: flex;
+    gap: 16px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    font-size: 11px;
+    color: #888;
+    flex-wrap: wrap;
+}
+
+.cw-worldmap-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cw-worldmap-legend .legend-item::before {
+    content: '';
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+}
+
+.cw-worldmap-legend .legend-item.current::before {
+    background: rgba(120, 200, 255, 0.4);
+    border: 1px solid rgba(120, 200, 255, 0.85);
+}
+
+.cw-worldmap-legend .legend-item.visited::before {
+    background: rgba(120, 150, 255, 0.15);
+    border: 1px solid rgba(120, 150, 255, 0.4);
+}
+
+.cw-worldmap-legend .legend-item.unvisited::before {
+    background: rgba(200, 200, 200, 0.05);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.cw-worldmap-legend .legend-item.overlap::before {
+    background: rgba(255, 200, 100, 0.2);
+    border: 1px solid rgba(255, 200, 100, 0.5);
+}
