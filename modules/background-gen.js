@@ -184,21 +184,25 @@
                 'extra limbs, bad anatomy, extra fingers, watermark, text',
         },
 
+        _memoryApiKey: '',
+
         load() {
             try {
                 const raw = localStorage.getItem(this.KEY);
-                if (!raw) return { ...this.defaults };
+                if (!raw) return { ...this.defaults, remoteApiKey: this._memoryApiKey };
                 const parsed = JSON.parse(raw);
-                return { ...this.defaults, ...parsed };
+                return { ...this.defaults, ...parsed, remoteApiKey: this._memoryApiKey };
             } catch (e) {
                 console.error('[BgGen] 配置读取失败:', e);
-                return { ...this.defaults };
+                return { ...this.defaults, remoteApiKey: this._memoryApiKey };
             }
         },
 
         save(cfg) {
             try {
-                localStorage.setItem(this.KEY, JSON.stringify(cfg));
+                this._memoryApiKey = cfg.remoteApiKey || '';
+                const { remoteApiKey, ...persistCfg } = cfg;
+                localStorage.setItem(this.KEY, JSON.stringify(persistCfg));
             } catch (e) {
                 console.error('[BgGen] 配置保存失败:', e);
             }
